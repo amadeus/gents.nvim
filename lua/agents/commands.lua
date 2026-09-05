@@ -2,7 +2,10 @@ local M = {}
 
 local subcommands = { "close", "hide", "new", "pick", "toggle" }
 
+---@param value string
+---@return string[]
 local function words(value)
+  ---@type string[]
   local result = {}
   for word in value:gmatch("%S+") do
     result[#result + 1] = word
@@ -10,7 +13,12 @@ local function words(value)
   return result
 end
 
+---@param candidates string[]
+---@param prefix string
+---@param offset? integer
+---@return string[]
 local function matching(candidates, prefix, offset)
+  ---@type string[]
   local result = {}
   for _, candidate in ipairs(candidates) do
     if vim.startswith(candidate, prefix) then
@@ -20,6 +28,8 @@ local function matching(candidates, prefix, offset)
   return result
 end
 
+---@param opts { args: string }
+---@return agents.Session?
 function M.run(opts)
   local args = words(opts.args)
   local command = table.remove(args, 1) or "pick"
@@ -52,11 +62,16 @@ function M.run(opts)
   )
 end
 
+---@param arglead string
+---@param cmdline string
+---@param cursorpos integer
+---@return string[]
 function M.complete(arglead, cmdline, cursorpos)
   local line = cmdline:sub(1, cursorpos)
   local args = line:match("^%s*:?%S+%s+(.*)$") or ""
+  ---@type string?, string?
   local command, remainder = args:match("^(%S+)%s+(.*)$")
-  if not command then
+  if not command or not remainder then
     return matching(subcommands, arglead)
   end
 
@@ -69,6 +84,7 @@ function M.complete(arglead, cmdline, cursorpos)
   end
 
   if command == "hide" or command == "close" then
+    ---@type string[]
     local labels = {}
     for _, session in ipairs(require("agents").sessions()) do
       labels[#labels + 1] = session.label

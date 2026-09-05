@@ -1,7 +1,16 @@
 {
   "runtime.version": "LuaJIT",
   "runtime.path": ["?.lua", "?/init.lua", "lua/?.lua", "lua/?/init.lua"],
+  "runtime.pathStrict": true,
+  "type.checkTableShape": true,
+  "type.castNumberToInteger": false,
   "diagnostics.globals": ["vim"],
+  "diagnostics.neededFileStatus": {
+    "no-unknown": "Any",
+    "incomplete-signature-doc": "Any",
+    "missing-local-export-doc": "Any",
+    "missing-global-doc": "Any"
+  },
   "workspace.library": ["$VIMRUNTIME/lua"],
   "workspace.checkThirdParty": false,
   "workspace.ignoreDir": [".git", ".deps", ".test"]

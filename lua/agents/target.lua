@@ -2,9 +2,10 @@ local M = {}
 
 ---@alias agents.Target integer|string|fun(session: agents.Session): boolean
 
+---@generic T
 ---@param target? agents.Target
----@param callback fun(session: agents.Session): any
----@return any
+---@param callback fun(session: agents.Session): T|nil
+---@return T|nil
 function M.with(target, callback)
   local registry = require("agents.session")
   local candidates = registry.list()
@@ -36,6 +37,7 @@ function M.with(target, callback)
   end
 
   local tab = vim.api.nvim_get_current_tabpage()
+  ---@type agents.Session[]
   local visible = {}
   for _, session in ipairs(candidates) do
     if require("agents.window").visible(session, tab) then

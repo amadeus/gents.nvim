@@ -1,12 +1,12 @@
 local M = {}
 
----@param opts? table
+---@param opts? agents.SetupOptions
 function M.setup(opts)
   require("agents.config").setup(opts)
 end
 
 ---@param tool? string
----@param opts? { args?: string[], layout?: string|table|function, label?: string }
+---@param opts? agents.NewOptions
 ---@return agents.Session?
 function M.new(tool, opts)
   if tool == nil then
@@ -30,7 +30,7 @@ function M.current()
 end
 
 ---@param target? agents.Target
----@param opts? { layout?: string|table|function }
+---@param opts? agents.ShowOptions
 ---@return agents.Session?
 function M.show(target, opts)
   return require("agents.target").with(target, function(session)
@@ -50,6 +50,7 @@ function M.close(target)
   return require("agents.target").with(target, require("agents.session").close)
 end
 
+---@return nil
 function M.pick()
   local sessions = M.sessions()
   if #sessions == 0 then
@@ -60,6 +61,7 @@ function M.pick()
   end)
 end
 
+---@return agents.Session?
 function M.toggle()
   local current = M.current()
   if current then

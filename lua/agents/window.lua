@@ -12,15 +12,24 @@ function M.visible(session, tab)
   return false
 end
 
+---@param value number
+---@param size integer
+---@param dimension "width"|"height"
+---@return number
+local function float_dimension(value, size, dimension)
+  assert(type(value) == "number", "agents: float " .. dimension .. " must be a number")
+  if value > 0 and value <= 1 then
+    return math.floor(size * value)
+  end
+  return value
+end
+
+---@param layout agents.FloatConfig
+---@return vim.api.keyset.win_config
 local function float_config(layout)
   local opts = vim.deepcopy(layout)
-  for key, size in pairs({ width = vim.o.columns, height = vim.o.lines }) do
-    local value = opts[key]
-    assert(type(value) == "number", "agents: float " .. key .. " must be a number")
-    if value > 0 and value <= 1 then
-      opts[key] = math.floor(size * value)
-    end
-  end
+  opts.width = float_dimension(opts.width, vim.o.columns, "width")
+  opts.height = float_dimension(opts.height, vim.o.lines, "height")
   opts.relative = opts.relative or "editor"
   opts.row = opts.row or math.floor((vim.o.lines - opts.height) / 2)
   opts.col = opts.col or math.floor((vim.o.columns - opts.width) / 2)
@@ -28,7 +37,7 @@ local function float_config(layout)
 end
 
 ---@param buf integer
----@param layout? string|table|fun(buf: integer): integer
+---@param layout? agents.Layout
 ---@return integer
 function M.open(buf, layout)
   local config = require("agents.config").get()
@@ -37,6 +46,7 @@ function M.open(buf, layout)
     layout = config.float
   end
 
+  ---@type integer
   local win
   if type(layout) == "table" then
     win = vim.api.nvim_open_win(buf, true, float_config(layout))
@@ -54,7 +64,8 @@ function M.open(buf, layout)
 end
 
 ---@param session agents.Session
----@param layout? string|table|fun(buf: integer): integer
+---@param layout? agents.Layout
+---@return agents.Session
 function M.show(session, layout)
   local wins = vim.fn.win_findbuf(session.buf)
   if #wins == 0 then
@@ -70,6 +81,7 @@ function M.show(session, layout)
 end
 
 ---@param session agents.Session
+---@return agents.Session
 function M.hide(session)
   for _, win in ipairs(vim.fn.win_findbuf(session.buf)) do
     local ok, err = pcall(vim.api.nvim_win_hide, win)

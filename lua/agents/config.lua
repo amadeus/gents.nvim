@@ -1,15 +1,6 @@
 local M = {}
 local tools = require("agents.tools")
 
----@class agents.Config
----@field layout string|table|fun(buf: integer): integer
----@field float table
----@field picker? fun(spec: agents.PickerSpec)
----@field on_exit "keep"|"close"
----@field tools table<string, agents.Tool>
----@field prompts table
----@field keys table[]
-
 ---@type agents.Config
 local defaults = {
   layout = "vsplit",
@@ -24,7 +15,13 @@ local defaults = {
 ---@type agents.Config?
 local current
 
----@param config agents.Config
+---@class agents.config.PendingTool: agents.ToolOverride
+---@field name? string
+
+---@class agents.config.PendingConfig: agents.Config
+---@field tools table<string, agents.config.PendingTool>
+
+---@param config agents.Config|agents.config.PendingConfig
 local function validate(config)
   local layout_type = type(config.layout)
   if layout_type ~= "string" and layout_type ~= "table" and layout_type ~= "function" then
@@ -35,8 +32,9 @@ local function validate(config)
   end
   for name, tool in pairs(config.tools) do
     local cmd = tool.cmd
-    local valid = type(cmd) == "table" and vim.islist(cmd) and #cmd > 0 and cmd[1] ~= ""
-    if valid then
+    local valid = false
+    if type(cmd) == "table" and vim.islist(cmd) and #cmd > 0 and cmd[1] ~= "" then
+      valid = true
       for _, arg in ipairs(cmd) do
         if type(arg) ~= "string" then
           valid = false
@@ -55,12 +53,13 @@ local function validate(config)
   end
 end
 
----@param opts? table
+---@param opts? agents.SetupOptions
 ---@return agents.Config
 function M.setup(opts)
   opts = vim.deepcopy(opts or {})
   local overrides = opts.tools or {}
   opts.tools = nil
+  ---@type agents.Config|agents.config.PendingConfig
   local config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts)
   for name, override in pairs(overrides) do
     if override == false then
@@ -70,15 +69,14 @@ function M.setup(opts)
         type(override) == "table",
         "agents: tools." .. name .. " must be a tool table or false"
       )
-      local tool = config.tools[name] or {}
-      for field, value in pairs(override) do
-        tool[field] = value
-      end
+      ---@type agents.config.PendingTool
+      local tool = vim.tbl_extend("force", config.tools[name] or {}, override)
       tool.name = name
       config.tools[name] = tool
     end
   end
   validate(config)
+  ---@cast config agents.Config
   current = config
   return config
 end

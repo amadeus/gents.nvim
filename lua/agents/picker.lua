@@ -1,18 +1,21 @@
 local M = {}
 
----@class agents.PickerItem
+---@class agents.PickerItem<T>
 ---@field text string
 ---@field preview? string
----@field data any
+---@field data T
 ---@field hl? string Suggested highlight group for adapters that support item styling.
 
----@class agents.PickerSpec
+---@class agents.PickerSpec<T>
 ---@field title string
----@field items agents.PickerItem[]
----@field actions table<string, fun(item: agents.PickerItem)>
+---@field items agents.PickerItem<T>[]
+---@field actions table<string, fun(item: agents.PickerItem<T>)>
 ---@field default string Action name used for Enter.
 
----@param spec agents.PickerSpec
+---@alias agents.PickerAdapter fun<T>(spec: agents.PickerSpec<T>)
+
+---@generic T
+---@param spec agents.PickerSpec<T>
 function M.open(spec)
   local adapter = require("agents.config").get().picker
   if adapter then
@@ -22,6 +25,8 @@ function M.open(spec)
 
   vim.ui.select(spec.items, {
     prompt = spec.title,
+    ---@param item { text: string }
+    ---@return string
     format_item = function(item)
       return item.text
     end,
@@ -36,6 +41,7 @@ end
 function M.tools(callback)
   local config = require("agents.config").get()
   local origin = vim.api.nvim_get_current_win()
+  ---@type agents.PickerItem<agents.Tool>[]
   local items = {}
   for _, name in ipairs(require("agents.tools").names(config.tools)) do
     local tool = config.tools[name]
@@ -49,11 +55,13 @@ function M.tools(callback)
     end
   end
 
-  M.open({
+  ---@type agents.PickerSpec<agents.Tool>
+  local spec = {
     title = "Agents: new session",
     items = items,
     default = "new",
     actions = {
+      ---@param item agents.PickerItem<agents.Tool>
       new = function(item)
         if not vim.api.nvim_win_is_valid(origin) then
           vim.notify(
@@ -74,7 +82,8 @@ function M.tools(callback)
         callback(tool)
       end,
     },
-  })
+  }
+  M.open(spec)
 end
 
 ---@param candidates agents.Session[]
@@ -83,7 +92,9 @@ function M.sessions(candidates, callback)
   local window = require("agents.window")
   local tab = vim.api.nvim_get_current_tabpage()
   local origin = vim.api.nvim_get_current_win()
+  ---@type agents.Session[]
   local ordered = {}
+  ---@type table<integer, integer>
   local ranks = {}
   for _, session in ipairs(candidates) do
     ordered[#ordered + 1] = session
@@ -97,6 +108,7 @@ function M.sessions(candidates, callback)
     return a.id < b.id
   end)
 
+  ---@type agents.PickerItem<agents.Session>[]
   local items = {}
   for _, session in ipairs(ordered) do
     local state = session.state == "exited" and "exited"
@@ -108,11 +120,13 @@ function M.sessions(candidates, callback)
     items[#items + 1] = { text = text, data = session }
   end
 
-  M.open({
+  ---@type agents.PickerSpec<agents.Session>
+  local spec = {
     title = "Agents: sessions",
     items = items,
     default = "show",
     actions = {
+      ---@param item agents.PickerItem<agents.Session>
       show = function(item)
         local session = require("agents.session").get(item.data.id)
         if not session then
@@ -129,7 +143,8 @@ function M.sessions(candidates, callback)
         callback(session)
       end,
     },
-  })
+  }
+  M.open(spec)
 end
 
 return M

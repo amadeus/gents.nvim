@@ -50,6 +50,7 @@ Development targets Neovim stable, with nightly also tested in CI.
 ```sh
 make test
 make lint
+make typecheck
 ```
 
 `make test` requires Neovim, Make, curl, and tar. The first run downloads a
@@ -58,11 +59,28 @@ pinned [mini.test](https://github.com/nvim-mini/mini.test) revision into
 under `.test/`. Neither directory is tracked. The plugin has no runtime
 dependencies.
 
-`make lint` requires StyLua 2.5.2. Override the executables when needed:
+`make lint` requires StyLua 2.5.2. `make typecheck` requires
+[LuaLS 3.19.1](https://github.com/LuaLS/lua-language-server/releases/tag/3.19.1),
+the version pinned in CI. LuaCATS annotations provide editor completion and
+static checks without changing the plugin's Lua runtime.
+
+The typecheck uses the selected Neovim's runtime definitions and checks plugin
+code and development scripts. It excludes runtime tests, which intentionally
+exercise invalid inputs, and local editor configuration. Generated configuration
+and LuaLS files stay under `.test/typecheck/`; editor diagnostics still use
+`.luarc.json`. Warnings and errors fail the check.
+Table-shape checking is enabled, and implicit `number`-to-`integer` assignments
+are rejected. Unknown inferred types, incomplete function signatures, and
+missing annotations on global or exported local functions are also checked.
+These diagnostics supplement explicit annotations; LuaLS does not provide
+a `noImplicitAny` guarantee.
+
+Override the executables when needed:
 
 ```sh
 make test NVIM=/path/to/nvim
 make lint STYLUA=/path/to/stylua
+make typecheck NVIM=/path/to/nvim LUA_LS=/path/to/lua-language-server
 ```
 
 For an interactive clean load from the repository root:

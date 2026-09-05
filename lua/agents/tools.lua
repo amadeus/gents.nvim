@@ -1,12 +1,5 @@
 local M = {}
 
----@class agents.Tool
----@field name string
----@field cmd string[]
----@field env? table<string, string|false>
----@field url? string
----@field enabled? boolean
-
 ---@type agents.Tool[]
 local builtins = {
   {
@@ -92,6 +85,7 @@ end
 ---@param configured_tools table<string, agents.Tool>
 ---@return string[]
 function M.names(configured_tools)
+  ---@type string[], string[]
   local names, custom = {}, {}
   for _, tool in ipairs(builtins) do
     if configured_tools[tool.name] then

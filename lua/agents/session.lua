@@ -1,4 +1,5 @@
 local M = {}
+---@type table<integer, agents.Session>
 local registry = {}
 local next_id = 0
 
@@ -9,7 +10,7 @@ local next_id = 0
 ---@field cmd string[]
 ---@field cwd string
 ---@field buf integer
----@field job integer
+---@field job? integer Assigned after the terminal job starts.
 ---@field state "starting"|"ready"|"exited"
 ---@field exit_code? integer
 ---@field tab? integer
@@ -37,8 +38,13 @@ function M.current()
   end
 end
 
+---@param tool agents.Tool
+---@param requested? string
+---@return string
 local function label_for(tool, requested)
-  local labels, count = {}, 0
+  ---@type table<string, boolean>
+  local labels = {}
+  local count = 0
   for _, session in pairs(registry) do
     labels[session.label] = true
     if session.tool.name == tool.name then
@@ -59,8 +65,12 @@ local function label_for(tool, requested)
   return label
 end
 
+---@param tool agents.Tool
+---@param id integer
+---@return table<string, string>
 local function environment(tool, id)
   -- jobstart serializes false instead of unsetting it, so supply a full environment.
+  ---@type table<string, string>
   local env = vim.fn.environ()
   for _, name in ipairs({
     "NVIM",
@@ -88,6 +98,7 @@ local function environment(tool, id)
 end
 
 ---@param session agents.Session
+---@return agents.Session?
 function M.close(session)
   if registry[session.id] ~= session then
     return
@@ -104,7 +115,7 @@ function M.close(session)
 end
 
 ---@param tool agents.Tool
----@param opts? { args?: string[], layout?: string|table|function, label?: string }
+---@param opts? agents.NewOptions
 ---@return agents.Session
 function M.new(tool, opts)
   opts = opts or {}
@@ -120,6 +131,7 @@ function M.new(tool, opts)
   local cwd = vim.fn.getcwd(0)
   local on_exit = require("agents.config").get().on_exit
   next_id = next_id + 1
+  ---@type agents.Session
   local session = {
     id = next_id,
     tool = vim.deepcopy(tool),

@@ -1,10 +1,54 @@
 local M = {}
 
+---@param path string
+---@param range? agents.Range
+---@return string
+local function claude_location(path, range)
+  if not range then
+    return "@" .. path
+  end
+  local first, last =
+    math.min(range.start[1], range.finish[1]), math.max(range.start[1], range.finish[1])
+  return "@" .. path .. "#L" .. first .. (last ~= first and ("-" .. last) or "")
+end
+
+-- Characters consumed by the tools' @path parsers and unescapePath helpers.
+local special_path_chars = " \t()[]{};|*?$`'\"#&<>!~,"
+
+---@param path string
+---@param escape_backslash boolean
+---@return string
+local function escape_path(path, escape_backslash)
+  return (
+    path:gsub(".", function(char)
+      if special_path_chars:find(char, 1, true) or (escape_backslash and char == "\\") then
+        return "\\" .. char
+      end
+      return char
+    end)
+  )
+end
+
+---@param path string
+---@param range? agents.Range
+---@return string
+local function gemini_location(path, range)
+  return require("agents.render").location(escape_path(path, true), range)
+end
+
+---@param path string
+---@param range? agents.Range
+---@return string
+local function qwen_location(path, range)
+  return require("agents.render").location(escape_path(path, false), range)
+end
+
 ---@type agents.Tool[]
 local builtins = {
   {
     name = "claude",
     cmd = { "claude" },
+    location = claude_location,
     url = "https://code.claude.com/docs/en/quickstart",
   },
   {
@@ -52,6 +96,7 @@ local builtins = {
   {
     name = "gemini",
     cmd = { "gemini" },
+    location = gemini_location,
     url = "https://github.com/google-gemini/gemini-cli",
   },
   {
@@ -72,6 +117,7 @@ local builtins = {
   {
     name = "qwen",
     cmd = { "qwen" },
+    location = qwen_location,
     url = "https://github.com/QwenLM/qwen-code",
   },
 }

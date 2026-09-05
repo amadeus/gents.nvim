@@ -5,6 +5,7 @@
 ---@field cmd string[]
 ---@field env? table<string, string|false>
 ---@field url? string
+---@field location? fun(path: string, range?: agents.Range): string
 ---@field enabled? boolean
 
 ---Tool fields supplied to setup; the table key supplies the name.
@@ -12,6 +13,7 @@
 ---@field cmd? string[]
 ---@field env? table<string, string|false>
 ---@field url? string
+---@field location? fun(path: string, range?: agents.Range): string
 ---@field enabled? boolean
 
 ---Partial defaults for floating windows. Fractions in (0, 1] are screen proportions.
@@ -37,13 +39,18 @@
 ---@class agents.ShowOptions
 ---@field layout? agents.Layout
 
+---@class agents.SendOptions
+---@field target? agents.Target
+---@field submit? boolean Send Enter after pasting; defaults to false.
+---@field focus? boolean Focus the destination; defaults to false.
+
 ---@class agents.SetupOptions
 ---@field layout? agents.Layout
 ---@field float? agents.FloatOptions
 ---@field picker? agents.PickerAdapter
 ---@field on_exit? "keep"|"close"
 ---@field tools? table<string, agents.ToolOverride|false>
----@field prompts? table<string, agents.Item[]> Reserved for context sending.
+---@field prompts? table<string, agents.Item[]>
 ---@field keys? agents.Keymap[]
 
 ---@class agents.Config
@@ -52,7 +59,7 @@
 ---@field picker? agents.PickerAdapter
 ---@field on_exit "keep"|"close"
 ---@field tools table<string, agents.Tool>
----@field prompts table<string, agents.Item[]> Reserved for context sending.
+---@field prompts table<string, agents.Item[]>
 ---@field keys agents.Keymap[]
 
 ---@alias agents.SessionState "starting"|"ready"|"exited"
@@ -61,6 +68,10 @@
 ---@field id integer
 ---@field win? integer
 ---@field exit_code? integer
+
+---@class agents.SendEvent
+---@field id integer
+---@field submit boolean
 
 ---@class agents.ReadyEvent
 ---@field id integer
@@ -80,7 +91,7 @@
 ---@field state agents.SessionState
 ---@field cwd string
 
----These context data shapes describe the reserved prompts configuration.
+---Inclusive endpoints: one-based rows and zero-based byte columns.
 ---@class agents.Range
 ---@field kind "char"|"line"|"block"
 ---@field start { [1]: integer, [2]: integer }
@@ -92,6 +103,10 @@
 ---@field cwd string
 ---@field cursor { [1]: integer, [2]: integer }
 ---@field range? agents.Range
+
+---@class agents.Provider
+---@field desc string
+---@field render fun(ctx: agents.Context): agents.Part[]|nil
 
 ---@alias agents.Part { text: string }|{ path: string, range?: agents.Range }|{ code: string, ft?: string }
 ---@alias agents.Item string|agents.Part|{ any: agents.Item[] }|fun(ctx: agents.Context): agents.Part[]|nil

@@ -7,12 +7,24 @@ function M.reset()
   for _, session in ipairs(agents.sessions()) do
     agents.close(session.id)
   end
+  -- Live terminal buffers are deleted only after their PTY streams close.
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype == "terminal" then
+      local job = vim.bo[buf].channel
+      if job > 0 and vim.fn.jobwait({ job }, 0)[1] == -1 then
+        vim.fn.jobstop(job)
+        M.wait(function()
+          return vim.fn.jobwait({ job }, 0)[1] ~= -1
+        end)
+      end
+    end
+  end
   vim.cmd.stopinsert()
   vim.cmd("silent tabonly!")
   vim.cmd("silent only!")
   vim.cmd("enew!")
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if buf ~= vim.api.nvim_get_current_buf() then
+    if vim.api.nvim_buf_is_valid(buf) and buf ~= vim.api.nvim_get_current_buf() then
       vim.api.nvim_buf_delete(buf, { force = true })
     end
   end

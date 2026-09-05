@@ -31,7 +31,22 @@ local function validate(config)
     error('agents: on_exit must be "keep" or "close"', 3)
   end
   require("agents.keys").validate(config.keys)
+  assert(type(config.prompts) == "table", "agents: prompts must be a table of item lists")
+  for name, items in pairs(config.prompts) do
+    assert(
+      type(name) == "string" and name ~= "" and not name:find("%s"),
+      "agents: prompt names must be non-empty and contain no whitespace"
+    )
+    assert(
+      type(items) == "table" and vim.islist(items) and #items > 0,
+      "agents: prompts." .. name .. " must be a non-empty item list"
+    )
+  end
   for name, tool in pairs(config.tools) do
+    assert(
+      tool.location == nil or type(tool.location) == "function",
+      "agents: tools." .. name .. ".location must be a function"
+    )
     local cmd = tool.cmd
     local valid = false
     if type(cmd) == "table" and vim.islist(cmd) and #cmd > 0 and cmd[1] ~= "" then

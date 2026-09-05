@@ -72,8 +72,6 @@ local function callback(action)
   return function()
     if type(action) == "function" then
       action()
-    elseif action == "send" then
-      error("agents: the send action is not available yet")
     else
       require("agents")[action]()
     end

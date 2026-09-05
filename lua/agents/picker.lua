@@ -219,4 +219,48 @@ function M.sessions(candidates, callback)
   M.open(spec)
 end
 
+---@param ctx agents.Context
+---@param callback fun(parts: agents.Part[])
+function M.context(ctx, callback)
+  local origin = vim.api.nvim_get_current_win()
+  local render = require("agents.render")
+  local providers = require("agents.providers")
+  ---@type agents.PickerItem<agents.Part[]>[]
+  local items = {}
+
+  ---@param label string
+  ---@param source agents.Item[]
+  local function add(label, source)
+    local parts = render.resolve(source, ctx)
+    if parts then
+      items[#items + 1] = { text = label, preview = render.text(parts, ctx), data = parts }
+    end
+  end
+
+  local prompts = require("agents.config").get().prompts
+  ---@type string[]
+  local names = vim.tbl_keys(prompts)
+  table.sort(names)
+  for _, name in ipairs(names) do
+    add(name .. " [prompt]", prompts[name])
+  end
+  for _, name in ipairs(providers.names()) do
+    add(name .. " — " .. assert(providers.get(name)).desc, { name })
+  end
+
+  M.open({
+    title = "Agents: send context",
+    items = items,
+    default = "send",
+    actions = {
+      ---@param item agents.PickerItem<agents.Part[]>
+      send = function(item)
+        if restore_origin(origin, "context") then
+          callback(item.data)
+        end
+      end,
+    },
+  })
+end
+
 return M

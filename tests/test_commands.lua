@@ -24,10 +24,10 @@ end
 
 ---@type table<string, function>
 local original
----@type { [1]: string, [2]: (agents.Target|agents.NewOptions)[] }[]
+---@type { [1]: string, [2]: (agents.Target|agents.NewOptions|agents.Item[])[] }[]
 local calls
----@type ("new"|"toggle"|"pick"|"hide"|"close")[]
-local methods = { "new", "toggle", "pick", "hide", "close" }
+---@type ("new"|"toggle"|"pick"|"hide"|"close"|"send")[]
+local methods = { "new", "toggle", "pick", "hide", "close", "send" }
 local dispatch = test.new_set({
   hooks = {
     pre_case = function()
@@ -36,7 +36,7 @@ local dispatch = test.new_set({
       local agents = require("agents")
       for _, name in ipairs(methods) do
         original[name] = agents[name]
-        ---@param ... agents.Target|agents.NewOptions
+        ---@param ... agents.Target|agents.NewOptions|agents.Item[]
         agents[name] = function(...)
           calls[#calls + 1] = { name, { ... } }
         end
@@ -56,7 +56,7 @@ local dispatch = test.new_set({
 T["dispatch"] = dispatch
 
 dispatch["every subcommand calls the Lua facade"] = function()
-  for _, command in ipairs({ "", "new", "new cat", "toggle", "pick", "hide", "close" }) do
+  for _, command in ipairs({ "", "new", "new cat", "toggle", "pick", "hide", "close", "send" }) do
     vim.cmd("Agents " .. command)
   end
   expect(calls, {
@@ -67,7 +67,21 @@ dispatch["every subcommand calls the Lua facade"] = function()
     { "pick", {} },
     { "hide", {} },
     { "close", {} },
+    { "send", {} },
   })
+end
+
+dispatch["send expands named prompts alongside provider names"] = function()
+  config.setup({ prompts = { explain = { { text = "Explain:" }, "selection" } } })
+  vim.cmd("Agents send file explain")
+  expect(calls, { { "send", { { "file", { text = "Explain:" }, "selection" } } } })
+end
+
+dispatch["ranges are rejected for commands other than send"] = function()
+  test.expect.error(function()
+    vim.cmd("1Agents new cat")
+  end, "only send accepts a range")
+  expect(calls, {})
 end
 
 dispatch["arguments split on whitespace without evaluation"] = function()
@@ -127,12 +141,19 @@ T["setup replaces its command without resetting config"] = function()
 end
 
 T["completion covers only supported subcommands"] = function()
-  expect(complete("Agents "), { "close", "hide", "new", "pick", "toggle" })
+  expect(complete("Agents "), { "close", "hide", "new", "pick", "send", "toggle" })
   expect(complete("Agents n"), { "new" })
-  expect(complete("Agents send "), {})
   expect(complete("Agents toggle "), {})
   expect(complete("Agents pick "), {})
   expect(complete("Agents unknown "), {})
+end
+
+T["send completes providers and prompts at every item position"] = function()
+  config.setup({ prompts = { explain = { "file" }, file = { { text = "File prompt" } } } })
+  expect(complete("Agents send fi"), { "file" })
+  expect(complete("Agents send file ex"), { "explain" })
+  expect(complete("'<,'>Agents send se"), { "selection" })
+  expect(vim.fn.getcompletion("Agents send file di", "cmdline"), { "diagnostics" })
 end
 
 T["tool completion uses configured tools only at the tool position"] = function()
@@ -168,7 +189,9 @@ sessions["new, hide, and close operate on a real terminal"] = function()
   expect(vim.fn.win_findbuf(session.buf), {})
   vim.cmd("Agents close " .. session.label)
   expect(require("agents").sessions(), {})
-  expect(vim.api.nvim_buf_is_valid(session.buf), false)
+  H.wait(function()
+    return not vim.api.nvim_buf_is_valid(session.buf)
+  end)
 end
 
 sessions["completion replaces only the current word of a session label"] = function()

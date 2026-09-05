@@ -108,11 +108,18 @@ config["invalid keys leave configuration and installed mappings intact"] = funct
   end
 end
 
-config["send remains reserved and explains the missing action when invoked"] = function()
-  setup({ { "<F6>", "send", mode = "n" } })
-  local ok, err = pcall(assert(assert(mapping("n", "<F6>")).callback))
-  eq(ok, false)
-  eq(tostring(err):find("the send action is not available yet", 1, true) ~= nil, true)
+config["send opens the context picker"] = function()
+  ---@type string?
+  local title
+  agents.setup({
+    keys = { { "<F6>", "send", mode = "n" } },
+    ---@param spec agents.PickerSpec<agents.Part[]>
+    picker = function(spec)
+      title = spec.title
+    end,
+  })
+  assert(assert(mapping("n", "<F6>")).callback)()
+  eq(title, "Agents: send context")
 end
 
 config["FileType mappings can override configured terminal keys"] = function()
@@ -237,6 +244,42 @@ input_tests["plain terminals receive the key without toggling an agents session"
     { true, 0, "t" }
   )
   lua([[vim.fn.jobstop(plain_job)]])
+end
+
+input_tests["send captures an active selection and does not reuse it on later invocations"] = function()
+  input("<F6>")
+  wait([[vim.api.nvim_get_mode().mode == "n"]])
+  lua([[
+    require("agents").setup({
+      tools = { cat = { cmd = { "cat" } } },
+      keys = { { "<F7>", "send" } },
+      picker = function(spec)
+        _G.previews = {}
+        for _, item in ipairs(spec.items) do
+          local name = item.text:match("^%S+")
+          _G.previews[name] = item.preview
+        end
+      end,
+    })
+    vim.api.nvim_buf_set_name(0, vim.fs.joinpath(vim.fn.getcwd(), "key-context.lua"))
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "    alpha beta", "second" })
+    vim.bo.filetype = "lua"
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  ]])
+  input("v8l<F7>")
+  wait([[_G.previews ~= nil]])
+  eq(lua([[return previews.selection]]), "```lua\nalpha\n```")
+  eq(lua([[return vim.api.nvim_get_mode().mode]]), "n")
+  lua([[_G.previews = nil]])
+  input("<F7>")
+  wait([[_G.previews ~= nil]])
+  eq(lua([[return previews.selection]]), vim.NIL)
+  eq(lua([[return previews.file]]), "@key-context.lua")
+  lua([[_G.previews = nil; require("agents").show(session.id)]])
+  wait([[vim.api.nvim_get_mode().mode == "t"]])
+  input("<F7>")
+  wait([[_G.previews ~= nil]])
+  eq(lua([[return previews.file]]), "@key-context.lua")
 end
 
 return T

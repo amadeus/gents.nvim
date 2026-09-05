@@ -531,9 +531,9 @@ T["session hide and close actions preserve or terminate the job"] = function()
   spec = get_spec()
   spec.actions.close(spec.items[1])
   test.expect.equality(require("agents.session").get(session.id), nil)
-  test.expect.equality(vim.api.nvim_buf_is_valid(session.buf), false)
   H.wait(function()
-    return vim.fn.jobwait({ session.job }, 0)[1] ~= -1
+    return not vim.api.nvim_buf_is_valid(session.buf)
+      and vim.fn.jobwait({ session.job }, 0)[1] ~= -1
   end)
 end
 

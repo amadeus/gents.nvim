@@ -1,6 +1,6 @@
 local M = {}
 
-local subcommands = { "close", "hide", "new", "pick", "toggle" }
+local subcommands = { "close", "hide", "new", "pick", "send", "toggle" }
 
 ---@param value string
 ---@return string[]
@@ -28,12 +28,35 @@ local function matching(candidates, prefix, offset)
   return result
 end
 
----@param opts { args: string }
+---@param opts { args: string, range?: integer, line1?: integer, line2?: integer }
 ---@return agents.Session?
 function M.run(opts)
   local args = words(opts.args)
   local command = table.remove(args, 1) or "pick"
   local agents = require("agents")
+
+  if opts.range and opts.range > 0 and command ~= "send" then
+    error("agents: only send accepts a range", 0)
+  end
+
+  if command == "send" then
+    ---@type agents.Item[]?
+    local items
+    if #args > 0 then
+      items = {}
+      local prompts = require("agents.config").get().prompts
+      for _, name in ipairs(args) do
+        vim.list_extend(items, prompts[name] or { name })
+      end
+    end
+    if opts.range and opts.range > 0 then
+      return require("agents.send").run(items or { "selection" }, nil, {
+        line1 = assert(opts.line1),
+        line2 = assert(opts.line2),
+      })
+    end
+    return agents.send(items)
+  end
 
   if command == "new" then
     local name = table.remove(args, 1)
@@ -83,6 +106,17 @@ function M.complete(arglead, cmdline, cursorpos)
     return matching(tools.names(require("agents.config").get().tools), arglead)
   end
 
+  if command == "send" then
+    local names = require("agents.providers").names()
+    for name in pairs(require("agents.config").get().prompts) do
+      if not vim.list_contains(names, name) then
+        names[#names + 1] = name
+      end
+    end
+    table.sort(names)
+    return matching(names, arglead)
+  end
+
   if command == "hide" or command == "close" then
     ---@type string[]
     local labels = {}
@@ -104,6 +138,7 @@ end
 function M.setup()
   vim.api.nvim_create_user_command("Agents", M.run, {
     nargs = "*",
+    range = true,
     complete = M.complete,
     desc = "Manage agent CLI sessions",
     force = true,

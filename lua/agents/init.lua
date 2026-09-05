@@ -55,6 +55,20 @@ function M.ready(id)
   return require("agents.events").ready(session, "hook")
 end
 
+---Omitting items opens the context picker.
+---@param items? agents.Item[]
+---@param opts? agents.SendOptions
+---@return agents.Session?
+function M.send(items, opts)
+  return require("agents.send").run(items, opts)
+end
+
+---@param name string
+---@param spec agents.Provider
+function M.provider(name, spec)
+  require("agents.providers").register(name, spec)
+end
+
 ---@param target? agents.Target
 ---@param opts? agents.ShowOptions
 ---@return agents.Session?

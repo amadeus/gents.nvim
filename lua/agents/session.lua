@@ -1,6 +1,8 @@
 local M = {}
 ---@type table<integer, agents.Session>
 local registry = {}
+---@type table<integer, boolean>
+local closing = {}
 local next_id = 0
 
 ---@class agents.Session
@@ -104,11 +106,14 @@ function M.close(session)
     return
   end
   registry[session.id] = nil
-  if session.state ~= "exited" and session.job and session.job > 0 then
+  require("agents.send").detach(session)
+  local running = session.state ~= "exited" and session.job and session.job > 0
+  if running then
+    closing[session.id] = true
     vim.fn.jobstop(session.job)
   end
   require("agents.window").hide(session)
-  if vim.api.nvim_buf_is_valid(session.buf) then
+  if not running and vim.api.nvim_buf_is_valid(session.buf) then
     vim.api.nvim_buf_delete(session.buf, { force = true })
   end
   return session
@@ -161,10 +166,12 @@ function M.new(tool, opts)
     buffer = session.buf,
     once = true,
     callback = function()
+      closing[session.id] = nil
       if registry[session.id] ~= session then
         return
       end
       registry[session.id] = nil
+      require("agents.send").detach(session)
       if session.job and session.job > 0 and session.state ~= "exited" then
         vim.fn.jobstop(session.job)
       end
@@ -181,8 +188,19 @@ function M.new(tool, opts)
       clear_env = true,
       env = environment(tool, session.id),
       on_exit = function(_, code)
+        require("agents.send").detach(session)
         session.state = "exited"
         session.exit_code = code
+        if closing[session.id] then
+          closing[session.id] = nil
+          -- Deleting a terminal with pending PTY writes can hang Neovim.
+          -- The exit callback runs after the job's streams have closed.
+          vim.schedule(function()
+            if vim.api.nvim_buf_is_valid(session.buf) then
+              vim.api.nvim_buf_delete(session.buf, { force = true })
+            end
+          end)
+        end
         require("agents.events").emit("AgentsSessionExit", {
           id = session.id,
           exit_code = code,
@@ -195,6 +213,7 @@ function M.new(tool, opts)
       end,
     })
     assert(session.job > 0, "agents: could not start " .. tool.name)
+    require("agents.send").attach(session)
     vim.bo[session.buf].buflisted = false
     require("agents.keys").attach(session.buf)
     vim.bo[session.buf].filetype = "agents_terminal"

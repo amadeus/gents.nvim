@@ -122,8 +122,10 @@ end
 T["close stops a real job and removes the buffer and registry entry"] = function()
   local session = H.new()
   agents.close(session.id)
+  eq(agents.sessions(), {})
+  eq(vim.fn.win_findbuf(session.buf), {})
   H.wait(function()
-    return session.state == "exited"
+    return session.state == "exited" and not vim.api.nvim_buf_is_valid(session.buf)
   end)
   eq(vim.fn.jobwait({ session.job }, 0)[1] ~= -1, true)
   eq(vim.api.nvim_buf_is_valid(session.buf), false)

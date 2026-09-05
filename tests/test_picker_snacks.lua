@@ -138,7 +138,9 @@ T["recipe session shortcuts"] = test.new_set({
       press(current_picker(), key, from[2], from[1])
       if action == "close" then
         test.expect.equality(require("agents.session").get(session.id), nil)
-        test.expect.equality(vim.api.nvim_buf_is_valid(session.buf), false)
+        H.wait(function()
+          return not vim.api.nvim_buf_is_valid(session.buf)
+        end)
       elseif action == "hide" then
         test.expect.equality(vim.fn.win_findbuf(session.buf), {})
         test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })

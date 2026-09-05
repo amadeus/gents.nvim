@@ -1,7 +1,7 @@
 # agents.nvim
 
 Run agent CLI sessions in native Neovim terminals. Keep multiple sessions open,
-hide them while you edit, and bring them back when you need them.
+hide them while you edit, and send them files, selections, or diagnostics.
 
 Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
 
@@ -16,6 +16,7 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
   keys = {
     { "<leader>aa", "<cmd>Agents toggle<cr>", desc = "Toggle agents" },
     { "<leader>an", "<cmd>Agents new<cr>", desc = "New agent session" },
+    { "<leader>as", function() require("agents").send() end, mode = { "n", "x" }, desc = "Send context" },
   },
 }
 ```
@@ -27,8 +28,11 @@ optional; the plugin installs none by default.
 - `:Agents new claude` — start Claude directly.
 - `:Agents toggle` — hide the current session or bring one back.
 - `:Agents pick` — choose a session.
+- `:Agents send` — choose context to send to a session.
+- `:Agents send file diagnostics` — send a file reference and its diagnostics.
 - `:Agents close` — stop and remove a session.
 
+Sends paste context without an extra Enter or a focus change by default.
 Hidden sessions keep running. Run `:checkhealth agents` to check your setup.
 For a custom picker, see the [Snacks recipe](docs/recipes/picker-snacks.md).
 

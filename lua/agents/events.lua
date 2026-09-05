@@ -32,10 +32,10 @@ local function is_notification(sequence)
   return complete and (kind == "title" or kind == "body")
 end
 
----@alias agents.EventName "AgentsSessionStart"|"AgentsSessionExit"|"AgentsSessionShow"|"AgentsSessionHide"|"AgentsReady"
+---@alias agents.EventName "AgentsSessionStart"|"AgentsSessionExit"|"AgentsSessionShow"|"AgentsSessionHide"|"AgentsReady"|"AgentsSend"
 
 ---@param name agents.EventName
----@param data agents.SessionEvent|agents.ReadyEvent
+---@param data agents.SessionEvent|agents.ReadyEvent|agents.SendEvent
 function M.emit(name, data)
   vim.api.nvim_exec_autocmds("User", { pattern = name, data = data, modeline = false })
 end

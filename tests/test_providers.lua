@@ -37,11 +37,20 @@ T["registry keeps builtin order and sorts custom names"] = function()
   providers.register("__test_zulu", { desc = "Zulu", render = function() end })
   providers.register("__test_alpha", { desc = "Alpha", render = function() end })
   local names = providers.names()
-  eq(
-    vim.list_slice(names, 1, 7),
-    { "file", "position", "line", "selection", "buffer", "diagnostics", "quickfix" }
-  )
-  local custom = vim.list_slice(names, 8)
+  eq(vim.list_slice(names, 1, 11), {
+    "file",
+    "position",
+    "line",
+    "selection",
+    "buffer",
+    "diagnostics",
+    "quickfix",
+    "help",
+    "checkhealth",
+    "terminal",
+    "messages",
+  })
+  local custom = vim.list_slice(names, 12)
   local sorted = vim.deepcopy(custom)
   table.sort(sorted)
   eq(custom, sorted)

@@ -1,7 +1,18 @@
 local M = {}
 local context = require("agents.context")
-local builtin_order =
-  { "file", "position", "line", "selection", "buffer", "diagnostics", "quickfix" }
+local builtin_order = {
+  "file",
+  "position",
+  "line",
+  "selection",
+  "buffer",
+  "diagnostics",
+  "quickfix",
+  "help",
+  "checkhealth",
+  "terminal",
+  "messages",
+}
 ---@type table<string, agents.Provider>
 local registry = {}
 
@@ -200,6 +211,56 @@ registry.quickfix = {
       lines[#lines + 1] = (location ~= "" and location .. ": " or "") .. (entry.text or "")
     end
     return #lines > 0 and { { text = table.concat(lines, "\n") } } or nil
+  end,
+}
+
+registry.help = { desc = "Help tag and section", render = require("agents.providers.help") }
+
+registry.checkhealth = {
+  desc = "Health check output",
+  render = function(ctx)
+    if vim.bo[ctx.buf].filetype ~= "checkhealth" then
+      return nil
+    end
+    return {
+      {
+        code = table.concat(vim.api.nvim_buf_get_lines(ctx.buf, 0, -1, false), "\n"),
+        ft = "checkhealth",
+      },
+    }
+  end,
+}
+
+---Read terminal context directly, or use an inline item to choose a per-send limit.
+---@param ctx agents.Context
+---@param limit? integer Maximum lines after trimming trailing blanks; defaults to 200.
+---@return agents.Part[]?
+function M.terminal(ctx, limit)
+  limit = limit or 200
+  assert(
+    type(limit) == "number" and limit > 0 and limit % 1 == 0,
+    "agents: terminal line limit must be a positive integer"
+  )
+  if vim.bo[ctx.buf].buftype ~= "terminal" then
+    return nil
+  end
+  local lines = vim.api.nvim_buf_get_lines(ctx.buf, 0, -1, false)
+  while #lines > 0 and not lines[#lines]:find("%S") do
+    table.remove(lines)
+  end
+  if #lines == 0 then
+    return nil
+  end
+  return { { code = table.concat(lines, "\n", math.max(1, #lines - limit + 1)), ft = "text" } }
+end
+
+registry.terminal = { desc = "Terminal scrollback", render = M.terminal }
+
+registry.messages = {
+  desc = "Message history",
+  render = function()
+    local output = vim.api.nvim_exec2("messages", { output = true }).output
+    return output:find("%S") and { { text = output } } or nil
   end,
 }
 

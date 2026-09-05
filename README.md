@@ -35,6 +35,8 @@ optional; the plugin installs none by default.
 Sends paste context without an extra Enter or a focus change by default.
 Hidden sessions keep running. Run `:checkhealth agents` to check your setup.
 For a custom picker, see the [Snacks recipe](docs/recipes/picker-snacks.md).
+See [specialized context](docs/recipes/context.md) for help, health checks,
+terminal scrollback, and message history.
 
 For development, run these from the repository root:
 

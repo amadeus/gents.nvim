@@ -26,6 +26,7 @@ local builtin_names = {
 }
 
 T["defaults work without setup"] = function()
+  ---@type { get: fun(): agents.Config }
   local fresh = dofile("lua/agents/config.lua")
   local result = fresh.get()
   expect(result.layout, "vsplit")
@@ -44,7 +45,7 @@ T["built-in tools have names, commands, and install URLs"] = function()
     expect(tool.name, name)
     expect(tool.cmd[1], name)
     expect(type(tool.url), "string")
-    expect(tool.url:match("^https://") ~= nil, true)
+    expect(assert(tool.url):match("^https://") ~= nil, true)
   end
   expect(result.tools.copilot.cmd, { "copilot", "--banner" })
   expect(result.tools.opencode.env, { OPENCODE_THEME = "system" })
@@ -137,6 +138,7 @@ T["invalid configuration fails before replacing current config"] = function()
   for _, case in ipairs(invalid) do
     local ok, err = pcall(config.setup, case[1])
     expect(ok, false)
+    assert(type(err) == "string", "Expected a validation error message")
     expect(err:find(case[2], 1, true) ~= nil, true)
     expect(config.get(), valid)
   end

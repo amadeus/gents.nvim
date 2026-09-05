@@ -1,6 +1,7 @@
 local M = {}
 local cwd = vim.fn.getcwd()
 
+---@return nil
 function M.reset()
   local agents = require("agents")
   for _, session in ipairs(agents.sessions()) do
@@ -19,10 +20,20 @@ function M.reset()
   agents.setup({ tools = { cat = { cmd = { "cat" }, url = "https://example.com/cat" } } })
 end
 
+---@class agents.test.Session: agents.Session
+---@field job integer
+
+---@param opts? agents.NewOptions
+---@return agents.test.Session
 function M.new(opts)
-  return require("agents").new("cat", opts)
+  local session = assert(require("agents").new("cat", opts))
+  assert(session.job and session.job > 0, "Expected a started terminal job")
+  ---@cast session agents.test.Session
+  return session
 end
 
+---@param predicate fun(): boolean
+---@return nil
 function M.wait(predicate)
   assert(vim.wait(2000, predicate, 10), "Timed out waiting for terminal job")
 end

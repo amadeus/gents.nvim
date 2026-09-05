@@ -14,6 +14,21 @@ local M = {}
 
 ---@alias agents.PickerAdapter fun<T>(spec: agents.PickerSpec<T>)
 
+---@param origin integer
+---@param kind string
+---@return boolean
+local function restore_origin(origin, kind)
+  if not vim.api.nvim_win_is_valid(origin) then
+    vim.notify(
+      "agents.nvim: the window that opened the " .. kind .. " picker no longer exists",
+      vim.log.levels.ERROR
+    )
+    return false
+  end
+  vim.api.nvim_set_current_win(origin)
+  return true
+end
+
 ---@generic T
 ---@param spec agents.PickerSpec<T>
 function M.open(spec)
@@ -23,22 +38,28 @@ function M.open(spec)
     return
   end
 
-  vim.ui.select(spec.items, {
-    prompt = spec.title,
-    ---@param item { text: string }
-    ---@return string
-    format_item = function(item)
-      return item.text
-    end,
-  }, function(item)
-    if item then
-      spec.actions[spec.default](item)
+  vim.ui.select(
+    spec.items,
+    {
+      prompt = spec.title,
+      ---@param item { text: string }
+      ---@return string
+      format_item = function(item)
+        return item.text
+      end,
+    },
+    ---@param item? agents.PickerItem<unknown>
+    function(item)
+      if item then
+        spec.actions[spec.default](item)
+      end
     end
-  end)
+  )
 end
 
----@param callback fun(tool: agents.Tool)
-function M.tools(callback)
+---@param callback fun(tool: agents.Tool, opts: agents.NewOptions)
+---@param opts? agents.NewOptions
+function M.tools(callback, opts)
   local config = require("agents.config").get()
   local origin = vim.api.nvim_get_current_win()
   ---@type agents.PickerItem<agents.Tool>[]
@@ -55,6 +76,24 @@ function M.tools(callback)
     end
   end
 
+  ---@param item agents.PickerItem<agents.Tool>
+  ---@param launch_opts agents.NewOptions
+  local function launch(item, launch_opts)
+    if not restore_origin(origin, "tool") then
+      return
+    end
+    local tool = item.data
+    local cmd = launch_opts.cmd or tool.cmd
+    if vim.fn.executable(cmd[1]) == 0 then
+      vim.notify("agents.nvim: executable not found: " .. cmd[1], vim.log.levels.ERROR)
+      if tool.url then
+        vim.ui.open(tool.url)
+      end
+      return
+    end
+    callback(tool, launch_opts)
+  end
+
   ---@type agents.PickerSpec<agents.Tool>
   local spec = {
     title = "Agents: new session",
@@ -63,26 +102,46 @@ function M.tools(callback)
     actions = {
       ---@param item agents.PickerItem<agents.Tool>
       new = function(item)
-        if not vim.api.nvim_win_is_valid(origin) then
-          vim.notify(
-            "agents.nvim: the window that opened the tool picker no longer exists",
-            vim.log.levels.ERROR
-          )
+        launch(item, vim.deepcopy(opts or {}))
+      end,
+      ---@param item agents.PickerItem<agents.Tool>
+      edit_args = function(item)
+        if not restore_origin(origin, "tool") then
           return
         end
-        vim.api.nvim_set_current_win(origin)
-        local tool = item.data
-        if vim.fn.executable(tool.cmd[1]) == 0 then
-          vim.notify("agents.nvim: executable not found: " .. tool.cmd[1], vim.log.levels.ERROR)
-          if tool.url then
-            vim.ui.open(tool.url)
+        local launch_opts = vim.deepcopy(opts or {})
+        local cmd = vim.deepcopy(launch_opts.cmd or item.data.cmd)
+        vim.list_extend(cmd, launch_opts.args or {})
+        vim.ui.input(
+          { prompt = "Agents: command: ", default = table.concat(cmd, " ") },
+          function(value)
+            if value == nil then
+              return
+            end
+            ---@type string[]
+            local edited = {}
+            for word in value:gmatch("%S+") do
+              edited[#edited + 1] = word
+            end
+            if #edited == 0 then
+              vim.notify("agents.nvim: command must not be empty", vim.log.levels.ERROR)
+              return
+            end
+            launch_opts.cmd, launch_opts.args = edited, nil
+            launch(item, launch_opts)
           end
-          return
-        end
-        callback(tool)
+        )
       end,
     },
   }
+  for _, layout in ipairs({ "vsplit", "split", "tabnew", "current" }) do
+    ---@param item agents.PickerItem<agents.Tool>
+    spec.actions[layout] = function(item)
+      local launch_opts = vim.deepcopy(opts or {})
+      launch_opts.layout = layout
+      launch(item, launch_opts)
+    end
+  end
   M.open(spec)
 end
 
@@ -120,6 +179,15 @@ function M.sessions(candidates, callback)
     items[#items + 1] = { text = text, data = session }
   end
 
+  ---@param item agents.PickerItem<agents.Session>
+  ---@param action fun(session: agents.Session)
+  local function select(item, action)
+    local session = require("agents.session").get(item.data.id)
+    if session and restore_origin(origin, "session") then
+      action(session)
+    end
+  end
+
   ---@type agents.PickerSpec<agents.Session>
   local spec = {
     title = "Agents: sessions",
@@ -128,22 +196,26 @@ function M.sessions(candidates, callback)
     actions = {
       ---@param item agents.PickerItem<agents.Session>
       show = function(item)
-        local session = require("agents.session").get(item.data.id)
-        if not session then
-          return
-        end
-        if not vim.api.nvim_win_is_valid(origin) then
-          vim.notify(
-            "agents.nvim: the window that opened the session picker no longer exists",
-            vim.log.levels.ERROR
-          )
-          return
-        end
-        vim.api.nvim_set_current_win(origin)
-        callback(session)
+        select(item, callback)
+      end,
+      ---@param item agents.PickerItem<agents.Session>
+      hide = function(item)
+        select(item, window.hide)
+      end,
+      ---@param item agents.PickerItem<agents.Session>
+      close = function(item)
+        select(item, require("agents.session").close)
       end,
     },
   }
+  for _, layout in ipairs({ "vsplit", "split", "tabnew", "current" }) do
+    ---@param item agents.PickerItem<agents.Session>
+    spec.actions[layout] = function(item)
+      select(item, function(session)
+        window.show(session, layout)
+      end)
+    end
+  end
   M.open(spec)
 end
 

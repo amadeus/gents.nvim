@@ -2,7 +2,8 @@ local M = {}
 
 ---@param opts? agents.SetupOptions
 function M.setup(opts)
-  require("agents.config").setup(opts)
+  local config = require("agents.config").setup(opts)
+  require("agents.keys").setup(config.keys)
 end
 
 ---@param tool? string
@@ -10,9 +11,9 @@ end
 ---@return agents.Session?
 function M.new(tool, opts)
   if tool == nil then
-    return require("agents.picker").tools(function(selected)
-      return M.new(selected.name, opts)
-    end)
+    return require("agents.picker").tools(function(selected, launch_opts)
+      return M.new(selected.name, launch_opts)
+    end, opts)
   end
   local definition = require("agents.config").get().tools[tool]
   assert(definition, "agents: unknown tool: " .. tostring(tool))
@@ -27,6 +28,31 @@ end
 ---@return agents.Session?
 function M.current()
   return require("agents.session").current()
+end
+
+---@return agents.Status[]
+function M.status()
+  ---@type agents.Status[]
+  local result = {}
+  for _, session in ipairs(M.sessions()) do
+    result[#result + 1] = {
+      id = session.id,
+      tool = session.tool.name,
+      label = session.label,
+      visible = require("agents.window").visible(session),
+      state = session.state,
+      cwd = session.cwd,
+    }
+  end
+  return result
+end
+
+---@param id integer
+---@return agents.ReadyEvent
+function M.ready(id)
+  local session = require("agents.session").get(id)
+  assert(session, "agents: no session with id " .. tostring(id))
+  return require("agents.events").ready(session, "hook")
 end
 
 ---@param target? agents.Target

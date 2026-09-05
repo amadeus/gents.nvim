@@ -30,6 +30,7 @@ local function validate(config)
   if config.on_exit ~= "keep" and config.on_exit ~= "close" then
     error('agents: on_exit must be "keep" or "close"', 3)
   end
+  require("agents.keys").validate(config.keys)
   for name, tool in pairs(config.tools) do
     local cmd = tool.cmd
     local valid = false

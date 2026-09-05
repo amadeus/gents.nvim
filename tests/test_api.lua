@@ -5,13 +5,15 @@ local window = require("agents.window")
 local T = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
 local eq = test.expect.equality
 
+---@return fun(): agents.PickerSpec<agents.Session|agents.Tool>
 local function capture_picker()
+  ---@type agents.PickerSpec<agents.Session|agents.Tool>?
   local spec
   require("agents.config").get().picker = function(value)
     spec = value
   end
   return function()
-    return spec
+    return assert(spec, "Expected a picker to open")
   end
 end
 
@@ -67,9 +69,14 @@ end
 T["pick falls through to the tool picker when empty"] = function()
   local picked = capture_picker()
   agents.pick()
-  local names = vim.tbl_map(function(item)
-    return item.data.name
-  end, picked().items)
+  local names = vim.tbl_map(
+    ---@param item agents.PickerItem<agents.Tool>
+    ---@return string
+    function(item)
+      return item.data.name
+    end,
+    picked().items
+  )
   eq(vim.tbl_contains(names, "cat"), true)
 end
 

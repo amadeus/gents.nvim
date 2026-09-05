@@ -68,8 +68,10 @@ end
 ---@return agents.Session
 function M.show(session, layout)
   local wins = vim.fn.win_findbuf(session.buf)
+  ---@type integer?
+  local opened
   if #wins == 0 then
-    M.open(session.buf, layout)
+    opened = M.open(session.buf, layout)
   elseif vim.api.nvim_get_current_buf() ~= session.buf then
     vim.api.nvim_set_current_win(wins[1])
   end
@@ -77,13 +79,17 @@ function M.show(session, layout)
   if session.state ~= "exited" then
     vim.cmd.startinsert()
   end
+  if opened then
+    require("agents.events").emit("AgentsSessionShow", { id = session.id, win = opened })
+  end
   return session
 end
 
 ---@param session agents.Session
 ---@return agents.Session
 function M.hide(session)
-  for _, win in ipairs(vim.fn.win_findbuf(session.buf)) do
+  local wins = vim.fn.win_findbuf(session.buf)
+  for _, win in ipairs(wins) do
     local ok, err = pcall(vim.api.nvim_win_hide, win)
     if not ok then
       -- Neovim must keep one non-floating window in the last tab.
@@ -98,6 +104,9 @@ function M.hide(session)
       end
       vim.api.nvim_win_set_buf(win, alternate)
     end
+  end
+  if #wins > 0 and session.job and session.job > 0 and not M.visible(session) then
+    require("agents.events").emit("AgentsSessionHide", { id = session.id })
   end
   return session
 end

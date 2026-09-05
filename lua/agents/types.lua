@@ -29,6 +29,7 @@
 ---@alias agents.Layout string|agents.FloatConfig|fun(buf: integer): integer
 
 ---@class agents.NewOptions
+---@field cmd? string[] Complete argv override; mutually exclusive with args.
 ---@field args? string[]
 ---@field layout? agents.Layout
 ---@field label? string
@@ -43,7 +44,7 @@
 ---@field on_exit? "keep"|"close"
 ---@field tools? table<string, agents.ToolOverride|false>
 ---@field prompts? table<string, agents.Item[]> Reserved for context sending.
----@field keys? agents.Keymap[] Reserved for keymap installation.
+---@field keys? agents.Keymap[]
 
 ---@class agents.Config
 ---@field layout agents.Layout
@@ -52,10 +53,34 @@
 ---@field on_exit "keep"|"close"
 ---@field tools table<string, agents.Tool>
 ---@field prompts table<string, agents.Item[]> Reserved for context sending.
----@field keys agents.Keymap[] Reserved for keymap installation.
+---@field keys agents.Keymap[]
 
----These data shapes describe the reserved prompts and keys configuration.
----They do not register providers, send context, or install mappings yet.
+---@alias agents.SessionState "starting"|"ready"|"exited"
+
+---@class agents.SessionEvent
+---@field id integer
+---@field win? integer
+---@field exit_code? integer
+
+---@class agents.ReadyEvent
+---@field id integer
+---@field label string
+---@field tool string
+---@field buf integer
+---@field win? integer
+---@field visible boolean
+---@field focused boolean
+---@field source "osc"|"hook"
+
+---@class agents.Status
+---@field id integer
+---@field tool string
+---@field label string
+---@field visible boolean
+---@field state agents.SessionState
+---@field cwd string
+
+---These context data shapes describe the reserved prompts configuration.
 ---@class agents.Range
 ---@field kind "char"|"line"|"block"
 ---@field start { [1]: integer, [2]: integer }

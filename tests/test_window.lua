@@ -15,6 +15,8 @@ T["layout opens each documented form"] = test.new_set({
     { "float" },
     { { width = 0.5, height = 0.5, border = "single", title = "Agent test", zindex = 70 } },
     {
+      ---@param buf integer
+      ---@return integer
       function(buf)
         return vim.api.nvim_open_win(
           buf,
@@ -25,12 +27,13 @@ T["layout opens each documented form"] = test.new_set({
     },
   },
 }, {
+  ---@param layout agents.Layout
   ["shows the session"] = function(layout)
     local session = H.new({ layout = layout })
     eq(vim.api.nvim_get_current_buf(), session.buf)
     eq(window.visible(session), true)
     eq(session.tab, vim.api.nvim_get_current_tabpage())
-    eq(session.win, nil)
+    eq(rawget(session, "win"), nil)
   end,
 })
 
@@ -121,6 +124,7 @@ T["TermOpen and filetype customizations are preserved"] = function()
   test.finally(function()
     vim.api.nvim_del_augroup_by_id(group)
   end)
+  ---@type integer?
   local observed
   vim.api.nvim_create_autocmd("TermOpen", {
     group = group,

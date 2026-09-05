@@ -1,10 +1,13 @@
 local test = require("mini.test")
+---@type integer?
 local channel
 local init = vim.fn.fnamemodify("tests/minimal_init.lua", ":p")
+---@type string?
 local fixture_dir
 local eq = test.expect.equality
 
 -- Stdio RPC keeps these event-loop tests independent of local socket permissions.
+---@param args string[]
 local function start(args)
   local cmd = { vim.v.progpath, "--embed", "--headless", "--clean", "-n" }
   vim.list_extend(cmd, args)
@@ -12,16 +15,23 @@ local function start(args)
   assert(channel > 0, "Could not start child Neovim")
 end
 
+---The executed chunk determines the serialized RPC result's shape.
+---@param code string
+---@param args? any[]
+---@return any
 local function lua(code, args)
-  return vim.rpcrequest(channel, "nvim_exec_lua", code, args or {})
+  return vim.rpcrequest(assert(channel), "nvim_exec_lua", code, args or {})
 end
 
+---@param code string
+---@return any
 local function get(code)
   return lua("return " .. code)
 end
 
+---@param keys string
 local function input(keys)
-  return vim.rpcrequest(channel, "nvim_input", keys)
+  vim.rpcrequest(assert(channel), "nvim_input", keys)
 end
 
 local function stop()
@@ -39,6 +49,7 @@ local function setup()
   lua([[require("agents").setup({ tools = { cat = { cmd = { "cat" } } } })]])
 end
 
+---@param expected string
 local function mode(expected)
   local reached = vim.wait(2000, function()
     return get("vim.api.nvim_get_mode().mode") == expected

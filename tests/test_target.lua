@@ -2,11 +2,17 @@ local test = require("mini.test")
 local H = require("tests.helpers")
 local target = require("agents.target")
 local original_select = vim.ui.select
+
+---@param select fun<T>(items: T[], opts: vim.ui.select.Opts, on_choice: fun(item: T?, idx?: integer))
+local function set_select(select)
+  vim.ui.select = select
+end
+
 local T = test.new_set({
   hooks = {
     pre_case = H.reset,
     post_case = function()
-      vim.ui.select = original_select
+      set_select(original_select)
       H.reset()
     end,
   },
@@ -15,6 +21,7 @@ local T = test.new_set({
 T["explicit ids and labels override the current session"] = function()
   local first = H.new()
   local second = H.new()
+  ---@type agents.Session?
   local selected
   local result = target.with(first.id, function(session)
     selected = session
@@ -72,11 +79,15 @@ T["ambiguous sessions use the picker and return nil"] = function()
   local second = H.new()
   require("agents").hide(first.id)
   require("agents").hide(second.id)
+  ---@type agents.Session?
   local selected
-  vim.ui.select = function(items, _, callback)
+  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param _ vim.ui.select.Opts
+  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  set_select(function(items, _, callback)
     test.expect.equality(#items, 2)
-    callback(items[2])
-  end
+    callback(items[2], 2)
+  end)
   test.expect.equality(
     target.with(nil, function(session)
       selected = session
@@ -111,12 +122,16 @@ T["an ambiguous filter only offers matching sessions"] = function()
   local first = H.new()
   local second = H.new()
   local unrelated = H.new()
+  ---@type integer?
   local selected
-  vim.ui.select = function(items, _, callback)
+  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param _ vim.ui.select.Opts
+  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  set_select(function(items, _, callback)
     test.expect.equality({ items[1].data.id, items[2].data.id }, { first.id, second.id })
     test.expect.equality(#items, 2)
-    callback(items[1])
-  end
+    callback(items[1], 1)
+  end)
   target.with(function(session)
     return session.id ~= unrelated.id
   end, function(session)
@@ -130,9 +145,9 @@ T["no sessions is a no-op and explicit unmatched targets error"] = function()
   local callback = function()
     called = true
   end
-  vim.ui.select = function()
+  set_select(function()
     error("unexpected picker")
-  end
+  end)
   test.expect.equality(target.with(nil, callback), nil)
   test.expect.error(function()
     target.with(12345, callback)
@@ -146,6 +161,8 @@ T["no sessions is a no-op and explicit unmatched targets error"] = function()
     end, callback)
   end, "no session matches target filter")
   test.expect.error(function()
+    -- A table is deliberately outside the public target contract.
+    ---@diagnostic disable-next-line: param-type-mismatch
     target.with({}, callback)
   end, "target must be")
   test.expect.equality(called, false)

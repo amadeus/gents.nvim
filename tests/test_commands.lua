@@ -14,25 +14,36 @@ local T = test.new_set({
   },
 })
 
+---@param line string
+---@param lead? string
+---@param cursor? integer
+---@return string[]
 local function complete(line, lead, cursor)
-  return commands.complete(lead or line:match("%S*$"), line, cursor or #line)
+  return commands.complete(lead or assert(line:match("%S*$")), line, cursor or #line)
 end
 
-local original, calls
+---@type table<string, function>
+local original
+---@type { [1]: string, [2]: (agents.Target|agents.NewOptions)[] }[]
+local calls
+---@type ("new"|"toggle"|"pick"|"hide"|"close")[]
 local methods = { "new", "toggle", "pick", "hide", "close" }
-T["dispatch"] = test.new_set({
+local dispatch = test.new_set({
   hooks = {
     pre_case = function()
       original, calls = {}, {}
+      ---@type table<string, function>
       local agents = require("agents")
       for _, name in ipairs(methods) do
         original[name] = agents[name]
+        ---@param ... agents.Target|agents.NewOptions
         agents[name] = function(...)
           calls[#calls + 1] = { name, { ... } }
         end
       end
     end,
     post_case = function()
+      ---@type table<string, function>
       local agents = require("agents")
       for _, name in ipairs(methods) do
         agents[name] = original[name]
@@ -42,7 +53,9 @@ T["dispatch"] = test.new_set({
   },
 })
 
-T["dispatch"]["every subcommand calls the Lua facade"] = function()
+T["dispatch"] = dispatch
+
+dispatch["every subcommand calls the Lua facade"] = function()
   for _, command in ipairs({ "", "new", "new cat", "toggle", "pick", "hide", "close" }) do
     vim.cmd("Agents " .. command)
   end
@@ -57,7 +70,7 @@ T["dispatch"]["every subcommand calls the Lua facade"] = function()
   })
 end
 
-T["dispatch"]["arguments split on whitespace without evaluation"] = function()
+dispatch["arguments split on whitespace without evaluation"] = function()
   vim.cmd(
     [[Agents new cat   'two words' $HOME $(echo unsafe) | let g:agents_commands_evaluated = 1]]
   )
@@ -86,13 +99,13 @@ T["dispatch"]["arguments split on whitespace without evaluation"] = function()
   expect(vim.g.agents_commands_evaluated, nil)
 end
 
-T["dispatch"]["hide and close accept ids and labels containing spaces"] = function()
+dispatch["hide and close accept ids and labels containing spaces"] = function()
   vim.cmd("Agents hide 12")
   vim.cmd("Agents close cat   #2")
   expect(calls, { { "hide", { 12 } }, { "close", { "cat #2" } } })
 end
 
-T["dispatch"]["invalid commands and extra arguments fail clearly"] = function()
+dispatch["invalid commands and extra arguments fail clearly"] = function()
   test.expect.error(function()
     vim.cmd("Agents unknown")
   end, "unknown command 'unknown'")
@@ -143,11 +156,12 @@ T["tool completion uses configured tools only at the tool position"] = function(
 end
 
 local H = require("tests.helpers")
-T["sessions"] = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
+local sessions = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
+T["sessions"] = sessions
 
-T["sessions"]["new, hide, and close operate on a real terminal"] = function()
+sessions["new, hide, and close operate on a real terminal"] = function()
   vim.cmd("Agents new cat")
-  local session = require("agents").current()
+  local session = assert(require("agents").current())
   expect(session.tool.name, "cat")
   expect(vim.fn.jobwait({ session.job }, 0), { -1 })
   vim.cmd("Agents hide " .. session.id)
@@ -157,7 +171,7 @@ T["sessions"]["new, hide, and close operate on a real terminal"] = function()
   expect(vim.api.nvim_buf_is_valid(session.buf), false)
 end
 
-T["sessions"]["completion replaces only the current word of a session label"] = function()
+sessions["completion replaces only the current word of a session label"] = function()
   H.new()
   H.new()
   H.new({ label = "feature code review" })
@@ -174,7 +188,7 @@ T["sessions"]["completion replaces only the current word of a session label"] = 
   expect(complete("Agents close cat #"), {})
 end
 
-T["sessions"]["unknown tools report the requested name"] = function()
+sessions["unknown tools report the requested name"] = function()
   test.expect.error(function()
     vim.cmd("Agents new missing-tool")
   end, "unknown tool: missing%-tool")

@@ -11,7 +11,7 @@ local next_id = 0
 ---@field cwd string
 ---@field buf integer
 ---@field job? integer Assigned after the terminal job starts.
----@field state "starting"|"ready"|"exited"
+---@field state agents.SessionState
 ---@field exit_code? integer
 ---@field tab? integer
 
@@ -119,8 +119,20 @@ end
 ---@return agents.Session
 function M.new(tool, opts)
   opts = opts or {}
+  assert(opts.cmd == nil or opts.args == nil, "agents: cmd and args are mutually exclusive")
   local cmd = vim.deepcopy(tool.cmd)
-  if opts.args then
+  local override = opts.cmd
+  if override ~= nil then
+    cmd = vim.deepcopy(override)
+  end
+  assert(
+    type(cmd) == "table" and vim.islist(cmd) and #cmd > 0 and cmd[1] ~= "",
+    "agents: cmd must be a non-empty list of strings starting with an executable"
+  )
+  for _, arg in ipairs(cmd) do
+    assert(type(arg) == "string", "agents: cmd must be a list of strings")
+  end
+  if opts.args ~= nil then
     assert(vim.islist(opts.args), "agents: args must be a list of strings")
     for _, arg in ipairs(opts.args) do
       assert(type(arg) == "string", "agents: args must be a list of strings")
@@ -160,7 +172,8 @@ function M.new(tool, opts)
   })
 
   local ok, err = pcall(function()
-    require("agents.window").open(session.buf, opts.layout)
+    require("agents.events").attach(session)
+    local win = require("agents.window").open(session.buf, opts.layout)
     session.tab = vim.api.nvim_get_current_tabpage()
     session.job = vim.fn.jobstart(cmd, {
       term = true,
@@ -170,6 +183,10 @@ function M.new(tool, opts)
       on_exit = function(_, code)
         session.state = "exited"
         session.exit_code = code
+        require("agents.events").emit("AgentsSessionExit", {
+          id = session.id,
+          exit_code = code,
+        })
         if on_exit == "close" and code == 0 then
           vim.schedule(function()
             M.close(session)
@@ -179,8 +196,17 @@ function M.new(tool, opts)
     })
     assert(session.job > 0, "agents: could not start " .. tool.name)
     vim.bo[session.buf].buflisted = false
+    require("agents.keys").attach(session.buf)
     vim.bo[session.buf].filetype = "agents_terminal"
     vim.cmd.startinsert()
+    require("agents.events").emit("AgentsSessionStart", { id = session.id })
+    if
+      registry[session.id] == session
+      and vim.api.nvim_win_is_valid(win)
+      and vim.api.nvim_win_get_buf(win) == session.buf
+    then
+      require("agents.events").emit("AgentsSessionShow", { id = session.id, win = win })
+    end
   end)
   if not ok then
     M.close(session)

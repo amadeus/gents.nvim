@@ -4,6 +4,8 @@ local agents = require("agents")
 local T = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
 local eq = test.expect.equality
 
+---@param session agents.Session
+---@return string
 local function output(session)
   return table.concat(vim.api.nvim_buf_get_lines(session.buf, 0, -1, false), "\n")
 end
@@ -28,7 +30,7 @@ T["several real jobs have independent ids, labels, buffers and channels"] = func
   end
   vim.fn.chansend(first.job, "first-session\n")
   H.wait(function()
-    return output(first):find("first-session", 1, true)
+    return output(first):find("first-session", 1, true) ~= nil
   end)
   eq(output(second):find("first-session", 1, true), nil)
 end
@@ -72,23 +74,24 @@ T["cwd and environment come from the invoking window and tool"] = function()
       },
     },
   })
-  local session = agents.new("probe")
+  local session = assert(agents.new("probe"))
   H.wait(function()
     return session.state == "exited"
   end)
-  eq(vim.uv.fs_realpath(session.cwd), vim.uv.fs_realpath(dir))
-  eq(output(session):gsub("\n", ""):find(vim.uv.fs_realpath(dir), 1, true) ~= nil, true)
+  local real_dir = assert(vim.uv.fs_realpath(dir))
+  eq(vim.uv.fs_realpath(session.cwd), real_dir)
+  eq(output(session):gsub("\n", ""):find(real_dir, 1, true) ~= nil, true)
   local expected = tostring(session.id) .. "|tool-value|unset"
   eq(output(session):find(expected, 1, true) ~= nil, true)
   eq(output(session):gsub("\n", ""):find(vim.v.servername, 1, true) ~= nil, true)
   eq(output(session):find("xterm-256color", 1, true) ~= nil, true)
   eq(vim.env.AGENTS_TEST_REMOVE, "inherited")
-  eq(require("agents.config").get().tools.probe.env.AGENTS_SESSION, "wrong")
+  eq(assert(require("agents.config").get().tools.probe.env).AGENTS_SESSION, "wrong")
 end
 
 T["natural exit keeps the transcript and exit code"] = function()
   agents.setup({ tools = { done = { cmd = { "sh", "-c", "printf finished; exit 7" } } } })
-  local session = agents.new("done")
+  local session = assert(agents.new("done"))
   H.wait(function()
     return session.state == "exited"
   end)
@@ -107,7 +110,7 @@ T["close-on-exit removes successful jobs and keeps failed jobs"] = function()
       failed = { cmd = { "sh", "-c", "exit 1" } },
     },
   })
-  local done, failed = agents.new("done"), agents.new("failed")
+  local done, failed = assert(agents.new("done")), assert(agents.new("failed"))
   H.wait(function()
     return not vim.api.nvim_buf_is_valid(done.buf) and failed.state == "exited"
   end)
@@ -154,13 +157,49 @@ end
 T["additional argv is passed literally and stored without changing defaults"] = function()
   agents.setup({ tools = { probe = { cmd = { "sh", "-c", 'printf "%s" "$1"', "probe" } } } })
   local text = "$(not-a-command); still literal"
-  local session = agents.new("probe", { args = { text } })
+  local session = assert(agents.new("probe", { args = { text } }))
   H.wait(function()
     return session.state == "exited"
   end)
   eq(session.cmd[5], text)
   eq(output(session):find(text, 1, true) ~= nil, true)
   eq(#session.tool.cmd, 4)
+end
+
+T["complete argv overrides retain the tool definition and label"] = function()
+  local literal = "literal argument with spaces"
+  local cmd = { "sh", "-c", 'printf "%s" "$1"', "probe", literal }
+  local session = assert(agents.new("cat", { cmd = cmd }))
+  H.wait(function()
+    return session.state == "exited"
+  end)
+  eq(session.cmd, cmd)
+  eq(session.tool.cmd, { "cat" })
+  eq(session.label, "cat")
+  eq(output(session):find(literal, 1, true) ~= nil, true)
+  cmd[1] = "changed"
+  eq(session.cmd[1], "sh")
+end
+
+T["invalid launch argv and mixed cmd args fail before creating a session"] = function()
+  local before = vim.api.nvim_list_bufs()
+  for _, opts in ipairs({
+    { cmd = false },
+    { cmd = {} },
+    { cmd = { "" } },
+    { cmd = { "cat", false } },
+    { cmd = { [1] = "cat", [3] = "arg" } },
+    { cmd = { "cat" }, args = {} },
+    { args = false },
+  }) do
+    test.expect.error(function()
+      -- Deliberately invalid values verify validation before allocating a session.
+      ---@diagnostic disable-next-line: param-type-mismatch
+      agents.new("cat", opts)
+    end)
+    eq(agents.sessions(), {})
+    eq(vim.api.nvim_list_bufs(), before)
+  end
 end
 
 return T

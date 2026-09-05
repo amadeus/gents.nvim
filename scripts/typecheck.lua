@@ -9,9 +9,8 @@ vim.fn.mkdir(directory, "p")
 
 local config = vim.json.decode(table.concat(vim.fn.readfile(".luarc.json"), "\n"))
 config["workspace.library"] = { assert(vim.env.VIMRUNTIME) .. "/lua" }
--- Runtime tests deliberately exercise invalid inputs and use mini.test globals.
--- Keep their editor diagnostics separate from the plugin's command-line check.
-vim.list_extend(config["workspace.ignoreDir"], { "tests", ".nvim.lua" })
+-- Local editor configuration is not part of the plugin or its test suite.
+vim.list_extend(config["workspace.ignoreDir"], { ".nvim.lua" })
 local config_path = directory .. "/luarc.json"
 vim.fn.writefile({ vim.json.encode(config) }, config_path)
 

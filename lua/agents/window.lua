@@ -86,9 +86,20 @@ function M.show(session, layout)
 end
 
 ---@param session agents.Session
+---@param tab? integer Restrict hiding to this tab; otherwise hide every view.
 ---@return agents.Session
-function M.hide(session)
+function M.hide(session, tab)
   local wins = vim.fn.win_findbuf(session.buf)
+  if tab then
+    wins = vim.tbl_filter(
+      ---@param win integer
+      ---@return boolean
+      function(win)
+        return vim.api.nvim_win_get_tabpage(win) == tab
+      end,
+      wins
+    )
+  end
   for _, win in ipairs(wins) do
     local ok, err = pcall(vim.api.nvim_win_hide, win)
     if not ok then

@@ -103,15 +103,29 @@ end
 
 ---@return agents.Session?
 function M.toggle()
+  local window = require("agents.window")
+  local tab = vim.api.nvim_get_current_tabpage()
   local current = M.current()
   if current then
-    return M.hide(current.id)
+    return window.hide(current, tab)
   end
   local sessions = M.sessions()
+  local hidden = false
+  for _, session in ipairs(sessions) do
+    if window.visible(session, tab) then
+      window.hide(session, tab)
+      hidden = true
+    end
+  end
+  if hidden then
+    return
+  end
   if #sessions == 0 then
     return M.new()
+  elseif #sessions == 1 then
+    return M.show(sessions[1].id)
   end
-  return M.show()
+  return M.pick()
 end
 
 return M

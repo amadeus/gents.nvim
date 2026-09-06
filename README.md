@@ -28,13 +28,16 @@ optional; the plugin installs none by default.
 - `:Agents new` — pick a tool and start a session.
 - `:Agents new claude` — start Claude directly.
 - `:Agents actions` — choose a top-level command.
-- `:Agents toggle` — hide the current agent session, hide visible sessions from an
-  editor buffer, or show/select a session when none are visible (current tab).
+- `:Agents toggle` — show or hide a selected session in the current tab.
 - `:Agents pick` — choose an agent session.
 - `:Agents focus` — focus an agent session or return to the previous window, keeping it open.
 - `:Agents send` — choose context to send to a session.
 - `:Agents send file diagnostics` — send a file reference and its diagnostics.
 - `:Agents close` — stop and remove a session.
+
+Supply choices to skip pickers: `:Agents actions hide codex #2` or
+`:Agents send file --target codex #2`. See [commands](docs/commands.md) for
+target selection, completion, and ranges.
 
 Sends paste context without an extra Enter or a focus change by default.
 Hidden sessions keep running. Run `:checkhealth agents` to check your setup.

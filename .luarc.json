@@ -5,6 +5,9 @@
   "type.checkTableShape": true,
   "type.castNumberToInteger": false,
   "diagnostics.globals": ["vim"],
+  "diagnostics.severity": {
+    "no-unknown": "Error!"
+  },
   "diagnostics.neededFileStatus": {
     "no-unknown": "Any",
     "incomplete-signature-doc": "Any",

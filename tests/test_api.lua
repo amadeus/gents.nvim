@@ -52,23 +52,36 @@ T["focus shows a sole hidden session"] = function()
   eq(vim.fn.jobwait({ session.job }, 0), { -1 })
 end
 
-T["focus prefers the sole session visible in the current tab"] = function()
+T["focus opens the picker when one session is visible here and another exists elsewhere"] = function()
   local original = vim.api.nvim_get_current_win()
   local here = H.new()
   local terminal = vim.api.nvim_get_current_win()
   local elsewhere = H.new({ layout = "tabnew" })
   vim.api.nvim_set_current_win(original)
-  require("agents.config").get().picker = function()
-    error("Expected focus to reuse the visible session without opening a picker")
-  end
+  local picked = capture_picker()
 
-  eq(agents.focus(), here)
+  eq(agents.focus(), nil)
+  eq(vim.api.nvim_get_current_win(), original)
+  local spec = picked()
+  eq(#spec.items, 2)
+  spec.actions[spec.default](spec.items[1])
 
   eq(vim.api.nvim_get_current_win(), terminal)
   eq(agents.current(), here)
   eq(window.visible(elsewhere), true)
   eq(#agents.sessions(), 2)
   eq(vim.fn.jobwait({ here.job, elsewhere.job }, 0), { -1, -1 })
+end
+
+T["explicit focus targets show the requested session even from an agent buffer"] = function()
+  local first = H.new()
+  local second = H.new()
+
+  eq(agents.focus(first.label), first)
+  eq(agents.current(), first)
+  eq(window.visible(second), true)
+  eq(agents.focus(first.id), first)
+  eq(agents.current(), first)
 end
 
 T["focus opens the session picker when several sessions are hidden"] = function()
@@ -125,28 +138,31 @@ T["toggle from an editor buffer hides the sole visible session"] = function()
   eq(vim.fn.jobwait({ session.job }, 0), { -1 })
 end
 
-T["toggle from an editor buffer hides all visible sessions and leaves hidden sessions alone"] = function()
+T["toggle from an editor buffer picks one session to hide and preserves the others"] = function()
   local original = vim.api.nvim_get_current_win()
   local first = H.new()
   local second = H.new()
   local hidden = H.new()
   agents.hide(hidden.id)
   vim.api.nvim_set_current_win(original)
-  require("agents.config").get().picker = function()
-    error("Expected visible sessions to hide without opening a picker")
-  end
+  local picked = capture_picker()
 
   agents.toggle()
 
+  eq(window.visible(first), true)
+  eq(window.visible(second), true)
+  local spec = picked()
+  eq(#spec.items, 3)
+  spec.actions[spec.default](spec.items[1])
   eq(window.visible(first), false)
-  eq(window.visible(second), false)
+  eq(window.visible(second), true)
   eq(window.visible(hidden), false)
   eq(vim.api.nvim_get_current_win(), original)
   eq(#agents.sessions(), 3)
   eq(vim.fn.jobwait({ first.job, second.job, hidden.job }, 0), { -1, -1, -1 })
 end
 
-T["toggle from an editor buffer preserves session views in other tabs"] = function()
+T["explicit toggle hides only the target views in the current tab"] = function()
   local original = vim.api.nvim_get_current_win()
   local tab = vim.api.nvim_get_current_tabpage()
   local shared = H.new()
@@ -156,15 +172,29 @@ T["toggle from an editor buffer preserves session views in other tabs"] = functi
   window.open(shared.buf, "vsplit")
   vim.api.nvim_set_current_win(original)
 
-  agents.toggle()
+  agents.toggle(shared.label)
 
   eq(window.visible(shared, tab), false)
   eq(window.visible(shared, elsewhere), true)
-  eq(window.visible(here), false)
+  eq(window.visible(here), true)
   eq(window.visible(remote, elsewhere), true)
   eq(vim.api.nvim_get_current_win(), original)
   eq(#agents.sessions(), 3)
   eq(vim.fn.jobwait({ shared.job, here.job, remote.job }, 0), { -1, -1, -1 })
+end
+
+T["explicit toggle targets override the current agent"] = function()
+  local first = H.new()
+  local current = H.new()
+
+  eq(agents.toggle(first.id), first)
+  eq(window.visible(first), false)
+  eq(agents.current(), current)
+  eq(window.visible(current), true)
+
+  eq(agents.toggle(first.label), first)
+  eq(agents.current(), first)
+  eq(window.visible(current), true)
 end
 
 T["toggle shows a sole hidden session"] = function()
@@ -229,6 +259,30 @@ T["pick always opens a picker even for one session"] = function()
   agents.pick()
   eq(#picked().items, 1)
   eq(picked().items[1].data.id, session.id)
+end
+
+T["explicit pick targets show the requested session without opening a picker"] = function()
+  local first = H.new()
+  H.new()
+  agents.hide(first.id)
+  require("agents.config").get().picker = function()
+    error("Expected an explicit target to skip the picker")
+  end
+
+  eq(agents.pick(first.label), first)
+  eq(agents.current(), first)
+end
+
+T["explicit unmatched targets do not create sessions"] = function()
+  require("agents.config").get().picker = function()
+    error("Expected an explicit unmatched target to error")
+  end
+  for _, action in ipairs({ agents.pick, agents.focus, agents.toggle }) do
+    test.expect.error(function()
+      action("missing")
+    end, "no session matches")
+  end
+  eq(#agents.sessions(), 0)
 end
 
 T["pick falls through to the tool picker when empty"] = function()

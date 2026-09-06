@@ -32,22 +32,22 @@ inside an agents.nvim terminal on Neovim 0.12.4 and its configured signal
 produced an `AgentsReady` event. It does not imply that every error,
 cancellation, subagent, or UI mode was tested.
 
-| Built-in tool | Signal | Verification |
-| --- | --- | --- |
-| `claude` | `Stop` hook | Live: 2.1.261, print mode |
-| `codex` | OSC 9, filtered to `agent-turn-complete` | Live: 0.153.4, TUI |
-| `opencode` | `session.idle` plugin event | Live: 1.18.23, default TUI; broader idle signal |
-| `opencode2` | V2 `session.execution.succeeded` event | Unverified: beta API/dependency mismatch and provider authorization |
-| `amp` | `agent.end`, status `done` | Live: 0.0.1785660266-g6a1789, execute mode |
-| `aider` | Notification command | Broader attention signal; not live-tested |
-| `copilot` | `agentStop` hook | Documented; not live-tested |
-| `crush` | OSC notifications | Broader attention signal; not live-tested |
-| `cursor-agent` | `afterAgentResponse` hook | Documented assistant-message boundary; not live-tested |
-| `gemini` | `AfterAgent` hook | Live: 0.58.0, print mode |
-| `grok` | `Stop` hook | Source-confirmed; not live-tested |
-| `pi` | `agent_settled`, final assistant reason `stop` | Live: 0.85.1, print mode; error case also checked |
-| `q` | Agent `stop` hook | Documented; not live-tested |
-| `qwen` | `Stop` hook | Live: 0.23.0, print mode |
+| Built-in tool  | Signal                                         | Verification                                                        |
+| -------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
+| `claude`       | `Stop` hook                                    | Live: 2.1.261, print mode                                           |
+| `codex`        | OSC 9, filtered to `agent-turn-complete`       | Live: 0.153.4, TUI                                                  |
+| `opencode`     | `session.idle` plugin event                    | Live: 1.18.23, default TUI; broader idle signal                     |
+| `opencode2`    | V2 `session.execution.succeeded` event         | Unverified: beta API/dependency mismatch and provider authorization |
+| `amp`          | `agent.end`, status `done`                     | Live: 0.0.1785660266-g6a1789, execute mode                          |
+| `aider`        | Notification command                           | Broader attention signal; not live-tested                           |
+| `copilot`      | `agentStop` hook                               | Documented; not live-tested                                         |
+| `crush`        | OSC notifications                              | Broader attention signal; not live-tested                           |
+| `cursor-agent` | `afterAgentResponse` hook                      | Documented assistant-message boundary; not live-tested              |
+| `gemini`       | `AfterAgent` hook                              | Live: 0.58.0, print mode                                            |
+| `grok`         | `Stop` hook                                    | Source-confirmed; not live-tested                                   |
+| `pi`           | `agent_settled`, final assistant reason `stop` | Live: 0.85.1, print mode; error case also checked                   |
+| `q`            | Agent `stop` hook                              | Documented; not live-tested                                         |
+| `qwen`         | `Stop` hook                                    | Live: 0.23.0, print mode                                            |
 
 Claude, Codex, Gemini, Pi, and Qwen used local static responses while their actual
 CLIs drove the normal response lifecycle. Amp and OpenCode used a hosted
@@ -64,12 +64,16 @@ Add a `Stop` command to `.claude/settings.json` (or your user settings):
 ```json
 {
   "hooks": {
-    "Stop": [{
-      "hooks": [{
-        "type": "command",
-        "command": "if [ -n \"$NVIM\" ] && [ -n \"$AGENTS_SESSION\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null 2>&1; fi"
-      }]
-    }]
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$NVIM\" ] && [ -n \"$AGENTS_SESSION\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null 2>&1; fi"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -107,10 +111,11 @@ export const AgentsReady = async () => ({
     const id = process.env.AGENTS_SESSION;
     if (event.type !== "session.idle" || !server || !/^\d+$/.test(id ?? "")) return;
 
-    execFileSync("nvim", [
-      "--server", server,
-      "--remote-expr", `v:lua.require'agents'.ready(${id})`,
-    ], { stdio: "ignore" });
+    execFileSync(
+      "nvim",
+      ["--server", server, "--remote-expr", `v:lua.require'agents'.ready(${id})`],
+      { stdio: "ignore" },
+    );
   },
 });
 ```
@@ -135,10 +140,11 @@ export default function (amp) {
     const id = process.env.AGENTS_SESSION;
     if (event.status !== "done" || !server || !/^\d+$/.test(id ?? "")) return;
 
-    execFileSync("nvim", [
-      "--server", server,
-      "--remote-expr", `v:lua.require'agents'.ready(${id})`,
-    ], { stdio: "ignore" });
+    execFileSync(
+      "nvim",
+      ["--server", server, "--remote-expr", `v:lua.require'agents'.ready(${id})`],
+      { stdio: "ignore" },
+    );
   });
 }
 ```
@@ -167,13 +173,17 @@ Add to `.gemini/settings.json`, replacing the script path:
 ```json
 {
   "hooks": {
-    "AfterAgent": [{
-      "hooks": [{
-        "type": "command",
-        "name": "agents-ready",
-        "command": "sh /path/to/agents-ready.sh"
-      }]
-    }]
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "name": "agents-ready",
+            "command": "sh /path/to/agents-ready.sh"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -191,7 +201,9 @@ import { execFileSync } from "node:child_process";
 export default function (pi: ExtensionAPI) {
   let stopReason: string | undefined;
 
-  pi.on("agent_start", () => { stopReason = undefined; });
+  pi.on("agent_start", () => {
+    stopReason = undefined;
+  });
   pi.on("message_end", (event) => {
     if (event.message.role === "assistant") stopReason = event.message.stopReason;
   });
@@ -200,10 +212,11 @@ export default function (pi: ExtensionAPI) {
     const id = process.env.AGENTS_SESSION;
     if (stopReason !== "stop" || !server || !/^\d+$/.test(id ?? "")) return;
 
-    execFileSync("nvim", [
-      "--server", server,
-      "--remote-expr", `v:lua.require'agents'.ready(${id})`,
-    ], { stdio: "ignore" });
+    execFileSync(
+      "nvim",
+      ["--server", server, "--remote-expr", `v:lua.require'agents'.ready(${id})`],
+      { stdio: "ignore" },
+    );
   });
 }
 ```
@@ -222,12 +235,16 @@ Add to `.qwen/settings.json`:
 ```json
 {
   "hooks": {
-    "Stop": [{
-      "hooks": [{
-        "type": "command",
-        "command": "if [ -n \"$NVIM\" ] && [ -n \"$AGENTS_SESSION\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null 2>&1; fi"
-      }]
-    }]
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$NVIM\" ] && [ -n \"$AGENTS_SESSION\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null 2>&1; fi"
+          }
+        ]
+      }
+    ]
   }
 }
 ```

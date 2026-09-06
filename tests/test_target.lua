@@ -47,20 +47,51 @@ T["current session wins when several sessions are visible"] = function()
   )
 end
 
-T["one session visible in this tab wins over sessions elsewhere"] = function()
+T["one visible session still opens the picker when sessions exist elsewhere"] = function()
   local here = H.new()
   local tab = vim.api.nvim_get_current_tabpage()
-  H.new({ layout = "tabnew" })
-  H.new()
+  local elsewhere = H.new({ layout = "tabnew" })
   vim.api.nvim_set_current_tabpage(tab)
   vim.cmd("new")
+  ---@type integer?
+  local selected
+  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param _ vim.ui.select.Opts
+  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  set_select(function(items, _, callback)
+    test.expect.equality({ items[1].data.id, items[2].data.id }, { here.id, elsewhere.id })
+    callback(items[2], 2)
+  end)
 
   test.expect.equality(
     target.with(nil, function(session)
-      return session.id
+      selected = session.id
     end),
-    here.id
+    nil
   )
+  test.expect.equality(selected, elsewhere.id)
+end
+
+T["one visible session still opens the picker when another session is hidden"] = function()
+  local original = vim.api.nvim_get_current_win()
+  local visible = H.new()
+  local hidden = H.new()
+  require("agents").hide(hidden.id)
+  vim.api.nvim_set_current_win(original)
+  ---@type integer?
+  local selected
+  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param _ vim.ui.select.Opts
+  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  set_select(function(items, _, callback)
+    test.expect.equality({ items[1].data.id, items[2].data.id }, { visible.id, hidden.id })
+    callback(items[2], 2)
+  end)
+
+  target.with(nil, function(session)
+    selected = session.id
+  end)
+  test.expect.equality(selected, hidden.id)
 end
 
 T["a sole hidden session is selected"] = function()
@@ -98,17 +129,19 @@ T["ambiguous sessions use the picker and return nil"] = function()
   test.expect.equality(selected, second)
 end
 
-T["filters constrain current and visible resolution"] = function()
-  local visible = H.new()
+T["filters prefer an eligible current session and resolve a sole matching session"] = function()
+  local current = H.new()
+  local current_win = vim.api.nvim_get_current_win()
   local hidden = H.new()
   require("agents").hide(hidden.id)
   local unrelated = H.new()
+  vim.api.nvim_set_current_win(current_win)
   local selected = target.with(function(session)
     return session.id ~= unrelated.id
   end, function(session)
     return session.id
   end)
-  test.expect.equality(selected, visible.id)
+  test.expect.equality(selected, current.id)
 
   selected = target.with(function(session)
     return session.id == hidden.id

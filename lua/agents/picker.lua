@@ -66,10 +66,8 @@ function M.commands(callback)
   local origin = vim.api.nvim_get_current_win()
   ---@type agents.PickerItem<agents.CommandName>[]
   local items = {}
-  for _, command in ipairs(require("agents.commands").names()) do
-    if command ~= "actions" then
-      items[#items + 1] = { text = command, data = command }
-    end
+  for _, command in ipairs(require("agents.commands").names(true)) do
+    items[#items + 1] = { text = command, data = command }
   end
   M.open({
     title = "Agents: actions",

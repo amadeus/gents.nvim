@@ -79,8 +79,12 @@ function M.show(target, opts)
   end)
 end
 
+---@param target? agents.Target
 ---@return agents.Session?
-function M.focus()
+function M.focus(target)
+  if target ~= nil then
+    return M.show(target)
+  end
   if M.current() then
     vim.cmd.wincmd("p")
     vim.cmd.stopinsert()
@@ -104,8 +108,12 @@ function M.close(target)
   return require("agents.target").with(target, require("agents.session").close)
 end
 
----@return nil
-function M.pick()
+---@param target? agents.Target
+---@return agents.Session?
+function M.pick(target)
+  if target ~= nil then
+    return M.show(target)
+  end
   local sessions = M.sessions()
   if #sessions == 0 then
     return M.new()
@@ -116,51 +124,42 @@ function M.pick()
 end
 
 ---Open a picker for the top-level commands.
+---@param range? { line1: integer, line2: integer } Explicit Ex range for send.
 ---@return nil
-function M.actions()
-  ---@type agents.Context?
-  local ctx
+function M.actions(range)
+  local ctx = range and require("agents.context").capture(range) or nil
   local mode = vim.fn.mode()
   if mode == "v" or mode == "V" or mode == "\22" then
-    if not M.current() then
+    if not ctx and not M.current() then
       ctx = require("agents.context").capture()
     end
     vim.cmd.normal({ args = { "\27" }, bang = true })
   end
   require("agents.picker").commands(function(command)
-    if command == "send" and ctx then
-      require("agents.send").from_context(ctx)
-    else
-      M[command]()
-    end
+    require("agents.commands").run({
+      args = command,
+      context = ctx,
+      range = range and 1 or nil,
+      line1 = range and range.line1,
+      line2 = range and range.line2,
+    })
   end)
 end
 
+---@param target? agents.Target
 ---@return agents.Session?
-function M.toggle()
+function M.toggle(target)
   local window = require("agents.window")
   local tab = vim.api.nvim_get_current_tabpage()
-  local current = M.current()
-  if current then
-    return window.hide(current, tab)
-  end
-  local sessions = M.sessions()
-  local hidden = false
-  for _, session in ipairs(sessions) do
-    if window.visible(session, tab) then
-      window.hide(session, tab)
-      hidden = true
-    end
-  end
-  if hidden then
-    return
-  end
-  if #sessions == 0 then
+  if target == nil and #M.sessions() == 0 then
     return M.new()
-  elseif #sessions == 1 then
-    return M.show(sessions[1].id)
   end
-  return M.pick()
+  return require("agents.target").with(target, function(session)
+    if window.visible(session, tab) then
+      return window.hide(session, tab)
+    end
+    return window.show(session)
+  end)
 end
 
 return M

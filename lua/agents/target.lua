@@ -36,17 +36,6 @@ function M.with(target, callback)
     end
   end
 
-  local tab = vim.api.nvim_get_current_tabpage()
-  ---@type agents.Session[]
-  local visible = {}
-  for _, session in ipairs(candidates) do
-    if require("agents.window").visible(session, tab) then
-      visible[#visible + 1] = session
-    end
-  end
-  if #visible == 1 then
-    return callback(visible[1])
-  end
   if #candidates == 1 then
     return callback(candidates[1])
   end

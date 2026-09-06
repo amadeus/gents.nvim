@@ -211,6 +211,52 @@ T["no sessions gives actionable feedback"] = function()
   eq(notifications[1]:find(":Agents new", 1, true) ~= nil, true)
 end
 
+T["composed ranged send uses an explicit target with a multiword label"] = function()
+  local origin = vim.api.nvim_get_current_win()
+  local selected = H.new({ label = "code review" })
+  local other = H.new()
+  vim.api.nvim_set_current_win(origin)
+  vim.cmd("2Agents actions send --target code review")
+  H.wait(function()
+    return output(selected):find("local second = 2", 1, true) ~= nil
+  end)
+  eq(output(selected):find("local first = 1", 1, true), nil)
+  eq(output(other):find("local second = 2", 1, true), nil)
+  eq(#pickers, 0)
+  eq(vim.api.nvim_get_current_win(), origin)
+end
+
+T["ranged actions keeps its original selection across picker changes"] = function()
+  local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+  local session = H.new()
+  vim.api.nvim_set_current_win(origin)
+  vim.cmd("2Agents actions")
+  local menu = assert(pickers[1])
+  eq(menu.title, "Agents: actions")
+  vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
+  vim.cmd("new")
+  choose(menu, "send")
+  H.wait(function()
+    return output(session):find("local second = 2", 1, true) ~= nil
+  end)
+  eq(output(session):find("changed after capture", 1, true), nil)
+  eq(#pickers, 1)
+  eq(vim.api.nvim_get_current_win(), origin)
+end
+
+T["ranged actions rejects a non-send choice before changing sessions"] = function()
+  local origin = vim.api.nvim_get_current_win()
+  local session = H.new()
+  vim.api.nvim_set_current_win(origin)
+  vim.cmd("2Agents actions")
+  test.expect.error(function()
+    choose(assert(pickers[1]), "hide")
+  end, "only send accepts a range")
+  eq(require("agents.window").visible(session), true)
+  eq(agents.sessions(), { session })
+  eq(#pickers, 1)
+end
+
 T["exited targets are rejected before showing a window"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new({ cmd = { "sh", "-c", "exit 1" } })

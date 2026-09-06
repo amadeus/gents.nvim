@@ -24,7 +24,7 @@ end
 
 ---@type table<string, function>
 local original
----@type { [1]: string, [2]: (agents.Target|agents.NewOptions|agents.Item[])[] }[]
+---@type { [1]: string, [2]: (agents.Target|agents.NewOptions|agents.SendOptions|agents.Item[])[] }[]
 local calls
 local methods = commands.names()
 local dispatch = test.new_set({
@@ -35,7 +35,7 @@ local dispatch = test.new_set({
       local agents = require("agents")
       for _, name in ipairs(methods) do
         original[name] = agents[name]
-        ---@param ... agents.Target|agents.NewOptions|agents.Item[]
+        ---@param ... agents.Target|agents.NewOptions|agents.SendOptions|agents.Item[]
         agents[name] = function(...)
           calls[#calls + 1] = { name, { ... } }
         end
@@ -89,8 +89,50 @@ dispatch["send expands named prompts alongside provider names"] = function()
   expect(calls, { { "send", { { "file", { text = "Explain:" }, "selection" } } } })
 end
 
+dispatch["actions composes with every leaf command"] = function()
+  config.setup({ prompts = { explain = { { text = "Explain:" }, "selection" } } })
+  for _, command in ipairs({
+    "new",
+    "new cat --resume --target literal",
+    "toggle",
+    "toggle cat #2",
+    "focus",
+    "focus 12",
+    "pick",
+    "pick cat #2",
+    "hide",
+    "hide 12",
+    "close",
+    "close cat #2",
+    "send",
+    "send file explain",
+    "send file explain --target cat #2",
+    "send --target 12",
+  }) do
+    calls = {}
+    vim.cmd("Agents " .. command)
+    local direct = vim.deepcopy(calls)
+    calls = {}
+    vim.cmd("Agents actions " .. command)
+    expect(calls, direct)
+  end
+end
+
+dispatch["send targets preserve labels and prompt expansion"] = function()
+  config.setup({ prompts = { explain = { { text = "Explain:" }, "selection" } } })
+  vim.cmd("Agents send file explain --target feature   code review")
+  vim.cmd("Agents actions send --target 12")
+  expect(calls, {
+    {
+      "send",
+      { { "file", { text = "Explain:" }, "selection" }, { target = "feature code review" } },
+    },
+    { "send", { nil, { target = 12 } } },
+  })
+end
+
 dispatch["ranges are rejected for commands other than send"] = function()
-  for _, command in ipairs({ "actions", "focus", "new cat" }) do
+  for _, command in ipairs({ "actions hide", "actions new cat", "focus", "new cat" }) do
     test.expect.error(function()
       vim.cmd("1Agents " .. command)
     end, "only send accepts a range")
@@ -98,9 +140,33 @@ dispatch["ranges are rejected for commands other than send"] = function()
   expect(calls, {})
 end
 
+dispatch["ranged send chains forward the range and explicit target"] = function()
+  local send = require("agents.send")
+  local run = send.run
+  ---@param callback fun(items?: agents.Item[], opts?: agents.SendOptions, range?: { line1: integer, line2: integer }): agents.Session?
+  local function set_run(callback)
+    send.run = callback
+  end
+  ---@type { items?: agents.Item[], opts?: agents.SendOptions, range?: { line1: integer, line2: integer } }[]
+  local sent = {}
+  set_run(function(items, opts, range)
+    sent[#sent + 1] = { items = items, opts = opts, range = range }
+  end)
+  local ok, err = pcall(function()
+    vim.cmd("1Agents actions send file --target cat #2")
+    vim.cmd("1Agents send --target 12")
+  end)
+  set_run(run)
+  assert(ok, err)
+  expect(sent, {
+    { items = { "file" }, opts = { target = "cat #2" }, range = { line1 = 1, line2 = 1 } },
+    { items = { "selection" }, opts = { target = 12 }, range = { line1 = 1, line2 = 1 } },
+  })
+end
+
 dispatch["arguments split on whitespace without evaluation"] = function()
   vim.cmd(
-    [[Agents new cat   'two words' $HOME $(echo unsafe) | let g:agents_commands_evaluated = 1]]
+    [[Agents new cat --target literal  'two words' $HOME $(echo unsafe) | let g:agents_commands_evaluated = 1]]
   )
   expect(calls, {
     {
@@ -109,6 +175,8 @@ dispatch["arguments split on whitespace without evaluation"] = function()
         "cat",
         {
           args = {
+            "--target",
+            "literal",
             "'two",
             "words'",
             "$HOME",
@@ -127,20 +195,32 @@ dispatch["arguments split on whitespace without evaluation"] = function()
   expect(vim.g.agents_commands_evaluated, nil)
 end
 
-dispatch["hide and close accept ids and labels containing spaces"] = function()
-  vim.cmd("Agents hide 12")
-  vim.cmd("Agents close cat   #2")
-  expect(calls, { { "hide", { 12 } }, { "close", { "cat #2" } } })
+dispatch["all session commands accept ids and labels containing spaces"] = function()
+  for _, command in ipairs({ "hide", "close", "pick", "focus", "toggle" }) do
+    calls = {}
+    vim.cmd("Agents " .. command .. " 12")
+    vim.cmd("Agents " .. command .. " cat   #2")
+    expect(calls, { { command, { 12 } }, { command, { "cat #2" } } })
+  end
 end
 
-dispatch["invalid commands and extra arguments fail clearly"] = function()
-  test.expect.error(function()
-    vim.cmd("Agents unknown")
-  end, "unknown command 'unknown'")
-  for _, command in ipairs({ "actions", "focus", "pick", "toggle" }) do
+dispatch["invalid command chains fail before invoking an action"] = function()
+  for _, command in ipairs({ "unknown", "actions unknown" }) do
     test.expect.error(function()
-      vim.cmd("Agents " .. command .. " cat")
-    end, command .. " does not accept arguments")
+      vim.cmd("Agents " .. command)
+    end, "unknown command 'unknown'")
+  end
+  test.expect.error(function()
+    vim.cmd("Agents actions actions")
+  end, "agents:")
+  expect(calls, {})
+end
+
+dispatch["send rejects a missing explicit target"] = function()
+  for _, command in ipairs({ "send --target", "send file --target", "actions send --target" }) do
+    test.expect.error(function()
+      vim.cmd("Agents " .. command)
+    end, "target")
   end
   expect(calls, {})
 end
@@ -163,7 +243,10 @@ T["completion covers only supported subcommands"] = function()
   expect(complete("Agents f"), { "focus" })
   expect(complete("Agents focus "), {})
   expect(complete("Agents n"), { "new" })
-  expect(complete("Agents actions "), {})
+  expect(complete("Agents actions "), { "close", "focus", "hide", "new", "pick", "send", "toggle" })
+  expect(complete("Agents actions f"), { "focus" })
+  expect(complete("Agents actions a"), {})
+  expect(complete("Agents actions actions "), {})
   expect(complete("Agents toggle "), {})
   expect(complete("Agents pick "), {})
   expect(complete("Agents unknown "), {})
@@ -182,6 +265,12 @@ T["send completes providers and prompts at every item position"] = function()
   expect(complete("Agents send file ex"), { "explain" })
   expect(complete("'<,'>Agents send se"), { "selection" })
   expect(vim.fn.getcompletion("Agents send file di", "cmdline"), { "diagnostics" })
+  expect(complete("Agents actions send fi"), { "file" })
+  expect(complete("Agents actions send file ex"), { "explain" })
+  expect(complete("'<,'>Agents actions send se"), { "selection" })
+  expect(complete("Agents send file --t"), { "--target" })
+  expect(complete("Agents actions send --t"), { "--target" })
+  expect(vim.fn.getcompletion("Agents actions send file di", "cmdline"), { "diagnostics" })
 end
 
 T["tool completion uses configured tools only at the tool position"] = function()
@@ -202,20 +291,33 @@ T["tool completion uses configured tools only at the tool position"] = function(
     "custom",
   })
   expect(vim.fn.getcompletion("Agents new cus", "cmdline"), { "custom" })
+  expect(
+    complete("Agents actions new c"),
+    { "codex", "copilot", "crush", "cursor-agent", "custom" }
+  )
+  expect(complete("Agents actions new custom "), {})
+  expect(complete("Agents actions new custom --target"), {})
+  expect(complete("Agents actions new c ignored", "c", #"Agents actions new c"), {
+    "codex",
+    "copilot",
+    "crush",
+    "cursor-agent",
+    "custom",
+  })
 end
 
 local H = require("tests.helpers")
 local sessions = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
 T["sessions"] = sessions
 
-sessions["new, hide, and close operate on a real terminal"] = function()
-  vim.cmd("Agents new cat")
+sessions["composed new, hide, and close operate on a real terminal"] = function()
+  vim.cmd("Agents actions new cat")
   local session = assert(require("agents").current())
   expect(session.tool.name, "cat")
   expect(vim.fn.jobwait({ session.job }, 0), { -1 })
-  vim.cmd("Agents hide " .. session.id)
+  vim.cmd("Agents actions hide " .. session.id)
   expect(vim.fn.win_findbuf(session.buf), {})
-  vim.cmd("Agents close " .. session.label)
+  vim.cmd("Agents actions close " .. session.label)
   expect(require("agents").sessions(), {})
   H.wait(function()
     return not vim.api.nvim_buf_is_valid(session.buf)
@@ -223,10 +325,21 @@ sessions["new, hide, and close operate on a real terminal"] = function()
 end
 
 sessions["completion replaces only the current word of a session label"] = function()
-  H.new()
-  H.new()
-  H.new({ label = "feature code review" })
-  expect(complete("Agents hide "), { "cat", "cat #2", "feature code review" })
+  local first = H.new()
+  local second = H.new()
+  local custom = H.new({ label = "feature code review" })
+  local all = complete("Agents hide ")
+  table.sort(all)
+  local expected = {
+    tostring(first.id),
+    tostring(second.id),
+    tostring(custom.id),
+    "cat",
+    "cat #2",
+    "feature code review",
+  }
+  table.sort(expected)
+  expect(all, expected)
   expect(complete("Agents close c"), { "cat", "cat #2" })
   expect(complete("Agents close cat "), { "#2" })
   expect(complete("Agents close cat #"), { "#2" })
@@ -235,6 +348,23 @@ sessions["completion replaces only the current word of a session label"] = funct
   expect(complete("Agents hide feature code r"), { "review" })
   expect(complete("Agents close missing"), {})
   expect(vim.fn.getcompletion("Agents close cat #", "cmdline"), { "#2" })
+  for _, command in ipairs({
+    "hide",
+    "close",
+    "pick",
+    "focus",
+    "toggle",
+    "send --target",
+    "send file --target",
+  }) do
+    expect(complete("Agents " .. command .. " feature code r"), { "review" })
+    expect(complete("Agents actions " .. command .. " cat   #"), { "#2" })
+    expect(complete("Agents " .. command .. " " .. custom.id), { tostring(custom.id) })
+  end
+  expect(
+    vim.fn.getcompletion("Agents actions send file --target feature c", "cmdline"),
+    { "code review" }
+  )
   vim.cmd("Agents close cat #2")
   expect(complete("Agents close cat #"), {})
 end

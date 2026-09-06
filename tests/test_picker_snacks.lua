@@ -138,6 +138,31 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
   test.expect.equality(vim.api.nvim_get_current_tabpage(), session_tab)
 end
 
+T["Snacks current action"] = test.new_set({
+  parametrize = { { "input", "i" }, { "list", "n" } },
+}, {
+  ---@param from "input"|"list"
+  ---@param mode "i"|"n"
+  ["replaces the invoking buffer and preserves the session view in another tab"] = function(
+    from,
+    mode
+  )
+    local session = H.new()
+    local win = vim.api.nvim_get_current_win()
+    vim.cmd.tabnew()
+    local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
+    require("agents").pick()
+    press(current_picker(), "<C-CR>", mode, from)
+    test.expect.equality(vim.api.nvim_get_current_win(), origin)
+    test.expect.equality(vim.api.nvim_get_current_tabpage(), tab)
+    test.expect.equality(vim.api.nvim_win_get_buf(origin), session.buf)
+    test.expect.equality(vim.api.nvim_win_get_buf(win), session.buf)
+    test.expect.equality(#vim.fn.win_findbuf(session.buf), 2)
+    test.expect.equality(require("agents").sessions(), { session })
+    test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
+  end,
+})
+
 T["built-in tool shortcuts"] = test.new_set({
   parametrize = {
     { "<CR>", "vsplit" },

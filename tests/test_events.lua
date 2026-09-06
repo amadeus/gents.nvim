@@ -105,6 +105,20 @@ T["hide emits only when the last view across tabs is removed"] = function()
   eq(#events("AgentsSessionHide"), 1)
 end
 
+T["show in the current window emits only when it adds a session view"] = function()
+  local session = H.new()
+  vim.cmd.tabnew()
+  local origin = vim.api.nvim_get_current_win()
+  agents.show(session.id, { layout = "current" })
+  local shown = events("AgentsSessionShow")
+  eq(#shown, 2)
+  eq(shown[2].data, { id = session.id, win = origin })
+  agents.show(session.id, { layout = "current" })
+  eq(#events("AgentsSessionShow"), 2)
+  eq(vim.api.nvim_get_current_win(), origin)
+  eq(#vim.fn.win_findbuf(session.buf), 2)
+end
+
 T["process exit emits its actual exit code and keeps the buffer"] = function()
   local session = H.new({ cmd = { "sh", "-c", "exit 7" } })
   H.wait(function()

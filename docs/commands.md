@@ -47,6 +47,27 @@ only one session exists. With no sessions, `pick`, `focus`, and `toggle` open
 the tool picker; `hide` and `close` do nothing, and `send` reports that a session
 must be started first.
 
+With the Snacks session picker, Ctrl-Enter puts the session in the window
+that opened the picker, regardless of where it is already displayed. Ctrl-V,
+Ctrl-X, and Ctrl-T likewise honor the requested split or tab placement.
+Existing views stay open. Normal Enter focuses an existing view when one is
+available. Custom adapters have the same named layout actions.
+
+Custom `layout` callbacks take no arguments and return a window ID. The
+plugin assigns the session buffer after the callback returns. For example:
+
+```lua
+layout = function()
+  vim.cmd("botright vsplit")
+  return vim.api.nvim_get_current_win()
+end
+```
+
+For floating windows, a callback can use `nvim_open_win(0, true, opts)`.
+Move buffer-specific setup from old `function(buf)` callbacks into `TermOpen`
+or `FileType` hooks. Choosing the window before creating a new terminal lets
+Neovim track that terminal's window options correctly when it is shown elsewhere.
+
 Ranges work with `send`, including its composed form:
 
 ```vim

@@ -148,6 +148,8 @@ function M.new(tool, opts)
   local label = label_for(tool, opts.label)
   local cwd = vim.fn.getcwd(0)
   local on_exit = require("agents.config").get().on_exit
+  -- Allocate in the destination so Neovim associates its window options there.
+  local win = require("agents.window").open(nil, opts.layout)
   next_id = next_id + 1
   ---@type agents.Session
   local session = {
@@ -182,7 +184,7 @@ function M.new(tool, opts)
   local ok, err = pcall(function()
     require("agents.events").attach(session)
     require("agents.window").attach(session)
-    local win = require("agents.window").open(session.buf, opts.layout)
+    vim.api.nvim_win_set_buf(win, session.buf)
     session.tab = vim.api.nvim_get_current_tabpage()
     session.job = vim.fn.jobstart(cmd, {
       term = true,

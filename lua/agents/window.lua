@@ -102,7 +102,7 @@ local function float_config(layout)
   return opts
 end
 
----@param buf integer
+---@param buf? integer Existing buffer; omit to choose a new session's window first.
 ---@param layout? agents.Layout
 ---@return integer
 function M.open(buf, layout)
@@ -115,9 +115,9 @@ function M.open(buf, layout)
   ---@type integer
   local win
   if type(layout) == "table" then
-    win = vim.api.nvim_open_win(buf, true, float_config(layout))
+    win = vim.api.nvim_open_win(buf or 0, true, float_config(layout))
   elseif type(layout) == "function" then
-    win = layout(buf)
+    win = layout()
   else
     if layout ~= "current" then
       vim.cmd(layout)
@@ -125,7 +125,9 @@ function M.open(buf, layout)
     win = vim.api.nvim_get_current_win()
   end
   vim.api.nvim_set_current_win(win)
-  vim.api.nvim_win_set_buf(win, buf)
+  if buf then
+    vim.api.nvim_win_set_buf(win, buf)
+  end
   return win
 end
 
@@ -136,8 +138,11 @@ function M.show(session, layout)
   local wins = vim.fn.win_findbuf(session.buf)
   ---@type integer?
   local opened
-  if #wins == 0 then
-    opened = M.open(session.buf, layout)
+  if layout ~= nil or #wins == 0 then
+    local win = M.open(session.buf, layout)
+    if not vim.list_contains(wins, win) then
+      opened = win
+    end
   elseif vim.api.nvim_get_current_buf() ~= session.buf then
     vim.api.nvim_set_current_win(wins[1])
   end

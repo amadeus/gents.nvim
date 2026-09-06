@@ -340,7 +340,7 @@ T["loading setup and new install no global or terminal buffer keymaps"] = functi
   )
 end
 
-T["TermOpen and a real ftplugin retain their window customizations"] = function()
+T["TermOpen and a real ftplugin retain their window customizations after current placement"] = function()
   fixture_dir = vim.fn.tempname()
   vim.fn.mkdir(fixture_dir .. "/ftplugin", "p")
   vim.fn.writefile({
@@ -352,6 +352,17 @@ T["TermOpen and a real ftplugin retain their window customizations"] = function(
   lua("vim.opt.runtimepath:append(...)", { fixture_dir })
   lua([[vim.cmd("filetype plugin on")]])
   lua([[
+    _G.source_win, _G.source_buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+    _G.window_options = function()
+      return {
+        vim.wo.number, vim.wo.foldcolumn, vim.wo.winfixwidth,
+        vim.wo.relativenumber, vim.wo.signcolumn, vim.wo.wrap,
+      }
+    end
+    vim.wo.number, vim.wo.relativenumber = true, false
+    vim.wo.foldcolumn, vim.wo.signcolumn = "1", "yes:1"
+    vim.wo.winfixwidth, vim.wo.wrap = false, true
+    _G.source_options = window_options()
     vim.api.nvim_create_autocmd("TermOpen", { callback = function(ev)
       _G.termopen_session = vim.b[ev.buf].agents_session
       vim.wo.number = true
@@ -362,13 +373,30 @@ T["TermOpen and a real ftplugin retain their window customizations"] = function(
   spawn()
   eq(get("termopen_session == session.id"), true)
   eq(get("vim.b.agents_test_ftplugin"), true)
-  eq(
-    get([[{
-    vim.wo.number, vim.wo.foldcolumn, vim.wo.winfixwidth,
-    vim.wo.relativenumber, vim.wo.signcolumn, vim.wo.wrap,
-  }]]),
-    { true, "3", true, true, "yes:3", false }
-  )
+  local expected = { true, "3", true, true, "yes:3", false }
+  eq(get("window_options()"), expected)
+  lua([[_G.terminal_win = vim.api.nvim_get_current_win()]])
+
+  input([[<C-\><C-n>]])
+  mode("nt")
+  lua([[vim.api.nvim_set_current_win(source_win)]])
+  mode("n")
+  eq(get("window_options()"), get("source_options"))
+  lua([[require("agents").show(session.id, { layout = "current" })]])
+  mode("t")
+  eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+  -- winfixwidth belongs to a window; display options belong to its buffer view.
+  eq(get("window_options()"), { true, "3", false, true, "yes:3", false })
+  eq(get("vim.wo[terminal_win].winfixwidth"), true)
+  eq(get("vim.b.agents_test_ftplugin"), true)
+
+  input([[<C-\><C-n>]])
+  mode("nt")
+  lua([[vim.api.nvim_set_current_buf(source_buf)]])
+  mode("n")
+  eq(get("window_options()"), get("source_options"))
+  eq(get("#require('agents').sessions()"), 1)
+  eq(get("vim.fn.jobwait({ session.job }, 0)"), { -1 })
 end
 
 return T

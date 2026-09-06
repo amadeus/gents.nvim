@@ -693,16 +693,44 @@ T["session layout actions"] = test.new_set({ parametrize = layouts }, {
     test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
   end,
   ---@param layout string
-  ["reuse a visible session instead of opening another view"] = function(layout)
+  ["honor explicit placement while preserving a session view in another tab"] = function(layout)
     local get_spec = capture_sessions()
     local session = H.new()
     local win = vim.api.nvim_get_current_win()
     vim.cmd.tabnew()
+    local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
     require("agents").pick()
     local spec = get_spec()
+    vim.cmd.tabnew()
     spec.actions[layout](spec.items[1])
-    test.expect.equality(vim.api.nvim_get_current_win(), win)
-    test.expect.equality(vim.fn.win_findbuf(session.buf), { win })
+    expect_layout(layout, origin, tab, session.buf)
+    test.expect.equality(vim.api.nvim_win_get_buf(win), session.buf)
+    test.expect.equality(#vim.fn.win_findbuf(session.buf), 2)
+    test.expect.equality(require("agents").sessions(), { session })
+    test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
+  end,
+})
+
+T["session current action"] = test.new_set({ parametrize = { { false }, { true } } }, {
+  ---@param already_current boolean
+  ["uses the invoking window even when the session is already visible in this tab"] = function(
+    already_current
+  )
+    local get_spec = capture_sessions()
+    local session = H.new()
+    local win = vim.api.nvim_get_current_win()
+    if not already_current then
+      vim.cmd.new()
+    end
+    local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
+    require("agents").pick()
+    local spec = get_spec()
+    vim.cmd.tabnew()
+    spec.actions.current(spec.items[1])
+    expect_layout("current", origin, tab, session.buf)
+    test.expect.equality(vim.api.nvim_win_get_buf(win), session.buf)
+    test.expect.equality(#vim.fn.win_findbuf(session.buf), already_current and 1 or 2)
+    test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
   end,
 })
 

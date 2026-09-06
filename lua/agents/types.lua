@@ -32,8 +32,8 @@
 ---@field height number
 
 ---An Ex command that creates a window, "float", "current", inline float options,
----or a callback that returns the window in which to display the buffer.
----@alias agents.Layout string|agents.FloatConfig|fun(buf: integer): integer
+---or a callback that creates or chooses a window; the plugin assigns its buffer.
+---@alias agents.Layout string|agents.FloatConfig|fun(): integer
 
 ---@class agents.NewOptions
 ---@field cmd? string[] Complete argv override; mutually exclusive with args.
@@ -42,7 +42,7 @@
 ---@field label? string
 
 ---@class agents.ShowOptions
----@field layout? agents.Layout
+---@field layout? agents.Layout Explicit placement; preserves existing session views.
 
 ---@class agents.SendOptions
 ---@field target? agents.Target

@@ -15,11 +15,10 @@ T["layout opens each documented form"] = test.new_set({
     { "float" },
     { { width = 0.5, height = 0.5, border = "single", title = "Agent test", zindex = 70 } },
     {
-      ---@param buf integer
       ---@return integer
-      function(buf)
+      function()
         return vim.api.nvim_open_win(
-          buf,
+          0,
           true,
           { relative = "editor", row = 1, col = 1, width = 30, height = 8 }
         )
@@ -36,6 +35,62 @@ T["layout opens each documented form"] = test.new_set({
     eq(rawget(session, "win"), nil)
   end,
 })
+
+T["new terminal window options"] = test.new_set({
+  parametrize = { { "vsplit" }, { "current" }, { "tabnew" }, { "float" } },
+}, {
+  ---@param layout agents.Layout
+  ["survive placement in the originating editor window"] = function(layout)
+    local source_win, source_buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+    local number, relativenumber = vim.wo.number, vim.wo.relativenumber
+    test.finally(function()
+      if vim.api.nvim_win_is_valid(source_win) then
+        vim.api.nvim_win_call(source_win, function()
+          vim.wo.number, vim.wo.relativenumber = number, relativenumber
+        end)
+      end
+    end)
+    vim.wo.number, vim.wo.relativenumber = true, true
+
+    local session = H.new({ layout = layout })
+    local buf, job = session.buf, session.job
+    eq({ vim.wo.number, vim.wo.relativenumber }, { false, false })
+    vim.api.nvim_set_current_win(source_win)
+    vim.api.nvim_win_set_buf(source_win, source_buf)
+    eq({ vim.wo.number, vim.wo.relativenumber }, { true, true })
+
+    agents.show(session.id, { layout = "current" })
+    eq(vim.api.nvim_get_current_win(), source_win)
+    eq(vim.api.nvim_get_current_buf(), buf)
+    eq({ vim.wo.number, vim.wo.relativenumber }, { false, false })
+    eq({ session.buf, session.job }, { buf, job })
+    eq(agents.sessions(), { session })
+    eq(vim.fn.jobwait({ job }, 0), { -1 })
+
+    vim.api.nvim_win_set_buf(source_win, source_buf)
+    eq({ vim.wo.number, vim.wo.relativenumber }, { true, true })
+  end,
+})
+
+T["custom layouts choose the destination before a session buffer exists"] = function()
+  local source_win = vim.api.nvim_get_current_win()
+  local buffers = vim.api.nvim_list_bufs()
+  ---@type integer?
+  local destination
+  local session = H.new({
+    layout = function()
+      eq(vim.api.nvim_list_bufs(), buffers)
+      eq(agents.sessions(), {})
+      vim.cmd.vsplit()
+      destination = vim.api.nvim_get_current_win()
+      vim.api.nvim_set_current_win(source_win)
+      return assert(destination)
+    end,
+  })
+  eq(vim.api.nvim_get_current_win(), destination)
+  eq(vim.api.nvim_get_current_buf(), session.buf)
+  eq(vim.api.nvim_win_get_buf(source_win) ~= session.buf, true)
+end
 
 T["fractional float geometry is resolved once and config is not mutated"] = function()
   local opts = { width = 0.5, height = 0.5, border = "single", title = "Session", zindex = 70 }
@@ -60,14 +115,28 @@ T["float coordinates and cell dimensions pass through"] = function()
   eq({ config.width, config.height, config.row, config.col }, { 12, 4, 0, 0 })
 end
 
-T["show reuses an existing window in another tab"] = function()
+T["show without a layout reuses an existing window in another tab"] = function()
   local session = H.new({ layout = "tabnew" })
   local win, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
   vim.cmd.tabprevious()
-  agents.show(session.id, { layout = "float" })
+  agents.show(session.id)
   eq(vim.api.nvim_get_current_win(), win)
   eq(vim.api.nvim_get_current_tabpage(), tab)
   eq(vim.fn.win_findbuf(session.buf), { win })
+end
+
+T["an explicit show layout opens a view without leaving the invoking tab"] = function()
+  local session = H.new()
+  local existing = vim.api.nvim_get_current_win()
+  vim.cmd.tabnew()
+  local tab = vim.api.nvim_get_current_tabpage()
+  agents.show(session.id, { layout = "float" })
+  eq(vim.api.nvim_get_current_tabpage(), tab)
+  eq(vim.api.nvim_win_get_config(0).relative, "editor")
+  eq(vim.api.nvim_get_current_buf(), session.buf)
+  eq(vim.api.nvim_win_get_buf(existing), session.buf)
+  eq(#vim.fn.win_findbuf(session.buf), 2)
+  eq(vim.fn.jobwait({ session.job }, 0), { -1 })
 end
 
 T["hide closes a sole-window tab and keeps its job running"] = function()

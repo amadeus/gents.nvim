@@ -50,13 +50,20 @@ T["labels stay unique after close and support explicit labels"] = function()
 end
 
 T["cwd and environment come from the invoking window and tool"] = function()
-  local dir = vim.fn.tempname()
+  local dir, destination_dir = vim.fn.tempname(), vim.fn.tempname()
   vim.fn.mkdir(dir, "p")
+  vim.fn.mkdir(destination_dir, "p")
   test.finally(function()
     vim.fn.delete(dir, "d")
+    vim.fn.delete(destination_dir, "d")
     vim.env.AGENTS_TEST_REMOVE = nil
   end)
   vim.cmd.lcd(dir)
+  local origin = vim.api.nvim_get_current_win()
+  vim.cmd.split()
+  local destination = vim.api.nvim_get_current_win()
+  vim.cmd.lcd(destination_dir)
+  vim.api.nvim_set_current_win(origin)
   vim.env.AGENTS_TEST_REMOVE = "inherited"
   agents.setup({
     tools = {
@@ -74,11 +81,17 @@ T["cwd and environment come from the invoking window and tool"] = function()
       },
     },
   })
-  local session = assert(agents.new("probe"))
+  local session = assert(agents.new("probe", {
+    layout = function()
+      return destination
+    end,
+  }))
   H.wait(function()
     return session.state == "exited"
   end)
   local real_dir = assert(vim.uv.fs_realpath(dir))
+  eq(vim.api.nvim_get_current_win(), destination)
+  eq(vim.uv.fs_realpath(vim.fn.getcwd(0)), vim.uv.fs_realpath(destination_dir))
   eq(vim.uv.fs_realpath(session.cwd), real_dir)
   eq(output(session):gsub("\n", ""):find(real_dir, 1, true) ~= nil, true)
   local expected = tostring(session.id) .. "|tool-value|unset"
@@ -153,6 +166,48 @@ T["launch failures leave no session or scratch buffer behind"] = function()
     agents.new("missing", { layout = "invalid_agents_layout" })
   end)
   eq(agents.sessions(), {})
+  eq(vim.api.nvim_list_bufs(), before)
+end
+
+T["custom layout failures do not allocate a session or buffer"] = function()
+  local before = vim.api.nvim_list_bufs()
+  test.expect.error(function()
+    agents.new("cat", {
+      layout = function()
+        error("custom layout failed")
+      end,
+    })
+  end, "custom layout failed")
+  eq(agents.sessions(), {})
+  eq(vim.api.nvim_list_bufs(), before)
+  test.expect.error(function()
+    agents.new("cat", {
+      layout = function()
+        return -1
+      end,
+    })
+  end)
+  eq(agents.sessions(), {})
+  eq(vim.api.nvim_list_bufs(), before)
+end
+
+T["launch validation runs before custom layouts"] = function()
+  local session = H.new({ label = "review" })
+  local before = vim.api.nvim_list_bufs()
+  local calls = 0
+  ---@return integer
+  local function layout()
+    calls = calls + 1
+    return vim.api.nvim_get_current_win()
+  end
+  test.expect.error(function()
+    agents.new("cat", { cmd = {}, layout = layout })
+  end, "cmd must be a non%-empty list")
+  test.expect.error(function()
+    agents.new("cat", { label = "review", layout = layout })
+  end, "session label already exists")
+  eq(calls, 0)
+  eq(agents.sessions(), { session })
   eq(vim.api.nvim_list_bufs(), before)
 end
 

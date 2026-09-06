@@ -169,7 +169,8 @@ function M.hide(session, tab)
       local alternate = vim.api.nvim_win_call(win, function()
         return vim.fn.bufnr("#")
       end)
-      if alternate == session.buf or not vim.api.nvim_buf_is_valid(alternate) then
+      -- Loading an old term:// name left by a rename would start its job again.
+      if alternate == session.buf or not vim.api.nvim_buf_is_loaded(alternate) then
         alternate = vim.api.nvim_create_buf(true, false)
       end
       vim.api.nvim_win_set_buf(win, alternate)

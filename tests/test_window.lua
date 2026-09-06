@@ -98,6 +98,51 @@ T["hide creates an empty buffer when no alternate survives"] = function()
   eq(vim.bo.buftype, "")
 end
 
+T["renamed terminal in the final window"] = test.new_set({
+  parametrize = { { "hide" }, { "close" } },
+}, {
+  ---@param action "hide"|"close"
+  ["leaves an empty buffer without restarting the terminal"] = function(action)
+    local group = vim.api.nvim_create_augroup("AgentsRenamedTerminalTest", { clear = true })
+    test.finally(function()
+      vim.api.nvim_del_augroup_by_id(group)
+    end)
+    local starts = 0
+    vim.api.nvim_create_autocmd("TermOpen", {
+      group = group,
+      callback = function(ev)
+        starts = starts + 1
+        vim.api.nvim_buf_set_name(ev.buf, "[Term] " .. ev.buf)
+      end,
+    })
+    local session = H.new({ layout = "current" })
+    -- Renaming leaves an unloaded alternate with the original term:// name.
+    local alternate = vim.fn.bufnr("#")
+    eq(vim.api.nvim_buf_is_valid(alternate), true)
+    eq(vim.api.nvim_buf_is_loaded(alternate), false)
+    eq(vim.api.nvim_buf_get_name(alternate):match("^term://") ~= nil, true)
+
+    agents[action](session.id)
+    if action == "close" then
+      H.wait(function()
+        return session.state == "exited" and not vim.api.nvim_buf_is_valid(session.buf)
+      end)
+      eq(agents.sessions(), {})
+      eq(vim.fn.jobwait({ session.job }, 0)[1] ~= -1, true)
+    else
+      eq(agents.sessions(), { session })
+      eq(vim.fn.jobwait({ session.job }, 0), { -1 })
+      eq(window.visible(session), false)
+    end
+    eq(starts, 1)
+    eq(#vim.api.nvim_list_wins(), 1)
+    eq(vim.bo.buftype, "")
+    eq(vim.api.nvim_buf_get_name(0), "")
+    eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "" })
+    eq(agents.current(), nil)
+  end,
+})
+
 T["hide removes every view of a session across tabs"] = function()
   local session = H.new()
   vim.cmd.split()

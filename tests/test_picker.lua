@@ -128,7 +128,7 @@ T["actions lists the top-level commands without including itself"] = function()
     names[#names + 1] = item.data
     test.expect.equality(item.text, item.data)
   end
-  test.expect.equality(names, { "close", "hide", "new", "pick", "send", "toggle" })
+  test.expect.equality(names, { "close", "focus", "hide", "new", "pick", "send", "toggle" })
   test.expect.equality(require("agents").sessions(), {})
 end
 

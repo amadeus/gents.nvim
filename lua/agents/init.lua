@@ -78,6 +78,19 @@ function M.show(target, opts)
   end)
 end
 
+---@return agents.Session?
+function M.focus()
+  if M.current() then
+    vim.cmd.wincmd("p")
+    vim.cmd.stopinsert()
+    return
+  end
+  if #M.sessions() == 0 then
+    return M.new()
+  end
+  return M.show()
+end
+
 ---@param target? agents.Target
 ---@return agents.Session?
 function M.hide(target)

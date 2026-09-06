@@ -16,6 +16,7 @@ local actions = {
   new = true,
   toggle = true,
   pick = true,
+  focus = true,
   hide = true,
   close = true,
   send = true,
@@ -42,7 +43,8 @@ function M.validate(entries)
     assert(type(key[1]) == "string" and key[1] ~= "", prefix .. " requires a non-empty key")
     assert(
       type(key[2]) == "function" or (type(key[2]) == "string" and actions[key[2]]),
-      prefix .. " action must be actions, new, toggle, pick, hide, close, send, or a function"
+      prefix
+        .. " action must be actions, new, toggle, pick, focus, hide, close, send, or a function"
     )
     assert(
       key.mode == nil

@@ -127,6 +127,45 @@ T["explicit show enters terminal input for hidden and visible sessions"] = funct
   mode("t")
 end
 
+T["focus mappings leave terminal input and refocus the visible session"] = function()
+  lua([[
+    _G.source_win = vim.api.nvim_get_current_win()
+    vim.keymap.set({ "n", "t" }, "<F5>", function()
+      require("agents").focus()
+    end)
+  ]])
+  spawn()
+  lua([[_G.terminal_win = vim.api.nvim_get_current_win()]])
+
+  input("<F5>")
+  mode("n")
+  eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+  eq(get("vim.api.nvim_win_get_buf(terminal_win) == session.buf"), true)
+  eq(get("vim.fn.jobwait({ session.job }, 0)"), { -1 })
+
+  input("<F5>")
+  mode("t")
+  eq(get("vim.api.nvim_get_current_win() == terminal_win"), true)
+  eq(get("#require('agents').sessions()"), 1)
+end
+
+T["focus returns to a previous terminal window in normal mode"] = function()
+  spawn()
+  lua([[
+    _G.previous = session
+    _G.previous_win = vim.api.nvim_get_current_win()
+  ]])
+  spawn()
+
+  lua([[require("agents").focus()]])
+
+  mode("nt")
+  eq(get("vim.api.nvim_get_current_win() == previous_win"), true)
+  eq(get("require('agents').current() == previous"), true)
+  eq(get("require('agents.window').visible(session)"), true)
+  eq(get("vim.fn.jobwait({ previous.job, session.job }, 0)"), { -1, -1 })
+end
+
 T["native window reentry preserves terminal normal mode"] = function()
   lua([[_G.source_win = vim.api.nvim_get_current_win()]])
   spawn()

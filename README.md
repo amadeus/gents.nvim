@@ -28,9 +28,10 @@ optional; the plugin installs none by default.
 - `:Agents new` — pick a tool and start a session.
 - `:Agents new claude` — start Claude directly.
 - `:Agents actions` — choose a top-level command.
-- `:Agents toggle` — hide the current session, hide visible sessions from an
+- `:Agents toggle` — hide the current agent session, hide visible sessions from an
   editor buffer, or show/select a session when none are visible (current tab).
-- `:Agents pick` — choose a session.
+- `:Agents pick` — choose an agent session.
+- `:Agents focus` — focus an agent session or return to the previous window, keeping it open.
 - `:Agents send` — choose context to send to a session.
 - `:Agents send file diagnostics` — send a file reference and its diagnostics.
 - `:Agents close` — stop and remove a session.

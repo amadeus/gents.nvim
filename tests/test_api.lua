@@ -17,6 +17,80 @@ local function capture_picker()
   end
 end
 
+T["focus leaves the current session visible and returns to the previous window"] = function()
+  local original = vim.api.nvim_get_current_win()
+  local session = H.new()
+  local terminal = vim.api.nvim_get_current_win()
+
+  agents.focus()
+
+  eq(vim.api.nvim_get_current_win(), original)
+  eq(vim.api.nvim_win_get_buf(terminal), session.buf)
+  eq(window.visible(session), true)
+  eq(#agents.sessions(), 1)
+  eq(vim.fn.jobwait({ session.job }, 0), { -1 })
+end
+
+T["focus with no sessions opens the tool picker"] = function()
+  local picked = capture_picker()
+
+  agents.focus()
+
+  eq(picked().title, "Agents: new session")
+  eq(#agents.sessions(), 0)
+end
+
+T["focus shows a sole hidden session"] = function()
+  local session = H.new()
+  agents.hide(session.id)
+
+  eq(agents.focus(), session)
+
+  eq(agents.current(), session)
+  eq(window.visible(session), true)
+  eq(#agents.sessions(), 1)
+  eq(vim.fn.jobwait({ session.job }, 0), { -1 })
+end
+
+T["focus prefers the sole session visible in the current tab"] = function()
+  local original = vim.api.nvim_get_current_win()
+  local here = H.new()
+  local terminal = vim.api.nvim_get_current_win()
+  local elsewhere = H.new({ layout = "tabnew" })
+  vim.api.nvim_set_current_win(original)
+  require("agents.config").get().picker = function()
+    error("Expected focus to reuse the visible session without opening a picker")
+  end
+
+  eq(agents.focus(), here)
+
+  eq(vim.api.nvim_get_current_win(), terminal)
+  eq(agents.current(), here)
+  eq(window.visible(elsewhere), true)
+  eq(#agents.sessions(), 2)
+  eq(vim.fn.jobwait({ here.job, elsewhere.job }, 0), { -1, -1 })
+end
+
+T["focus opens the session picker when several sessions are hidden"] = function()
+  local first = H.new()
+  local second = H.new()
+  agents.hide(first.id)
+  agents.hide(second.id)
+  local picked = capture_picker()
+
+  agents.focus()
+
+  eq(#picked().items, 2)
+  eq(agents.current(), nil)
+  eq(window.visible(first), false)
+  eq(window.visible(second), false)
+  eq(#agents.sessions(), 2)
+  local spec = picked()
+  spec.actions[spec.default](spec.items[1])
+  eq(agents.current(), first)
+  eq(vim.fn.jobwait({ first.job, second.job }, 0), { -1, -1 })
+end
+
 T["toggle hides only the current-tab views of the session under the cursor"] = function()
   local tab = vim.api.nvim_get_current_tabpage()
   local other = H.new()

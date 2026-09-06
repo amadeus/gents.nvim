@@ -136,6 +136,21 @@ config["actions opens the command picker"] = function()
   eq(title, "Agents: actions")
 end
 
+config["focus keys move between the editor and a visible session"] = function()
+  setup({ { "<F6>", "focus" } })
+  local source = vim.api.nvim_get_current_win()
+  local session = helpers.new()
+  local terminal = vim.api.nvim_get_current_win()
+
+  assert(assert(mapping("t", "<F6>", session.buf)).callback)()
+  eq(vim.api.nvim_get_current_win(), source)
+  eq(vim.fn.win_findbuf(session.buf), { terminal })
+
+  assert(assert(mapping("n", "<F6>")).callback)()
+  eq(vim.api.nvim_get_current_win(), terminal)
+  eq(vim.fn.jobwait({ session.job }, 0), { -1 })
+end
+
 config["FileType mappings can override configured terminal keys"] = function()
   setup({ { "<F6>", "hide" } })
   local replacement = function() end

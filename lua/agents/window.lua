@@ -169,8 +169,13 @@ function M.hide(session, tab)
       local alternate = vim.api.nvim_win_call(win, function()
         return vim.fn.bufnr("#")
       end)
-      -- Loading an old term:// name left by a rename would start its job again.
-      if alternate == session.buf or not vim.api.nvim_buf_is_loaded(alternate) then
+      -- Do not reopen another agent or reload an old term:// name after a rename.
+      -- Closing sessions keep their buffer marker until their job exits.
+      if
+        alternate == session.buf
+        or not vim.api.nvim_buf_is_loaded(alternate)
+        or vim.b[alternate].agents_session ~= nil
+      then
         alternate = vim.api.nvim_create_buf(true, false)
       end
       vim.api.nvim_win_set_buf(win, alternate)

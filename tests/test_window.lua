@@ -98,6 +98,41 @@ T["hide creates an empty buffer when no alternate survives"] = function()
   eq(vim.bo.buftype, "")
 end
 
+T["two remaining agent windows"] = test.new_set({
+  parametrize = { { "hide" }, { "close" } },
+}, {
+  ---@param first_action "hide"|"close"
+  ["hiding the last window does not reopen the first agent"] = function(first_action)
+    local first = H.new({ layout = "current" })
+    local second = H.new({ layout = "vsplit" })
+    eq(#vim.api.nvim_list_wins(), 2)
+    eq(vim.fn.bufnr("#"), first.buf)
+
+    agents[first_action](first.id)
+    eq(#vim.api.nvim_list_wins(), 1)
+    eq(vim.api.nvim_get_current_buf(), second.buf)
+    agents.hide(second.id)
+
+    eq(window.visible(first), false)
+    eq(window.visible(second), false)
+    eq(#vim.api.nvim_list_wins(), 1)
+    eq(vim.bo.buftype, "")
+    eq(vim.api.nvim_buf_get_name(0), "")
+    eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "" })
+    eq(agents.current(), nil)
+    eq(vim.fn.jobwait({ second.job }, 0), { -1 })
+    if first_action == "hide" then
+      eq(agents.sessions(), { first, second })
+      eq(vim.fn.jobwait({ first.job }, 0), { -1 })
+    else
+      eq(agents.sessions(), { second })
+      H.wait(function()
+        return first.state == "exited"
+      end)
+    end
+  end,
+})
+
 T["renamed terminal in the final window"] = test.new_set({
   parametrize = { { "hide" }, { "close" } },
 }, {

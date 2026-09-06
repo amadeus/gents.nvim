@@ -37,10 +37,22 @@ function M.check()
   vim.health.start("Picker")
   if config.picker == nil then
     vim.health.ok("Using vim.ui.select")
+  elseif config.picker == "snacks" then
+    if pcall(require, "snacks") then
+      vim.health.ok("Using Snacks picker")
+    else
+      vim.health.error(
+        "Snacks picker is configured but snacks.nvim is unavailable",
+        "Install and configure folke/snacks.nvim, or set picker to nil to use vim.ui.select."
+      )
+    end
   elseif type(config.picker) == "function" then
     vim.health.ok("Using a custom picker function")
   else
-    vim.health.warn("picker must be nil or a function", "Set picker to nil to use vim.ui.select.")
+    vim.health.warn(
+      'picker must be nil, "snacks", or a function',
+      "Set picker to nil to use vim.ui.select."
+    )
   end
 end
 

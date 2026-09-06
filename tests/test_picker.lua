@@ -110,6 +110,46 @@ T["configured adapter receives the complete spec unchanged"] = function()
   test.expect.equality(rawequal(received, spec), true)
 end
 
+T["Snacks is loaded on demand and reports a missing dependency"] = function()
+  ---@type table?
+  local loaded = rawget(package.loaded, "snacks")
+  ---@type (fun(name: string): unknown)?
+  local preload = rawget(package.preload, "snacks")
+  test.finally(function()
+    rawset(package.loaded, "snacks", loaded)
+    rawset(package.preload, "snacks", preload)
+  end)
+  local attempted = false
+  rawset(package.loaded, "snacks", nil)
+  rawset(package.preload, "snacks", function()
+    attempted = true
+    error("Snacks is unavailable for this test")
+  end)
+  require("agents").setup({ picker = "snacks" })
+  test.expect.equality(attempted, false)
+  set_select(function()
+    error("The configured picker must not silently fall back")
+  end)
+  ---@type string?
+  local notification
+  set_notify(function(message, level)
+    notification = message
+    test.expect.equality(level, vim.log.levels.ERROR)
+  end)
+  picker.open({
+    title = "Test picker",
+    items = { { text = "Item", data = 1 } },
+    default = "choose",
+    actions = {
+      choose = function()
+        error("Missing picker must not choose an item")
+      end,
+    },
+  })
+  test.expect.equality(attempted, true)
+  test.expect.equality(assert(notification):find("requires snacks.nvim", 1, true) ~= nil, true)
+end
+
 T["actions lists the top-level commands without including itself"] = function()
   ---@type agents.PickerSpec<agents.CommandName>?
   local received

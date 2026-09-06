@@ -34,6 +34,7 @@
 ---@class MiniTest.Module
 ---@field setup fun(config?: MiniTest.Config)
 ---@field new_set fun(opts?: MiniTest.SetOptions, tbl?: MiniTest.Set): MiniTest.Set
+---@field skip fun(msg?: string)
 ---@field finally fun(callback: fun())
 ---@field collect fun(opts?: MiniTest.CollectOptions): MiniTest.Case[]
 ---@field execute fun(cases: MiniTest.Case[], opts?: { reporter?: MiniTest.Reporter })

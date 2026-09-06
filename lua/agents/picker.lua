@@ -13,6 +13,7 @@ local M = {}
 ---@field default string Action name used for Enter.
 
 ---@alias agents.PickerAdapter fun<T>(spec: agents.PickerSpec<T>)
+---@alias agents.Picker "snacks"|agents.PickerAdapter
 
 ---@param origin integer
 ---@param kind string
@@ -33,7 +34,10 @@ end
 ---@param spec agents.PickerSpec<T>
 function M.open(spec)
   local adapter = require("agents.config").get().picker
-  if adapter then
+  if adapter == "snacks" then
+    require("agents.pickers.snacks").open(spec)
+    return
+  elseif adapter then
     adapter(spec)
     return
   end

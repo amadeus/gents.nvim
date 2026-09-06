@@ -30,6 +30,10 @@ local function validate(config)
   if config.on_exit ~= "keep" and config.on_exit ~= "close" then
     error('agents: on_exit must be "keep" or "close"', 3)
   end
+  assert(
+    config.picker == nil or config.picker == "snacks" or type(config.picker) == "function",
+    'agents: picker must be nil, "snacks", or a function'
+  )
   require("agents.keys").validate(config.keys)
   assert(type(config.prompts) == "table", "agents: prompts must be a table of item lists")
   for name, items in pairs(config.prompts) do

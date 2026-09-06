@@ -118,12 +118,21 @@ T["setup accepts each layout type"] = function()
   end
 end
 
+T["setup accepts the built-in and custom picker"] = function()
+  expect(config.setup({ picker = "snacks" }).picker, "snacks")
+  local adapter = function() end
+  expect(config.setup({ picker = adapter }).picker, adapter)
+end
+
 T["invalid configuration fails before replacing current config"] = function()
   local valid = config.setup({ layout = "split" })
   local invalid = {
     { { layout = false }, "layout must be" },
     { { layout = 1 }, "layout must be" },
     { { on_exit = "discard" }, "on_exit must be" },
+    { { picker = false }, "picker must be" },
+    { { picker = "unknown" }, "picker must be" },
+    { { picker = {} }, "picker must be" },
     { { prompts = false }, "prompts must be" },
     { { prompts = { [1] = { "file" } } }, "prompt names must be" },
     { { prompts = { ["two words"] = { "file" } } }, "prompt names must be" },

@@ -47,7 +47,7 @@
 ---@class agents.SetupOptions
 ---@field layout? agents.Layout
 ---@field float? agents.FloatOptions
----@field picker? agents.PickerAdapter
+---@field picker? agents.Picker
 ---@field on_exit? "keep"|"close"
 ---@field tools? table<string, agents.ToolOverride|false>
 ---@field prompts? table<string, agents.Item[]>
@@ -56,7 +56,7 @@
 ---@class agents.Config
 ---@field layout agents.Layout
 ---@field float agents.FloatConfig
----@field picker? agents.PickerAdapter
+---@field picker? agents.Picker
 ---@field on_exit "keep"|"close"
 ---@field tools table<string, agents.Tool>
 ---@field prompts table<string, agents.Item[]>

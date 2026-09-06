@@ -97,14 +97,46 @@ T["report accepts the default and custom picker"] = function()
   expect(contains(report(), "Using a custom picker function"), true)
 end
 
+T["report checks the configured Snacks dependency"] = test.new_set({
+  parametrize = { { true }, { false } },
+}, {
+  ---@param available boolean
+  ["reports availability without opening a picker"] = function(available)
+    ---@type table?
+    local loaded = rawget(package.loaded, "snacks")
+    ---@type (fun(name: string): unknown)?
+    local preload = rawget(package.preload, "snacks")
+    test.finally(function()
+      rawset(package.loaded, "snacks", loaded)
+      rawset(package.preload, "snacks", preload)
+    end)
+    rawset(package.loaded, "snacks", nil)
+    rawset(package.preload, "snacks", function()
+      assert(available, "Snacks is unavailable for this test")
+      return {
+        picker = function()
+          error("Health must not open the picker")
+        end,
+      }
+    end)
+    only_tools().picker = "snacks"
+    local output = report()
+    expect(contains(output, "Using Snacks picker"), available)
+    expect(contains(output, "snacks.nvim is unavailable"), not available)
+    if not available then
+      expect(contains(output, "Install and configure folke/snacks.nvim"), true)
+    end
+  end,
+})
+
 T["report warns about invalid picker values"] = function()
   local configured = only_tools()
-  for _, picker in ipairs({ false, "snacks", {} }) do
+  for _, picker in ipairs({ false, "unknown", {} }) do
     -- Deliberately corrupt the picker to exercise the health warning.
     ---@diagnostic disable-next-line: assign-type-mismatch
     configured.picker = picker
     local output = report()
-    expect(contains(output, "picker must be nil or a function"), true)
+    expect(contains(output, 'picker must be nil, "snacks", or a function'), true)
     expect(contains(output, "Set picker to nil to use vim.ui.select."), true)
   end
 end

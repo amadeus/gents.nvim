@@ -38,7 +38,8 @@ optional; the plugin installs none by default.
 
 Sends paste context without an extra Enter or a focus change by default.
 Hidden sessions keep running. Run `:checkhealth agents` to check your setup.
-For a custom picker, see the [Snacks recipe](docs/recipes/picker-snacks.md).
+Set `picker = "snacks"` in `opts` to use the built-in Snacks picker
+and its extra shortcuts (requires snacks.nvim).
 See [specialized context](docs/recipes/context.md) for help, health checks,
 terminal scrollback, and message history. To react when a tool finishes, see
 [agent ready notifications](docs/recipes/ready.md).

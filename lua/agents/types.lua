@@ -49,10 +49,21 @@
 ---@field submit? boolean Send Enter after pasting; defaults to false.
 ---@field focus? boolean Focus the destination and enter terminal input; defaults to true.
 
+---Session picker markers; override either value to use different glyphs or ASCII.
+---@class agents.IconsOptions
+---@field visible? string
+---@field hidden? string
+
+---@class agents.Icons: agents.IconsOptions
+---@field visible string
+---@field hidden string
+
 ---@class agents.SetupOptions
 ---@field layout? agents.Layout
 ---@field float? agents.FloatOptions
 ---@field picker? agents.Picker
+---@field picker_help? boolean Show binding hints in the built-in Snacks picker; defaults to true.
+---@field icons? agents.IconsOptions
 ---@field on_exit? "keep"|"close"
 ---@field tools? table<string, agents.ToolOverride|false>
 ---@field prompts? table<string, agents.Item[]>
@@ -62,6 +73,8 @@
 ---@field layout agents.Layout
 ---@field float agents.FloatConfig
 ---@field picker? agents.Picker
+---@field picker_help boolean
+---@field icons agents.Icons
 ---@field on_exit "keep"|"close"
 ---@field tools table<string, agents.Tool>
 ---@field prompts table<string, agents.Item[]>

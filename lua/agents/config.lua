@@ -6,6 +6,8 @@ local defaults = {
   layout = "vsplit",
   float = { width = 0.8, height = 0.8, border = "rounded" },
   picker = nil,
+  picker_help = true,
+  icons = { visible = "●", hidden = "○" },
   on_exit = "keep",
   tools = tools.defaults,
   prompts = {},
@@ -34,6 +36,16 @@ local function validate(config)
     config.picker == nil or config.picker == "snacks" or type(config.picker) == "function",
     'agents: picker must be nil, "snacks", or a function'
   )
+  assert(type(config.picker_help) == "boolean", "agents: picker_help must be a boolean")
+  assert(type(config.icons) == "table", "agents: icons must be a table")
+  for name, icon in pairs({ visible = config.icons.visible, hidden = config.icons.hidden }) do
+    assert(
+      type(icon) == "string" and icon ~= "" and not icon:find("[%s%c]"),
+      "agents: icons."
+        .. name
+        .. " must be a non-empty string without whitespace or control characters"
+    )
+  end
   require("agents.keys").validate(config.keys)
   assert(type(config.prompts) == "table", "agents: prompts must be a table of item lists")
   for name, items in pairs(config.prompts) do

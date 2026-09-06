@@ -37,24 +37,24 @@ T["registry keeps builtin order and sorts custom names"] = function()
   providers.register("__test_zulu", { desc = "Zulu", render = function() end })
   providers.register("__test_alpha", { desc = "Alpha", render = function() end })
   local names = providers.names()
-  eq(vim.list_slice(names, 1, 11), {
-    "file",
-    "position",
+  eq(vim.list_slice(names, 1, 8), {
     "line",
     "selection",
+    "file",
     "buffer",
+    "messages",
     "diagnostics",
     "quickfix",
-    "help",
-    "checkhealth",
     "terminal",
-    "messages",
   })
-  local custom = vim.list_slice(names, 12)
+  local custom = vim.list_slice(names, 9)
   local sorted = vim.deepcopy(custom)
   table.sort(sorted)
   eq(custom, sorted)
   eq(assert(providers.get("__test_alpha")).desc, "Alpha")
+  eq(providers.get("position"), nil)
+  eq(providers.get("checkhealth"), nil)
+  eq(providers.get("help"), nil)
   eq(providers.get("missing"), nil)
 end
 
@@ -72,14 +72,10 @@ T["registration can replace a builtin"] = function()
   eq(render("file"), { { text = tostring(vim.api.nvim_get_current_buf()) } })
 end
 
-T["file position and line support named files that do not exist yet"] = function()
+T["file and line support named files that do not exist yet"] = function()
   local path = named_buffer()
   vim.api.nvim_win_set_cursor(0, { 2, 3 })
   eq(render("file"), { { path = path } })
-  eq(
-    render("position"),
-    { { path = path, range = { kind = "char", start = { 2, 3 }, finish = { 2, 3 } } } }
-  )
   eq(
     render("line"),
     { { path = path, range = { kind = "line", start = { 2, 0 }, finish = { 2, 0 } } } }
@@ -87,27 +83,47 @@ T["file position and line support named files that do not exist yet"] = function
 end
 
 T["location providers omit unnamed and non-file buffers"] = function()
-  for _, name in ipairs({ "file", "position", "line" }) do
-    eq(render(name), nil)
+  for _, buftype in ipairs({ "", "help" }) do
+    vim.bo.buftype = buftype
+    for _, name in ipairs({ "file", "line" }) do
+      eq(render(name), nil)
+    end
   end
+  vim.bo.buftype = ""
   named_buffer()
   vim.bo.buftype = "nofile"
-  for _, name in ipairs({ "file", "position", "line" }) do
+  for _, name in ipairs({ "file", "line" }) do
     eq(render(name), nil)
   end
   eq(render("buffer"), { { code = "local x = 1\nreturn x", ft = "lua" } })
 end
 
-T["position preserves visual shape while line uses selected rows"] = function()
+T["file and line reference captured help files after focus changes"] = function()
+  vim.cmd.help("help-writing")
+  eq(vim.bo.buftype, "help")
+  local path = vim.api.nvim_buf_get_name(0)
+  eq(vim.fn.filereadable(path), 1)
+  local ctx = context.capture()
+  local row = ctx.cursor[1]
+  local selected = context.capture({ line1 = row, line2 = row + 2 })
+  vim.cmd.new()
+  named_buffer()
+  eq(render("file", ctx), { { path = path } })
+  eq(
+    render("line", ctx),
+    { { path = path, range = { kind = "line", start = { row, 0 }, finish = { row, 0 } } } }
+  )
+  eq(render("line", selected), {
+    { path = path, range = { kind = "line", start = { row, 0 }, finish = { row + 2, 0 } } },
+  })
+end
+
+T["line uses selected rows for a character selection"] = function()
   local path = named_buffer()
   vim.api.nvim_win_set_cursor(0, { 1, 2 })
   vim.cmd.normal({ args = { "v" }, bang = true })
   vim.api.nvim_win_set_cursor(0, { 2, 4 })
   local ctx = context.capture()
-  eq(
-    render("position", ctx),
-    { { path = path, range = { kind = "char", start = { 1, 2 }, finish = { 2, 4 } } } }
-  )
   eq(
     render("line", ctx),
     { { path = path, range = { kind = "line", start = { 1, 0 }, finish = { 2, 0 } } } }

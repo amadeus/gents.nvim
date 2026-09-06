@@ -119,7 +119,7 @@ config["send opens the context picker"] = function()
     end,
   })
   assert(assert(mapping("n", "<F6>")).callback)()
-  eq(title, "Agents: send context")
+  eq(title, "Agents: Send Context")
 end
 
 config["actions opens the command picker"] = function()
@@ -133,7 +133,7 @@ config["actions opens the command picker"] = function()
     end,
   })
   assert(assert(mapping("n", "<F6>")).callback)()
-  eq(title, "Agents: actions")
+  eq(title, "Agents: Actions")
 end
 
 config["focus keys move between the editor and a visible session"] = function()
@@ -319,11 +319,11 @@ input_tests["actions preserves the visual selection when choosing send after pic
       tools = { cat = { cmd = { "cat" } } },
       keys = { { "<F7>", "actions" } },
       picker = function(spec)
-        if spec.title == "Agents: actions" then
+        if spec.title == "Agents: Actions" then
           _G.actions_spec = spec
           vim.cmd.vnew()
           vim.api.nvim_buf_set_lines(0, 0, -1, false, { "Picker buffer" })
-        elseif spec.title == "Agents: send context" then
+        elseif spec.title == "Agents: Send Context" then
           _G.previews = {}
           for _, item in ipairs(spec.items) do
             _G.previews[item.text:match("^%S+")] = item.preview
@@ -373,7 +373,7 @@ input_tests["actions can hide a visually selected session without a source windo
   eq(lua([[return #vim.api.nvim_tabpage_list_wins(0)]]), 1)
   input("ggv<F7>")
   wait([[_G.actions_spec ~= nil and vim.api.nvim_get_mode().mode == "nt"]])
-  eq(lua([[return actions_spec.title]]), "Agents: actions")
+  eq(lua([[return actions_spec.title]]), "Agents: Actions")
   lua([[
     for _, item in ipairs(actions_spec.items) do
       if item.data == "hide" then

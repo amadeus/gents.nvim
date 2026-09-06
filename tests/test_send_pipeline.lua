@@ -60,20 +60,20 @@ local function output(session)
 end
 
 ---@param spec agents.PickerSpec<unknown>
----@param prefix string
+---@param name string
 ---@return agents.PickerItem<unknown>?
-local function find(spec, prefix)
+local function find(spec, name)
   for _, item in ipairs(spec.items) do
-    if vim.startswith(item.text, prefix) then
+    if item.text:match("^%S+") == name then
       return item
     end
   end
 end
 
 ---@param spec agents.PickerSpec<unknown>
----@param prefix string
-local function choose(spec, prefix)
-  spec.actions[spec.default](assert(find(spec, prefix)))
+---@param name string
+local function choose(spec, name)
+  spec.actions[spec.default](assert(find(spec, name)))
 end
 
 T["send to a hidden target"] = test.new_set({ parametrize = { { true }, { false } } }, {
@@ -136,11 +136,11 @@ end
 T["context picker omits unavailable providers and prompts and previews defaults"] = function()
   agents.send()
   local spec = assert(pickers[1])
-  eq(spec.title, "Agents: send context")
-  eq(assert(find(spec, "file —")).preview, "@context.lua")
-  eq(find(spec, "selection —"), nil)
-  eq(find(spec, "selected [prompt]"), nil)
-  eq(assert(find(spec, "explain [prompt]")).preview, "Explain:\n@context.lua:2")
+  eq(spec.title, "Agents: Send Context")
+  eq(assert(find(spec, "file")).preview, "@context.lua")
+  eq(find(spec, "selection"), nil)
+  eq(find(spec, "selected"), nil)
+  eq(assert(find(spec, "explain")).preview, "Explain:\n@context.lua:2")
 end
 
 T["two asynchronous send pickers"] = test.new_set({ parametrize = { { true }, { false } } }, {
@@ -156,17 +156,18 @@ T["two asynchronous send pickers"] = test.new_set({ parametrize = { { true }, { 
     agents.send(nil, focus and {} or { focus = false })
     eq(vim.api.nvim_get_current_win(), origin)
     local context_picker = assert(pickers[1])
-    local preview = assert(find(context_picker, "buffer —")).preview
+    local preview = assert(find(context_picker, "buffer")).preview
     vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
     vim.api.nvim_buf_set_name(source, vim.fs.joinpath(vim.fn.getcwd(), "changed.lua"))
     vim.cmd("new")
-    choose(context_picker, "buffer —")
+    choose(context_picker, "buffer")
     local target_picker = assert(pickers[2])
-    eq(target_picker.title, "Agents: sessions")
+    eq(target_picker.title, "Agents: Sessions")
     eq(vim.api.nvim_get_current_win(), origin)
     eq(vim.fn.win_findbuf(second.buf), {})
     vim.cmd("new")
-    choose(target_picker, second.label .. "  ")
+    eq(target_picker.items[2].data, second)
+    target_picker.actions[target_picker.default](target_picker.items[2])
     eq(vim.api.nvim_get_current_buf() == second.buf, focus)
     eq(vim.api.nvim_get_current_win() == origin, not focus)
     H.wait(function()
@@ -174,7 +175,7 @@ T["two asynchronous send pickers"] = test.new_set({ parametrize = { { true }, { 
     end)
     eq(output(second):find("changed after capture", 1, true), nil)
     eq(output(first):find("local second = 2", 1, true), nil)
-    eq(assert(find(context_picker, "buffer —")).preview, preview)
+    eq(assert(find(context_picker, "buffer")).preview, preview)
   end,
 })
 
@@ -189,7 +190,8 @@ T["target picker cannot change an already resolved provider or source path"] = f
   vim.api.nvim_buf_set_name(0, vim.fs.joinpath(vim.fn.getcwd(), "renamed.lua"))
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   vim.cmd.lcd(temp_dir)
-  choose(spec, session.label .. "  ")
+  eq(spec.items[1].data, session)
+  spec.actions[spec.default](spec.items[1])
   eq(vim.api.nvim_get_current_buf(), session.buf)
   H.wait(function()
     return output(session):find("@context.lua:2", 1, true) ~= nil
@@ -261,7 +263,7 @@ T["ranged actions keeps its original selection across picker changes"] = functio
   vim.api.nvim_set_current_win(origin)
   vim.cmd("2Agents actions")
   local menu = assert(pickers[1])
-  eq(menu.title, "Agents: actions")
+  eq(menu.title, "Agents: Actions")
   vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
   vim.cmd("new")
   choose(menu, "send")

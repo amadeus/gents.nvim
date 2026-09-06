@@ -14,6 +14,12 @@ picker choices:
 The `actions` prefix accepts each command below. For example,
 `:Agents actions hide` and `:Agents hide` perform the same action.
 
+The Actions picker shows a short description of each command. Send Context
+shows provider descriptions and marks presets as `Saved prompt`. Names and
+descriptions are separated by aligned dots; Snacks renders the descriptions
+and separators in a muted color. New Session uses the same treatment for
+`Not installed` tools.
+
 | Command                                                     | Behavior                                                                                                               |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `:Agents new [tool] [args...]`                              | Choose a tool or start the named tool with extra arguments.                                                            |
@@ -29,6 +35,11 @@ separate from the conversation title displayed in pickers. For `send`, put
 providers and `--no-focus` before `--target`: everything after that separator
 is the target. `:Agents send --target claude #2` opens the context picker with
 that destination already selected.
+
+The `line` and `file` providers send file references. `selection` and `buffer`
+copy the selected text or entire buffer into the agent's input, including
+unsaved edits. See [sending context](recipes/context.md) for examples and other
+providers.
 
 Sending context focuses the selected agent in terminal input mode. Use
 `--no-focus` or the Lua option `focus = false` to keep focus in your editor:
@@ -66,11 +77,39 @@ only one session exists. With no sessions, `pick`, `focus`, and `toggle` open
 the tool picker; `hide` and `close` do nothing, and `send` reports that a session
 must be started first.
 
+Session rows start with `●` for visible in the current tab and `○` for hidden.
+Markers, tool names or labels, conversation titles, and directories align in
+columns, with muted dots between the name, title, and directory in Snacks.
+Titles longer than 60 display columns end with `...`; sessions without
+a title show `Untitled`, muted in Snacks. Exited sessions also show `[exited]`.
+Directories under your home directory use `~`.
+
+To use ASCII markers:
+
+```lua
+require("agents").setup({
+  icons = { visible = "v", hidden = "h" },
+})
+```
+
+The markers apply to every picker adapter. Snacks uses `DiagnosticInfo` for
+visible markers, `Comment` for hidden markers, and `SnacksPickerDir` for
+session directories, following your colorscheme.
+
 With the Snacks session picker, Ctrl-Enter puts the session in the window
 that opened the picker, regardless of where it is already displayed. Ctrl-V,
 Ctrl-X, and Ctrl-T likewise honor the requested split or tab placement.
 Existing views stay open. Normal Enter focuses an existing view when one is
 available. Custom adapters have the same named layout actions.
+
+To hide the Snacks binding hints while keeping the shortcuts active:
+
+```lua
+require("agents").setup({
+  picker = "snacks",
+  picker_help = false,
+})
+```
 
 Custom `layout` callbacks take no arguments and return a window ID. The
 plugin assigns the session buffer after the callback returns. For example:
@@ -89,12 +128,14 @@ Ranges work with `send`, including its composed form:
 
 ```vim
 :2,5Agents send
+:2,5Agents send line
 :2,5Agents actions send --target claude #2
 :2,5Agents actions
 ```
 
-With a range and no providers, `send` uses the selected lines. The actions menu
-also retains the range for `send`; other actions reject ranges. A visual-mode
+With a range and no providers, `send` copies the text in that range using
+`selection`. Specify `line` to send a file reference to the range. The actions
+menu retains the range for `send`; other actions reject ranges. A visual-mode
 mapping calling `require("agents").actions()` preserves the selection as
 context; choosing send opens the context picker, and other actions remain
 available.

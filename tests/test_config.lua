@@ -32,6 +32,8 @@ T["defaults work without setup"] = function()
   expect(result.layout, "vsplit")
   expect(result.float, { width = 0.8, height = 0.8, border = "rounded" })
   expect(result.picker, nil)
+  expect(result.picker_help, true)
+  expect(result.icons, { visible = "●", hidden = "○" })
   expect(result.on_exit, "keep")
   expect(result.prompts, {})
   expect(result.keys, {})
@@ -107,6 +109,28 @@ T["setup resets defaults and does not retain caller tables"] = function()
   expect(result.tools.grok.name, "grok")
 end
 
+T["icon overrides merge independently without retaining caller tables"] = function()
+  local opts = { icons = { visible = "v" } }
+  local original = vim.deepcopy(opts)
+  local result = config.setup(opts)
+  expect(result.icons, { visible = "v", hidden = "○" })
+  expect(opts, original)
+  opts.icons.visible = "changed-by-caller"
+  expect(result.icons.visible, "v")
+  result.icons.hidden = "changed-config"
+  expect(config.setup({ icons = { hidden = "h" } }).icons, { visible = "●", hidden = "h" })
+  expect(
+    config.setup({ icons = { visible = "v", hidden = "h" } }).icons,
+    { visible = "v", hidden = "h" }
+  )
+  expect(config.setup().icons, { visible = "●", hidden = "○" })
+end
+
+T["icons accept emoji and multiple characters without a width restriction"] = function()
+  local icons = { visible = "👀", hidden = "[hidden]" }
+  expect(config.setup({ icons = icons }).icons, icons)
+end
+
 T["names retain built-in order and sort custom tools"] = function()
   local result = config.setup({
     tools = {
@@ -138,6 +162,8 @@ T["setup accepts the built-in and custom picker"] = function()
   expect(config.setup({ picker = "snacks" }).picker, "snacks")
   local adapter = function() end
   expect(config.setup({ picker = adapter }).picker, adapter)
+  expect(config.setup({ picker = "snacks", picker_help = false }).picker_help, false)
+  expect(config.setup().picker_help, true)
 end
 
 T["invalid configuration fails before replacing current config"] = function()
@@ -149,6 +175,18 @@ T["invalid configuration fails before replacing current config"] = function()
     { { picker = false }, "picker must be" },
     { { picker = "unknown" }, "picker must be" },
     { { picker = {} }, "picker must be" },
+    { { picker_help = "false" }, "picker_help must be a boolean" },
+    { { picker_help = {} }, "picker_help must be a boolean" },
+    { { icons = false }, "icons must be" },
+    { { icons = "icons" }, "icons must be" },
+    { { icons = { visible = false } }, "icons.visible must be" },
+    { { icons = { hidden = 1 } }, "icons.hidden must be" },
+    { { icons = { visible = "" } }, "icons.visible must be" },
+    { { icons = { hidden = "v h" } }, "icons.hidden must be" },
+    { { icons = { visible = "v\t" } }, "icons.visible must be" },
+    { { icons = { hidden = "h\n" } }, "icons.hidden must be" },
+    { { icons = { visible = "\27[31mv" } }, "icons.visible must be" },
+    { { icons = { hidden = "h\0" } }, "icons.hidden must be" },
     { { prompts = false }, "prompts must be" },
     { { prompts = { [1] = { "file" } } }, "prompt names must be" },
     { { prompts = { ["two words"] = { "file" } } }, "prompt names must be" },

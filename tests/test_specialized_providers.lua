@@ -23,20 +23,18 @@ local function render(name, ctx)
   return assert(providers.get(name)).render(ctx or context.capture())
 end
 
-T["specialized buffer providers omit ordinary buffers"] = function()
-  for _, name in ipairs({ "help", "checkhealth", "terminal" }) do
-    eq(render(name), nil)
-  end
+T["terminal provider omits ordinary buffers"] = function()
+  eq(render("terminal"), nil)
 end
 
-T["health provider reads the captured checkhealth buffer"] = function()
+T["buffer provider reads the captured checkhealth buffer"] = function()
   vim.cmd("checkhealth agents")
   local ctx = context.capture()
   eq(vim.bo[ctx.buf].filetype, "checkhealth")
   local expected = table.concat(vim.api.nvim_buf_get_lines(ctx.buf, 0, -1, false), "\n")
   eq(expected:find("agents", 1, true) ~= nil, true)
   vim.cmd("new")
-  eq(render("checkhealth", ctx), { { code = expected, ft = "checkhealth" } })
+  eq(render("buffer", ctx), { { code = expected, ft = "checkhealth" } })
 end
 
 ---@return agents.Context
@@ -44,40 +42,40 @@ local function terminal()
   local job = vim.fn.jobstart({
     "sh",
     "-c",
-    [[i=1; while [ "$i" -le 250 ]; do printf 'line %03d\n' "$i"; i=$((i + 1)); done; printf '   \n\n'; exec cat]],
+    [[i=1; while [ "$i" -le 1250 ]; do printf 'line %03d\n' "$i"; i=$((i + 1)); done; printf '   \n\n'; exec cat]],
   }, { term = true })
   assert(job > 0)
   local ctx = context.capture()
   H.wait(function()
     return table
       .concat(vim.api.nvim_buf_get_lines(ctx.buf, 0, -1, false), "\n")
-      :find("line 250", 1, true) ~= nil
+      :find("line 1250", 1, true) ~= nil
   end)
   return ctx
 end
 
-T["terminal provider trims padding and defaults to the last 200 lines"] = function()
+T["terminal provider trims padding and defaults to the last 1000 lines"] = function()
   local ctx = terminal()
   local parts = assert(render("terminal", ctx))
   local code = assert(parts[1].code)
   local lines = vim.split(code, "\n", { plain = true })
-  eq(#lines, 200)
-  eq(lines[1], "line 051")
-  eq(lines[#lines], "line 250")
+  eq(#lines, 1000)
+  eq(lines[1], "line 251")
+  eq(lines[#lines], "line 1250")
   eq(parts[1].ft, "text")
 end
 
 T["terminal limits vary per call without changing the registered default"] = function()
   local ctx = terminal()
   vim.cmd("new")
-  eq(providers.terminal(ctx, 2), { { code = "line 249\nline 250", ft = "text" } })
+  eq(providers.terminal(ctx, 2), { { code = "line 1249\nline 1250", ft = "text" } })
   local parts = assert(require("agents.render").resolve({
     function(captured)
       return providers.terminal(captured, 1)
     end,
   }, ctx))
-  eq(parts, { { code = "line 250", ft = "text" } })
-  eq(#vim.split(assert(assert(render("terminal", ctx))[1].code), "\n"), 200)
+  eq(parts, { { code = "line 1250", ft = "text" } })
+  eq(#vim.split(assert(assert(render("terminal", ctx))[1].code), "\n"), 1000)
 end
 
 T["terminal provider accepts session buffers supplied as source context"] = function()
@@ -117,7 +115,50 @@ T["messages omit empty history and preserve recorded text"] = function()
   eq(render("messages"), nil)
 end
 
-T["context picker shows applicable specialized entries with previews"] = function()
+T["help context picker"] = test.new_set({ parametrize = { { false }, { true } } }, {
+  ---@param selected boolean
+  ["offers file and line references in provider order"] = function(selected)
+    ---@type agents.PickerSpec<agents.Part[]>?
+    local received
+    require("agents").setup({
+      ---@param spec agents.PickerSpec<agents.Part[]>
+      picker = function(spec)
+        received = spec
+      end,
+    })
+    vim.cmd.help("help-writing")
+    local path = vim.api.nvim_buf_get_name(0)
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    vim.cmd("messages clear")
+    if selected then
+      vim.cmd.normal({ args = { "Vjj" }, bang = true })
+      require("agents").send()
+    else
+      vim.cmd("Agents send")
+    end
+    local spec = assert(received)
+    eq(spec.title, "Agents: Send Context")
+    ---@type string[]
+    local names = {}
+    ---@type table<string, string>
+    local previews = {}
+    for _, item in ipairs(spec.items) do
+      local name = assert(item.text:match("^%S+"))
+      names[#names + 1] = name
+      previews[name] = item.preview
+    end
+    local expected = selected and { "line", "selection", "file", "buffer" }
+      or { "line", "file", "buffer" }
+    eq(vim.list_slice(names, 1, #expected), expected)
+    eq(previews.file, "@" .. path)
+    eq(previews.line, "@" .. path .. ":" .. row .. (selected and ("-" .. (row + 2)) or ""))
+    eq(previews.help, nil)
+    eq(assert(previews.buffer):find("Writing help files", 1, true) ~= nil, true)
+    eq(previews.selection ~= nil, selected)
+  end,
+})
+
+T["context picker offers health output through buffer without a duplicate provider"] = function()
   ---@type agents.PickerSpec<agents.Part[]>?
   local received
   require("agents").setup({
@@ -135,7 +176,8 @@ T["context picker shows applicable specialized entries with previews"] = functio
   for _, item in ipairs(spec.items) do
     previews[assert(item.text:match("^%S+"))] = item.preview
   end
-  eq(previews.checkhealth, "```checkhealth\nhealth contents\n```")
+  eq(previews.buffer, "```checkhealth\nhealth contents\n```")
+  eq(previews.checkhealth, nil)
   eq(previews.help, nil)
   eq(previews.terminal, nil)
 end

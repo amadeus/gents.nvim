@@ -160,13 +160,30 @@ T["actions lists the top-level commands without including itself"] = function()
   require("agents").actions()
 
   assert(received)
-  test.expect.equality(received.title, "Agents: actions")
+  test.expect.equality(received.title, "Agents: Actions")
   test.expect.equality(received.default, "run")
+  ---@type table<agents.CommandName, string>
+  local descriptions = {
+    close = "Hide and kill a session",
+    focus = "Switch focus between an agent and your last buffer",
+    hide = "Hide a session without killing it",
+    new = "Start a new session",
+    pick = "Existing session picker",
+    send = "Pick context to send to an agent",
+    toggle = "Show or hide a session",
+  }
   ---@type string[]
   local names = {}
   for _, item in ipairs(received.items) do
     names[#names + 1] = item.data
-    test.expect.equality(item.text, item.data)
+    ---@type string
+    local name = item.data .. string.rep(" ", 6 - #item.data)
+    test.expect.equality(item.text, name .. " · " .. descriptions[item.data])
+    test.expect.equality(item.chunks, {
+      { text = name },
+      { text = " · ", kind = "separator" },
+      { text = descriptions[item.data], kind = "description" },
+    })
   end
   test.expect.equality(names, { "close", "focus", "hide", "new", "pick", "send", "toggle" })
   test.expect.equality(require("agents").sessions(), {})
@@ -227,6 +244,83 @@ T["actions refuses to dispatch after its invoking window closes"] = function()
   )
 end
 
+T["context rows distinguish prompts from providers and align only available entries"] = function()
+  local origin = vim.api.nvim_get_current_win()
+  local prompt = { { text = "Saved buffer prompt" } }
+  require("agents.config").get().prompts = {
+    buffer = prompt,
+    ["説明説明説明"] = { { text = "Explain this" } },
+    unavailable_prompt_with_a_very_long_name = { "selection" },
+  }
+  ---@type agents.PickerSpec<agents.Part[]>?
+  local received
+  require("agents.config").get().picker = function(spec)
+    received = spec
+  end
+  ---@type agents.Part[]?
+  local chosen
+  picker.context(require("agents.context").capture(), function(parts)
+    chosen = parts
+  end)
+  assert(received)
+  test.expect.equality(received.items[1].text, "buffer       · Saved prompt")
+  test.expect.equality(received.items[2].text, "説明説明説明 · Saved prompt")
+  test.expect.equality(received.items[1].preview, "Saved buffer prompt")
+  test.expect.equality(received.items[1].data, prompt)
+  ---@type agents.PickerItem<agents.Part[]>?
+  local buffer
+  for _, item in ipairs(received.items) do
+    local chunks = assert(item.chunks)
+    test.expect.equality(vim.fn.strdisplaywidth(chunks[1].text), 12)
+    test.expect.equality(chunks[2], { text = " · ", kind = "separator" })
+    test.expect.equality(chunks[3].kind, "description")
+    test.expect.equality(item.text, chunks[1].text .. chunks[2].text .. chunks[3].text)
+    if chunks[3].text == "Copy entire buffer text" then
+      buffer = item
+    end
+  end
+  assert(buffer)
+  test.expect.equality(buffer.text, "buffer       · Copy entire buffer text")
+  test.expect.equality(buffer.data, { { code = "", ft = "" } })
+  vim.cmd.new()
+  received.actions.send(received.items[1])
+  test.expect.equality(chosen, prompt)
+  test.expect.equality(vim.api.nvim_get_current_win(), origin)
+  received.actions.send(buffer)
+  test.expect.equality(chosen, buffer.data)
+end
+
+T["context orders common providers and inserts selection after line when available"] = function()
+  vim.api.nvim_buf_set_name(0, vim.fn.getcwd() .. "/picker-context.lua")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "local example = true" })
+  vim.api.nvim_echo({ { "Picker context message" } }, true, {})
+  test.finally(function()
+    vim.cmd("messages clear")
+  end)
+  require("agents.config").get().prompts = { example = { { text = "Saved prompt" } } }
+  ---@type agents.PickerSpec<agents.Part[]>?
+  local received
+  require("agents.config").get().picker = function(spec)
+    received = spec
+  end
+
+  for _, selected in ipairs({ false, true }) do
+    local ctx = require("agents.context").capture(selected and { line1 = 1, line2 = 1 } or nil)
+    picker.context(ctx, function() end)
+    assert(received)
+    ---@type string[]
+    local names = {}
+    for _, item in ipairs(received.items) do
+      names[#names + 1] = vim.trim(assert(item.chunks)[1].text)
+    end
+    local expected = selected and { "example", "line", "selection", "file", "buffer", "messages" }
+      or { "example", "line", "file", "buffer", "messages" }
+    test.expect.equality(vim.list_slice(names, 1, #expected), expected)
+    test.expect.equality(vim.tbl_contains(names, "selection"), selected)
+    test.expect.equality(vim.tbl_contains(names, "position"), false)
+  end
+end
+
 T["tools use the default adapter and launch the selected tool"] = function()
   ---@param items agents.PickerItem<agents.Tool>[]
   ---@param callback fun(item: agents.PickerItem<agents.Tool>?, idx?: integer)
@@ -249,6 +343,7 @@ T["missing tools are annotated and selection reports the install URL"] = functio
   require("agents").setup({
     tools = {
       missing = { cmd = { "/__agents_missing_executable__" }, url = "https://example.com/install" },
+      cat = { cmd = { "cat" } },
       ignored = { cmd = { "cat" }, enabled = false },
     },
     ---@param spec agents.PickerSpec<agents.Tool>
@@ -274,9 +369,22 @@ T["missing tools are annotated and selection reports the install URL"] = functio
   test.expect.equality(received.default, "new")
   test.expect.equality(type(received.actions.new), "function")
   test.expect.equality(find_tool(received, "ignored"), nil)
+  local installed = assert(find_tool(received, "cat"))
+  test.expect.equality(installed.text, "cat")
+  test.expect.equality(installed.chunks, nil)
   local missing = assert(find_tool(received, "missing"))
+  local width = 0
+  for _, item in ipairs(received.items) do
+    width = math.max(width, vim.fn.strdisplaywidth(item.data.name))
+  end
+  local name = "missing" .. string.rep(" ", width - 7)
   test.expect.equality(missing.hl, "Comment")
-  test.expect.equality(missing.text, "missing [not installed]")
+  test.expect.equality(missing.text, name .. " · Not installed")
+  test.expect.equality(missing.chunks, {
+    { text = name },
+    { text = " · ", kind = "separator" },
+    { text = "Not installed", kind = "description" },
+  })
   received.actions.new(missing)
   test.expect.equality(notification, {
     "agents.nvim: executable not found: /__agents_missing_executable__",
@@ -369,13 +477,26 @@ T["session rows prefer this tab and show state cwd and changed argv"] = function
       ),
       { visible.id, exited.id, hidden.id, elsewhere.id }
     )
-    test.expect.equality(items[1].text, visible.label .. "  [visible]  " .. visible.cwd)
+    local directory = vim.fn.fnamemodify(visible.cwd, ":~")
+    test.expect.equality(
+      items[1].text,
+      "●  cat #3 · Untitled" .. string.rep(" ", 10) .. " · " .. directory
+    )
     test.expect.equality(
       items[2].text,
-      exited.label .. "  [exited]  " .. exited.cwd .. "  sh -c exit 7"
+      "●  sh     · Untitled  [exited] · " .. directory .. "  sh -c exit 7"
     )
-    test.expect.equality(items[3].text, hidden.label .. "  [hidden]  " .. hidden.cwd)
-    test.expect.equality(items[4].text, elsewhere.label .. "  [hidden]  " .. elsewhere.cwd)
+    test.expect.equality(
+      items[3].text,
+      "○  cat #2 · Untitled" .. string.rep(" ", 10) .. " · " .. directory
+    )
+    test.expect.equality(
+      items[4].text,
+      "○  cat    · Untitled" .. string.rep(" ", 10) .. " · " .. directory
+    )
+    test.expect.equality(assert(items[1].chunks)[1], { text = "●", kind = "visible" })
+    test.expect.equality(assert(items[2].chunks)[1], { text = "●", kind = "visible" })
+    test.expect.equality(assert(items[3].chunks)[1], { text = "○", kind = "hidden" })
     test.expect.equality(assert(opts.format_item)(items[1]), items[1].text)
     test.expect.equality(assert(opts.format_item)(items[4]), items[4].text)
     callback(items[3])
@@ -384,6 +505,19 @@ T["session rows prefer this tab and show state cwd and changed argv"] = function
     selected = session
   end)
   test.expect.equality(selected, hidden)
+
+  require("agents").hide(exited.id)
+  ---@param items agents.PickerItem<agents.Session>[]
+  set_select(function(items)
+    test.expect.equality(
+      items[1].text,
+      "○  sh · Untitled  [exited] · "
+        .. vim.fn.fnamemodify(exited.cwd, ":~")
+        .. "  sh -c exit 7"
+    )
+    test.expect.equality(assert(items[1].chunks)[1], { text = "○", kind = "hidden" })
+  end)
+  picker.sessions({ exited }, function() end)
 end
 
 T["session picker ignores a session closed while it was open"] = function()
@@ -456,10 +590,13 @@ T["a native view in another tab ranks after hidden sessions from this tab"] = fu
     { assert(spec).items[1].data.id, assert(spec).items[2].data.id },
     { hidden.id, elsewhere.id }
   )
-  test.expect.equality(assert(spec).items[1].text, hidden.label .. "  [hidden]  " .. hidden.cwd)
+  test.expect.equality(
+    assert(spec).items[1].text,
+    "○  cat #2 · Untitled · " .. vim.fn.fnamemodify(hidden.cwd, ":~")
+  )
   test.expect.equality(
     assert(spec).items[2].text,
-    elsewhere.label .. "  [hidden]  " .. elsewhere.cwd
+    "○  cat    · Untitled · " .. vim.fn.fnamemodify(elsewhere.cwd, ":~")
   )
 end
 
@@ -489,35 +626,213 @@ local function capture_sessions()
   end
 end
 
-T["session rows follow native tab switches and multiple views"] = function()
+T["custom session markers follow native tab switches and multiple views"] = function()
   local session = H.new()
+  require("agents").setup({ icons = { visible = "v", hidden = "h" } })
   local first_tab = vim.api.nvim_get_current_tabpage()
   vim.cmd.tabnew()
   local second_tab = vim.api.nvim_get_current_tabpage()
   vim.api.nvim_win_set_buf(0, session.buf)
   local get_spec = capture_sessions()
 
-  ---@param state string
-  local function expect_state(state)
+  ---@param marker string
+  local function expect_marker(marker)
     require("agents").pick()
     local item = get_spec().items[1]
     test.expect.equality(item.data.id, session.id)
-    test.expect.equality(item.text, session.label .. "  [" .. state .. "]  " .. session.cwd)
+    test.expect.equality(
+      item.text,
+      marker .. "  " .. session.label .. " · Untitled · " .. vim.fn.fnamemodify(session.cwd, ":~")
+    )
+    test.expect.equality(
+      assert(item.chunks)[1],
+      { text = marker, kind = marker == "v" and "visible" or "hidden" }
+    )
   end
 
-  expect_state("visible")
+  expect_marker("v")
   vim.cmd.tabnew()
-  expect_state("hidden")
+  expect_marker("h")
   vim.api.nvim_set_current_tabpage(first_tab)
-  expect_state("visible")
+  expect_marker("v")
   vim.cmd.enew()
-  expect_state("hidden")
+  expect_marker("h")
   vim.api.nvim_set_current_tabpage(second_tab)
-  expect_state("visible")
+  expect_marker("v")
+end
+
+T["session columns align display cells across titles labels and visibility"] = function()
+  require("agents").setup({
+    icons = { visible = "界", hidden = "." },
+    tools = { cat = { cmd = { "cat" } }, assistant = { cmd = { "cat" } } },
+  })
+  local titled = H.new()
+  titled.title = "日本語 é"
+  local numbered = H.new()
+  local assistant = assert(require("agents").new("assistant"))
+  assistant.title = "Plan"
+  local custom = H.new({ label = "review-long" })
+  require("agents").hide(numbered.id)
+  require("agents").hide(custom.id)
+  test.expect.equality(numbered.label, "cat #2")
+
+  ---@type { session: agents.Session, name: string, title?: string, marker: string }[]
+  local rows = {
+    { session = titled, name = "cat", title = "日本語 é", marker = "界" },
+    { session = assistant, name = "assistant", title = "Plan", marker = "界" },
+    { session = numbered, name = "cat #2", marker = "." },
+    { session = custom, name = "review-long", marker = "." },
+  }
+  ---@param text string
+  ---@param value string
+  ---@return integer
+  local function column(text, value)
+    local start = assert(text:find(value, 1, true))
+    return vim.fn.strdisplaywidth(text:sub(1, start - 1))
+  end
+
+  ---@type agents.Session?
+  local selected
+  local get_spec = capture_sessions()
+  picker.sessions({ custom, assistant, numbered, titled }, function(session)
+    selected = session
+  end)
+  local spec = get_spec()
+  test.expect.equality(#spec.items, #rows)
+  for index, row in ipairs(rows) do
+    local item = spec.items[index]
+    local directory = vim.fn.fnamemodify(row.session.cwd, ":~")
+    test.expect.equality(rawequal(item.data, row.session), true)
+    -- All offsets are terminal cells, including wide glyphs and combining accents.
+    test.expect.equality(column(item.text, row.name), 4)
+    test.expect.equality(column(item.text, directory), 29)
+    test.expect.equality(column(item.text, "·"), 16)
+    test.expect.equality(column(item.text, "· " .. directory), 27)
+    test.expect.equality(column(item.text, row.title or "Untitled"), 18)
+    local chunks = assert(item.chunks)
+    test.expect.equality(chunks[1], {
+      text = row.marker,
+      kind = row.marker == "界" and "visible" or "hidden",
+    })
+    ---@type string[]
+    local parts = {}
+    local directories, placeholders, separators = 0, 0, 0
+    for _, chunk in ipairs(chunks) do
+      parts[#parts + 1] = chunk.text
+      if chunk.kind == "directory" then
+        directories = directories + 1
+        test.expect.equality(chunk.text, directory)
+      elseif chunk.kind == "placeholder" then
+        placeholders = placeholders + 1
+        test.expect.equality(chunk.text, "Untitled")
+      elseif chunk.kind == "separator" then
+        separators = separators + 1
+        test.expect.equality(chunk.text, " · ")
+      end
+    end
+    test.expect.equality(table.concat(parts), item.text)
+    test.expect.equality(directories, 1)
+    test.expect.equality(separators, 2)
+    test.expect.equality(placeholders, row.title and 0 or 1)
+    spec.actions.show(item)
+    test.expect.equality(rawequal(selected, row.session), true)
+  end
+end
+
+T["session title display caps width without changing stored titles"] = function()
+  local session = H.new()
+  local get_spec = capture_sessions()
+  ---@type { full: string, shown: string }[]
+  local titles = {
+    { full = string.rep("a", 60), shown = string.rep("a", 60) },
+    { full = string.rep("a", 61), shown = string.rep("a", 57) .. "..." },
+    { full = string.rep("界", 30), shown = string.rep("界", 30) },
+    { full = string.rep("界", 31), shown = string.rep("界", 28) .. "..." },
+    { full = string.rep("é", 61), shown = string.rep("é", 57) .. "..." },
+    { full = string.rep("界é", 22), shown = string.rep("界é", 19) .. "..." },
+  }
+  for _, title in ipairs(titles) do
+    session.title = title.full
+    picker.sessions({ session }, function() end)
+    local item = get_spec().items[1]
+    test.expect.equality(
+      item.text,
+      "●  cat · " .. title.shown .. " · " .. vim.fn.fnamemodify(session.cwd, ":~")
+    )
+    test.expect.equality(assert(item.chunks)[4], { text = title.shown })
+    test.expect.equality(vim.fn.strdisplaywidth(title.shown) <= 60, true)
+    test.expect.equality(rawequal(item.data, session), true)
+    test.expect.equality(session.title, title.full)
+  end
+end
+
+T["session directories abbreviate the home component only for display"] = function()
+  local session = H.new()
+  local home = vim.fn.expand("~")
+  local get_spec = capture_sessions()
+  ---@type { cwd: string, shown: string }[]
+  local paths = {
+    { cwd = home, shown = "~" },
+    { cwd = home .. "/projects", shown = "~/projects" },
+    { cwd = home .. "-other/project", shown = home .. "-other/project" },
+  }
+  for _, path in ipairs(paths) do
+    session.cwd = path.cwd
+    picker.sessions({ session }, function() end)
+    local item = get_spec().items[1]
+    test.expect.equality(item.text, "●  cat · Untitled · " .. path.shown)
+    local directories = 0
+    for _, chunk in ipairs(assert(item.chunks)) do
+      if chunk.kind == "directory" then
+        directories = directories + 1
+        test.expect.equality(chunk.text, path.shown)
+      end
+    end
+    test.expect.equality(directories, 1)
+    test.expect.equality(rawequal(item.data, session), true)
+    test.expect.equality(session.cwd, path.cwd)
+  end
+end
+
+T["session chunks preserve full text and mark visibility and directory"] = function()
+  local session = H.new({
+    label = "review [●] λ",
+    cmd = { "sh", "-c", "exec cat", "argument [○] %λ" },
+  })
+  session.title = "Check [hidden] · 日本語"
+  session.cwd = "/project [○]/日本語 folder"
+  local get_spec = capture_sessions()
+  require("agents").pick()
+  local item = get_spec().items[1]
+  test.expect.equality(item.data, session)
+  test.expect.equality(
+    item.text,
+    "●  cat · Check [hidden] · 日本語 · /project [○]/日本語 folder  sh -c exec cat argument [○] %λ"
+  )
+  ---@type string[]
+  local parts = {}
+  local directories = 0
+  for i, chunk in ipairs(assert(item.chunks)) do
+    parts[#parts + 1] = chunk.text
+    if i == 1 then
+      test.expect.equality(chunk, { text = "●", kind = "visible" })
+    elseif chunk.kind == "directory" then
+      directories = directories + 1
+      test.expect.equality(chunk.text, session.cwd)
+    elseif chunk.kind == "separator" then
+      test.expect.equality(chunk.text, " · ")
+    else
+      test.expect.equality(chunk.kind, nil)
+    end
+  end
+  test.expect.equality(table.concat(parts), item.text)
+  test.expect.equality(directories, 1)
 end
 
 T["session picker reads current titles without changing labels or selection identity"] = function()
-  local session = H.new({ label = "review" })
+  H.new()
+  local session = H.new()
+  test.expect.equality(session.label, "cat #2")
   session.title = "Investigate flaky tests"
   ---@type agents.Session?
   local selected
@@ -527,7 +842,7 @@ T["session picker reads current titles without changing labels or selection iden
   set_select(function(items, opts, callback)
     test.expect.equality(
       assert(opts.format_item)(items[1]),
-      "review · Investigate flaky tests  [visible]  " .. session.cwd
+      "●  cat · Investigate flaky tests · " .. vim.fn.fnamemodify(session.cwd, ":~")
     )
     callback(items[1])
   end)
@@ -538,18 +853,21 @@ T["session picker reads current titles without changing labels or selection iden
 
   local get_spec = capture_sessions()
   session.title = "Renamed conversation"
-  require("agents").pick()
+  picker.sessions({ session }, function() end)
   local spec = get_spec()
   test.expect.equality(
     spec.items[1].text,
-    "review · Renamed conversation  [visible]  " .. session.cwd
+    "●  cat · Renamed conversation · " .. vim.fn.fnamemodify(session.cwd, ":~")
   )
   test.expect.equality(spec.items[1].data.id, session.id)
-  test.expect.equality(spec.items[1].data.label, "review")
+  test.expect.equality(spec.items[1].data.label, "cat #2")
   session.title = nil
-  require("agents").pick()
-  test.expect.equality(get_spec().items[1].text, "review  [visible]  " .. session.cwd)
-  require("agents").hide("review")
+  picker.sessions({ session }, function() end)
+  test.expect.equality(
+    get_spec().items[1].text,
+    "●  cat #2 · Untitled · " .. vim.fn.fnamemodify(session.cwd, ":~")
+  )
+  require("agents").hide("cat #2")
   test.expect.equality(vim.fn.win_findbuf(session.buf), {})
 end
 

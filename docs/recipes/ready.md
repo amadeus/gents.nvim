@@ -36,28 +36,22 @@ inside an agents.nvim terminal on Neovim 0.12.4 and its configured signal
 produced an `AgentsReady` event. It does not imply that every error,
 cancellation, subagent, or UI mode was tested.
 
-| Built-in tool  | Signal                                         | Verification                                                        |
-| -------------- | ---------------------------------------------- | ------------------------------------------------------------------- |
-| `claude`       | `Stop` hook                                    | Live: 2.1.261, print mode                                           |
-| `codex`        | OSC 9, filtered to `agent-turn-complete`       | Live: 0.153.4, TUI                                                  |
-| `opencode`     | `session.idle` plugin event                    | Live: 1.18.23, default TUI; broader idle signal                     |
-| `opencode2`    | V2 `session.execution.succeeded` event         | Unverified: beta API/dependency mismatch and provider authorization |
-| `amp`          | `agent.end`, status `done`                     | Live: 0.0.1785660266-g6a1789, execute mode                          |
-| `aider`        | Notification command                           | Broader attention signal; not live-tested                           |
-| `copilot`      | `agentStop` hook                               | Documented; not live-tested                                         |
-| `crush`        | OSC notifications                              | Broader attention signal; not live-tested                           |
-| `cursor-agent` | `afterAgentResponse` hook                      | Documented assistant-message boundary; not live-tested              |
-| `gemini`       | `AfterAgent` hook                              | Live: 0.58.0, print mode                                            |
-| `grok`         | `Stop` hook                                    | Source-confirmed; not live-tested                                   |
-| `pi`           | `agent_settled`, final assistant reason `stop` | Live: 0.85.1, print mode; error case also checked                   |
-| `q`            | Agent `stop` hook                              | Documented; not live-tested                                         |
-| `qwen`         | `Stop` hook                                    | Live: 0.23.0, print mode                                            |
-
-Claude, Codex, Gemini, Pi, and Qwen used local static responses while their actual
-CLIs drove the normal response lifecycle. Amp and OpenCode used a hosted
-response. Each successful check produced one event with the correct session
-ID: `source = "osc"` for Codex, `"hook"` for the others. Pi's error response
-produced no ready event.
+| Built-in tool  | Signal                                         | Verification                                           |
+| -------------- | ---------------------------------------------- | ------------------------------------------------------ |
+| `claude`       | `Stop` hook                                    | Live: 2.1.261, print mode                              |
+| `codex`        | OSC 9, filtered to `agent-turn-complete`       | Live: 0.153.4, TUI                                     |
+| `opencode`     | `session.idle` plugin event                    | Live: 1.18.23, default TUI; broader idle signal        |
+| `opencode2`    | V2 `session.execution.succeeded` event         | Unverified; no recipe available                        |
+| `amp`          | `agent.end`, status `done`                     | Live: 0.0.1785660266-g6a1789, execute mode             |
+| `aider`        | Notification command                           | Broader attention signal; not live-tested              |
+| `copilot`      | `agentStop` hook                               | Documented; not live-tested                            |
+| `crush`        | OSC notifications                              | Broader attention signal; not live-tested              |
+| `cursor-agent` | `afterAgentResponse` hook                      | Documented assistant-message boundary; not live-tested |
+| `gemini`       | `AfterAgent` hook                              | Live: 0.58.0, print mode                               |
+| `grok`         | `Stop` hook                                    | Source-confirmed; not live-tested                      |
+| `pi`           | `agent_settled`, final assistant reason `stop` | Live: 0.85.1, print mode; error case also checked      |
+| `q`            | Agent `stop` hook                              | Documented; not live-tested                            |
+| `qwen`         | `Stop` hook                                    | Live: 0.23.0, print mode                               |
 
 ## Claude Code
 
@@ -151,8 +145,8 @@ export default function (amp) {
 }
 ```
 
-Execute-mode verification used `--plugin-ready-timeout 10` so the first
-turn waited for plugin initialization. See the
+In execute mode, use `--plugin-ready-timeout 10` to let the first turn wait
+for plugin initialization. See the
 [Amp plugin API](https://ampcode.com/docs/plugin-api) and
 [plugin loading instructions](https://ampcode.com/docs/customize/plugins).
 
@@ -224,7 +218,7 @@ export default function (pi: ExtensionAPI) {
 ```
 
 Restart Pi or use `/reload` in a trusted project. You can also load the file
-explicitly with `pi -e /absolute/path/agents-ready.ts`, as in the live check.
+explicitly with `pi -e /absolute/path/agents-ready.ts`.
 
 `agent_settled` follows retries and auto-compaction. The last assistant's
 stop reason filters failed or aborted responses. See the
@@ -254,10 +248,10 @@ Add to `.qwen/settings.json`:
 `StopFailure` is a separate hook for failures. See the
 [Qwen hooks guide](https://qwenlm.github.io/qwen-code-docs/en/users/features/hooks/).
 
-## Documented integrations awaiting verification
+## Additional integrations
 
-These configurations follow upstream documentation or source, but have not yet
-produced `AgentsReady` in a live test here. Merge them into existing configuration.
+These recipes follow upstream documentation or source and are unverified.
+Merge them into existing configuration.
 Use an absolute Neovim executable path if `nvim` is unavailable to hook commands.
 
 ### OpenCode 2
@@ -269,12 +263,8 @@ Do not copy the OpenCode 1 plugin into V2. See the
 [V2 plugin guide](https://opencode.ai/v2/docs/build/plugins) and
 [event API](https://opencode.ai/v2/docs/api).
 
-Testing 0.0.0-beta-19157 with `run --standalone` first failed provider
-authorization. A local static-provider attempt then found an unsupported
-provider package and an unresolved plugin dependency in the isolated setup.
-The installed beta and the current documented configuration did not agree,
-so there is no verified snippet to recommend. Future verification should use
-`--standalone` so its server inherits the terminal's session environment.
+The server needs the terminal's `NVIM` and `AGENTS_SESSION` environment variables.
+Use `--standalone` so it inherits them from the terminal.
 
 ### GitHub Copilot CLI
 
@@ -324,8 +314,7 @@ Its `Stop` dispatch is separate from API-error `StopFailure`.
 }
 ```
 
-This version only loads hooks from user settings and hardcodes the home-directory
-path. Verification was left pending to preserve existing user configuration.
+This version only loads hooks from user settings in the home directory.
 [Hook loader](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/hooks/config.ts#L5)
 and [settings path](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/utils/settings.ts#L185).
 

@@ -1,17 +1,14 @@
 local M = {}
 local context = require("agents.context")
 local builtin_order = {
-  "file",
-  "position",
   "line",
   "selection",
+  "file",
   "buffer",
+  "messages",
   "diagnostics",
   "quickfix",
-  "help",
-  "checkhealth",
   "terminal",
-  "messages",
 }
 ---@type table<string, agents.Provider>
 local registry = {}
@@ -20,7 +17,8 @@ local registry = {}
 ---@return string?
 local function filename(ctx)
   local name = vim.api.nvim_buf_get_name(ctx.buf)
-  if name ~= "" and vim.bo[ctx.buf].buftype == "" then
+  local buftype = vim.bo[ctx.buf].buftype
+  if name ~= "" and (buftype == "" or buftype == "help") then
     return name
   end
 end
@@ -66,27 +64,15 @@ local function dedent(lines, tabstop)
 end
 
 registry.file = {
-  desc = "Current file",
+  desc = "Reference the current file",
   render = function(ctx)
     local path = filename(ctx)
     return path and { { path = path } } or nil
   end,
 }
 
-registry.position = {
-  desc = "Cursor or selected range",
-  render = function(ctx)
-    local path = filename(ctx)
-    if not path then
-      return nil
-    end
-    local range = ctx.range or { kind = "char", start = ctx.cursor, finish = ctx.cursor }
-    return { { path = path, range = vim.deepcopy(range) } }
-  end,
-}
-
 registry.line = {
-  desc = "Current or selected lines",
+  desc = "Reference current or selected lines",
   render = function(ctx)
     local path = filename(ctx)
     if not path then
@@ -106,7 +92,7 @@ registry.line = {
 }
 
 registry.selection = {
-  desc = "Selected text",
+  desc = "Copy selected text",
   render = function(ctx)
     local lines = context.selection(ctx)
     if not lines then
@@ -117,7 +103,7 @@ registry.selection = {
 }
 
 registry.buffer = {
-  desc = "Entire buffer",
+  desc = "Copy entire buffer text",
   render = function(ctx)
     return {
       {
@@ -214,29 +200,12 @@ registry.quickfix = {
   end,
 }
 
-registry.help = { desc = "Help tag and section", render = require("agents.providers.help") }
-
-registry.checkhealth = {
-  desc = "Health check output",
-  render = function(ctx)
-    if vim.bo[ctx.buf].filetype ~= "checkhealth" then
-      return nil
-    end
-    return {
-      {
-        code = table.concat(vim.api.nvim_buf_get_lines(ctx.buf, 0, -1, false), "\n"),
-        ft = "checkhealth",
-      },
-    }
-  end,
-}
-
 ---Read terminal context directly, or use an inline item to choose a per-send limit.
 ---@param ctx agents.Context
----@param limit? integer Maximum lines after trimming trailing blanks; defaults to 200.
+---@param limit? integer Maximum lines after trimming trailing blanks; defaults to 1000.
 ---@return agents.Part[]?
 function M.terminal(ctx, limit)
-  limit = limit or 200
+  limit = limit or 1000
   assert(
     type(limit) == "number" and limit > 0 and limit % 1 == 0,
     "agents: terminal line limit must be a positive integer"
@@ -254,10 +223,10 @@ function M.terminal(ctx, limit)
   return { { code = table.concat(lines, "\n", math.max(1, #lines - limit + 1)), ft = "text" } }
 end
 
-registry.terminal = { desc = "Terminal scrollback", render = M.terminal }
+registry.terminal = { desc = "Copt terminal scrollback", render = M.terminal }
 
 registry.messages = {
-  desc = "Message history",
+  desc = "Copy :messages history",
   render = function()
     local output = vim.api.nvim_exec2("messages", { output = true }).output
     return output:find("%S") and { { text = output } } or nil

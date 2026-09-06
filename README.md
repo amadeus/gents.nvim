@@ -1,7 +1,7 @@
 # agents.nvim
 
 Run agent CLI sessions in native Neovim terminals. Keep multiple sessions open,
-hide them while you edit, and send them files, selections, or diagnostics.
+hide them while you edit, and send file references, selected text, or diagnostics.
 
 Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
 
@@ -44,8 +44,8 @@ Use `:Agents send file --no-focus` to keep focus in the originating window.
 Hidden sessions keep running. Use `:checkhealth agents` to check your setup.
 Set `picker = "snacks"` in `opts` to use the built-in Snacks picker
 and its shortcuts (requires snacks.nvim).
-See [specialized context](docs/recipes/context.md) for help, health checks,
-terminal scrollback, and message history. To react when a tool finishes, see
+See [sending context](docs/recipes/context.md) for file references, copied text,
+and specialized providers. To react when a tool finishes, see
 [agent ready notifications](docs/recipes/ready.md).
 Tools that emit terminal titles show them in session pickers and status data;
 see [conversation titles](docs/recipes/titles.md) for setup and limitations.

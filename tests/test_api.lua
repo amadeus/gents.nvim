@@ -36,7 +36,7 @@ T["focus with no sessions opens the tool picker"] = function()
 
   agents.focus()
 
-  eq(picked().title, "Agents: new session")
+  eq(picked().title, "Agents: New Session")
   eq(#agents.sessions(), 0)
 end
 

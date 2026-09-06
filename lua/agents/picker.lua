@@ -1,10 +1,15 @@
 local M = {}
 
+---@class agents.PickerChunk
+---@field text string
+---@field kind? "directory"|"visible"|"hidden"|"placeholder"|"separator"|"description" Styling role for rich picker adapters.
+
 ---@class agents.PickerItem<T>
 ---@field text string
 ---@field preview? string
 ---@field data T
 ---@field hl? string Suggested highlight group for adapters that support item styling.
+---@field chunks? agents.PickerChunk[] Styled parts that concatenate to text.
 
 ---@class agents.PickerSpec<T>
 ---@field title string
@@ -61,16 +66,52 @@ function M.open(spec)
   )
 end
 
+---@generic T
+---@param items agents.PickerItem<T>[]
+---@param descriptions table<integer, string>
+local function describe_items(items, descriptions)
+  local width = 0
+  for _, item in ipairs(items) do
+    width = math.max(width, vim.fn.strdisplaywidth(item.text))
+  end
+  for index, item in ipairs(items) do
+    local description = descriptions[index]
+    if description and description ~= "" then
+      local label = item.text .. string.rep(" ", width - vim.fn.strdisplaywidth(item.text))
+      item.chunks = {
+        { text = label },
+        { text = " · ", kind = "separator" },
+        { text = description, kind = "description" },
+      }
+      item.text = label .. " · " .. description
+    end
+  end
+end
+
 ---@param callback fun(command: agents.CommandName)
 function M.commands(callback)
   local origin = vim.api.nvim_get_current_win()
   ---@type agents.PickerItem<agents.CommandName>[]
   local items = {}
+  ---@type table<agents.CommandName, string>
+  local descriptions = {
+    close = "Hide and kill a session",
+    focus = "Switch focus between an agent and your last buffer",
+    hide = "Hide a session without killing it",
+    new = "Start a new session",
+    pick = "Existing session picker",
+    send = "Pick context to send to an agent",
+    toggle = "Show or hide a session",
+  }
+  ---@type string[]
+  local details = {}
   for _, command in ipairs(require("agents.commands").names(true)) do
     items[#items + 1] = { text = command, data = command }
+    details[#items] = assert(descriptions[command])
   end
+  describe_items(items, details)
   M.open({
-    title = "Agents: actions",
+    title = "Agents: Actions",
     items = items,
     default = "run",
     actions = {
@@ -91,17 +132,23 @@ function M.tools(callback, opts)
   local origin = vim.api.nvim_get_current_win()
   ---@type agents.PickerItem<agents.Tool>[]
   local items = {}
+  ---@type table<integer, string>
+  local descriptions = {}
   for _, name in ipairs(require("agents.tools").names(config.tools)) do
     local tool = config.tools[name]
     if tool.enabled ~= false then
       local missing = vim.fn.executable(tool.cmd[1]) == 0
       items[#items + 1] = {
-        text = name .. (missing and " [not installed]" or ""),
+        text = name,
         data = tool,
         hl = missing and "Comment" or nil,
       }
+      if missing then
+        descriptions[#items] = "Not installed"
+      end
     end
   end
+  describe_items(items, descriptions)
 
   ---@param item agents.PickerItem<agents.Tool>
   ---@param launch_opts agents.NewOptions
@@ -123,7 +170,7 @@ function M.tools(callback, opts)
 
   ---@type agents.PickerSpec<agents.Tool>
   local spec = {
-    title = "Agents: new session",
+    title = "Agents: New Session",
     items = items,
     default = "new",
     actions = {
@@ -172,6 +219,21 @@ function M.tools(callback, opts)
   M.open(spec)
 end
 
+---@param title string
+---@return string
+local function display_title(title)
+  if vim.fn.strdisplaywidth(title) <= 60 then
+    return title
+  end
+  local length = 57
+  local shortened = vim.fn.strcharpart(title, 0, length, true)
+  while vim.fn.strdisplaywidth(shortened) > 57 do
+    length = length - 1
+    shortened = vim.fn.strcharpart(title, 0, length, true)
+  end
+  return shortened .. "..."
+end
+
 ---@param candidates agents.Session[]
 ---@param callback fun(session: agents.Session)
 function M.sessions(candidates, callback)
@@ -197,15 +259,54 @@ function M.sessions(candidates, callback)
 
   ---@type agents.PickerItem<agents.Session>[]
   local items = {}
+  ---@type { session: agents.Session, marker: string, visible: boolean, label: string, title: string }[]
+  local rows = {}
+  local marker_width, label_width, title_width = 0, 0, 0
+  local icons = require("agents.config").get().icons
   for _, session in ipairs(ordered) do
-    local state = session.state == "exited" and "exited"
-      or (window.visible(session, tab) and "visible" or "hidden")
-    local label = session.label .. (session.title and " · " .. session.title or "")
-    local text = label .. "  [" .. state .. "]  " .. session.cwd
-    if not vim.deep_equal(session.cmd, session.tool.cmd) then
-      text = text .. "  " .. table.concat(session.cmd, " ")
+    local visible = window.visible(session, tab)
+    local marker = visible and icons.visible or icons.hidden
+    local label = session.title and session.tool.name or session.label
+    local title = session.title and display_title(session.title) or "Untitled"
+    if session.state == "exited" then
+      title = title .. "  [exited]"
     end
-    items[#items + 1] = { text = text, data = session }
+    rows[#rows + 1] = {
+      session = session,
+      marker = marker,
+      visible = visible,
+      label = label,
+      title = title,
+    }
+    marker_width = math.max(marker_width, vim.fn.strdisplaywidth(marker))
+    label_width = math.max(label_width, vim.fn.strdisplaywidth(label))
+    title_width = math.max(title_width, vim.fn.strdisplaywidth(title))
+  end
+
+  for _, row in ipairs(rows) do
+    local session = row.session
+    local summary = string.rep(" ", marker_width - vim.fn.strdisplaywidth(row.marker) + 2)
+      .. row.label
+      .. string.rep(" ", label_width - vim.fn.strdisplaywidth(row.label))
+    local padding = string.rep(" ", title_width - vim.fn.strdisplaywidth(row.title))
+    local directory = vim.fn.fnamemodify(session.cwd, ":~")
+    local text = row.marker .. summary .. " · " .. row.title .. padding .. " · " .. directory
+    ---@type agents.PickerChunk[]
+    local chunks = {
+      { text = row.marker, kind = row.visible and "visible" or "hidden" },
+      { text = summary },
+      { text = " · ", kind = "separator" },
+      { text = row.title, kind = not session.title and "placeholder" or nil },
+      { text = padding },
+      { text = " · ", kind = "separator" },
+      { text = directory, kind = "directory" },
+    }
+    if not vim.deep_equal(session.cmd, session.tool.cmd) then
+      local argv = "  " .. table.concat(session.cmd, " ")
+      text = text .. argv
+      chunks[#chunks + 1] = { text = argv }
+    end
+    items[#items + 1] = { text = text, data = session, chunks = chunks }
   end
 
   ---@param item agents.PickerItem<agents.Session>
@@ -219,7 +320,7 @@ function M.sessions(candidates, callback)
 
   ---@type agents.PickerSpec<agents.Session>
   local spec = {
-    title = "Agents: sessions",
+    title = "Agents: Sessions",
     items = items,
     default = "show",
     actions = {
@@ -256,13 +357,17 @@ function M.context(ctx, callback)
   local providers = require("agents.providers")
   ---@type agents.PickerItem<agents.Part[]>[]
   local items = {}
+  ---@type string[]
+  local descriptions = {}
 
   ---@param label string
+  ---@param description string
   ---@param source agents.Item[]
-  local function add(label, source)
+  local function add(label, description, source)
     local parts = render.resolve(source, ctx)
     if parts then
       items[#items + 1] = { text = label, preview = render.text(parts, ctx), data = parts }
+      descriptions[#items] = description
     end
   end
 
@@ -271,14 +376,15 @@ function M.context(ctx, callback)
   local names = vim.tbl_keys(prompts)
   table.sort(names)
   for _, name in ipairs(names) do
-    add(name .. " [prompt]", prompts[name])
+    add(name, "Saved prompt", prompts[name])
   end
   for _, name in ipairs(providers.names()) do
-    add(name .. " — " .. assert(providers.get(name)).desc, { name })
+    add(name, assert(providers.get(name)).desc, { name })
   end
+  describe_items(items, descriptions)
 
   M.open({
-    title = "Agents: send context",
+    title = "Agents: Send Context",
     items = items,
     default = "send",
     actions = {

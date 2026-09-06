@@ -1,5 +1,15 @@
 local M = {}
 
+---@type table<string, string>
+local chunk_highlights = {
+  directory = "SnacksPickerDir",
+  visible = "DiagnosticInfo",
+  hidden = "Comment",
+  placeholder = "Comment",
+  separator = "Comment",
+  description = "Comment",
+}
+
 -- Only the Snacks surface used by this adapter is described here, so Snacks
 -- remains optional and its type definitions are not required by LuaLS.
 ---@class agents.pickers.SnacksItem
@@ -167,11 +177,12 @@ function M.open(spec)
   end
   ---@type agents.pickers.SnacksHighlight[]
   local footer = {}
+  local help = require("agents.config").get().picker_help
   for _, binding in ipairs(bindings) do
     local name, key, label = binding[1], binding[2], binding[3]
     if spec.actions[name] then
       keys[key] = { "agents_" .. name, mode = { "n", "i" }, desc = label }
-      if key ~= "<CR>" then
+      if help and key ~= "<CR>" then
         if #footer > 0 then
           footer[#footer + 1] = { " ", "SnacksFooter" }
         end
@@ -188,7 +199,19 @@ function M.open(spec)
     title = spec.title,
     items = items,
     format = function(item)
-      return { { item.text, spec.items[item.agents_index].hl } }
+      local source = spec.items[item.agents_index]
+      if not source.chunks then
+        return { { item.text, source.hl } }
+      end
+      ---@type agents.pickers.SnacksHighlight[]
+      local chunks = {}
+      for _, chunk in ipairs(source.chunks) do
+        chunks[#chunks + 1] = {
+          chunk.text,
+          chunk.kind and chunk_highlights[chunk.kind] or source.hl,
+        }
+      end
+      return chunks
     end,
     preview = "preview",
     confirm = "agents_" .. spec.default,

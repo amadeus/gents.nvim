@@ -1,4 +1,5 @@
 local M = {}
+local titles = require("agents.titles")
 
 ---@param path string
 ---@param range? agents.Range
@@ -48,23 +49,27 @@ local builtins = {
   {
     name = "claude",
     cmd = { "claude" },
+    title = titles.claude,
     location = claude_location,
     url = "https://code.claude.com/docs/en/quickstart",
   },
   {
     name = "codex",
-    cmd = { "codex" },
+    cmd = { "codex", "-c", 'tui.terminal_title=["thread"]' },
+    title = titles.codex,
     url = "https://developers.openai.com/codex/cli",
   },
   {
     name = "opencode",
     cmd = { "opencode" },
+    title = titles.opencode,
     env = { OPENCODE_THEME = "system" },
     url = "https://opencode.ai/docs/",
   },
   {
     name = "opencode2",
     cmd = { "opencode2" },
+    title = titles.opencode,
     env = { OPENCODE_THEME = "system" },
     url = "https://opencode.ai/v2/docs",
   },

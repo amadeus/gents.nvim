@@ -32,10 +32,10 @@ local function is_notification(sequence)
   return complete and (kind == "title" or kind == "body")
 end
 
----@alias agents.EventName "AgentsSessionStart"|"AgentsSessionExit"|"AgentsSessionShow"|"AgentsSessionHide"|"AgentsReady"|"AgentsSend"
+---@alias agents.EventName "AgentsSessionStart"|"AgentsSessionExit"|"AgentsSessionShow"|"AgentsSessionHide"|"AgentsSessionTitle"|"AgentsReady"|"AgentsSend"
 
 ---@param name agents.EventName
----@param data agents.SessionEvent|agents.ReadyEvent|agents.SendEvent
+---@param data agents.SessionEvent|agents.ReadyEvent|agents.SendEvent|agents.TitleEvent
 function M.emit(name, data)
   vim.api.nvim_exec_autocmds("User", { pattern = name, data = data, modeline = false })
 end
@@ -65,10 +65,18 @@ end
 function M.attach(session)
   vim.api.nvim_create_autocmd("TermRequest", {
     buffer = session.buf,
-    desc = "Receive agent ready notifications",
+    desc = "Receive agent titles and ready notifications",
     callback = function(ev)
       ---@type vim.event.termrequest.data
       local data = ev.data
+      -- b:term_title may already contain a later title from the same PTY read.
+      -- Use each OSC payload so renames and resets are observed in order.
+      -- Neovim does not report empty titles; tool placeholders signal resets.
+      local title = data.sequence:match("^\027%][02];(.+)$")
+      if title then
+        require("agents.titles").update(session, title)
+        return
+      end
       if not is_notification(data.sequence) then
         return
       end

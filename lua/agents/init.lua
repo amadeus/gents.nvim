@@ -39,6 +39,7 @@ function M.status()
       id = session.id,
       tool = session.tool.name,
       label = session.label,
+      title = session.title,
       visible = require("agents.window").visible(session),
       state = session.state,
       cwd = session.cwd,

@@ -48,8 +48,24 @@ T["built-in tools have names, commands, and install URLs"] = function()
     expect(assert(tool.url):match("^https://") ~= nil, true)
   end
   expect(result.tools.copilot.cmd, { "copilot", "--banner" })
+  expect(result.tools.codex.cmd, { "codex", "-c", 'tui.terminal_title=["thread"]' })
   expect(result.tools.opencode.env, { OPENCODE_THEME = "system" })
   expect(result.tools.opencode2.env, { OPENCODE_THEME = "system" })
+end
+
+T["title parsers can be customized or disabled without changing commands"] = function()
+  ---@param title string
+  ---@return string?
+  local function parse(title)
+    return title:match("^Conversation: (.+)$")
+  end
+  local result = config.setup({
+    tools = { claude = { title = false }, custom = { cmd = { "custom" }, title = parse } },
+  })
+  expect(result.tools.claude.title, false)
+  expect(result.tools.claude.cmd, { "claude" })
+  expect(result.tools.custom.title, parse)
+  expect(type(config.setup().tools.claude.title), "function")
 end
 
 T["tool overrides replace individual fields and remove names"] = function()
@@ -138,6 +154,8 @@ T["invalid configuration fails before replacing current config"] = function()
     { { prompts = { ["two words"] = { "file" } } }, "prompt names must be" },
     { { prompts = { empty = {} } }, "prompts.empty must be" },
     { { tools = { claude = { location = true } } }, "tools.claude.location must be" },
+    { { tools = { claude = { title = true } } }, "tools.claude.title must be" },
+    { { tools = { claude = { title = "title" } } }, "tools.claude.title must be" },
     { { tools = { claude = { cmd = {} } } }, "tools.claude.cmd must be" },
     { { tools = { claude = { cmd = { "" } } } }, "tools.claude.cmd must be" },
     { { tools = { claude = { cmd = "claude" } } }, "tools.claude.cmd must be" },

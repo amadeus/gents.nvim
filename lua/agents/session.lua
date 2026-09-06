@@ -9,6 +9,7 @@ local next_id = 0
 ---@field id integer
 ---@field tool agents.Tool
 ---@field label string
+---@field title? string
 ---@field cmd string[]
 ---@field cwd string
 ---@field buf integer

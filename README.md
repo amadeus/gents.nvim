@@ -43,6 +43,8 @@ and its extra shortcuts (requires snacks.nvim).
 See [specialized context](docs/recipes/context.md) for help, health checks,
 terminal scrollback, and message history. To react when a tool finishes, see
 [agent ready notifications](docs/recipes/ready.md).
+Tools that emit terminal titles show them in session pickers and status data;
+see [conversation titles](docs/recipes/titles.md) for setup and limitations.
 
 For development, run these from the repository root:
 

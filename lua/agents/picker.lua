@@ -201,7 +201,8 @@ function M.sessions(candidates, callback)
   for _, session in ipairs(ordered) do
     local state = session.state == "exited" and "exited"
       or (window.visible(session) and "visible" or "hidden")
-    local text = session.label .. "  [" .. state .. "]  " .. session.cwd
+    local label = session.label .. (session.title and " · " .. session.title or "")
+    local text = label .. "  [" .. state .. "]  " .. session.cwd
     if not vim.deep_equal(session.cmd, session.tool.cmd) then
       text = text .. "  " .. table.concat(session.cmd, " ")
     end

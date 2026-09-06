@@ -48,6 +48,10 @@ local function validate(config)
   end
   for name, tool in pairs(config.tools) do
     assert(
+      tool.title == nil or tool.title == false or type(tool.title) == "function",
+      "agents: tools." .. name .. ".title must be a function or false"
+    )
+    assert(
       tool.location == nil or type(tool.location) == "function",
       "agents: tools." .. name .. ".location must be a function"
     )

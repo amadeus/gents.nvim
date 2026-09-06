@@ -483,6 +483,43 @@ local function capture_sessions()
   end
 end
 
+T["session picker reads current titles without changing labels or selection identity"] = function()
+  local session = H.new({ label = "review" })
+  session.title = "Investigate flaky tests"
+  ---@type agents.Session?
+  local selected
+  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param opts vim.ui.select.Opts
+  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  set_select(function(items, opts, callback)
+    test.expect.equality(
+      assert(opts.format_item)(items[1]),
+      "review · Investigate flaky tests  [visible]  " .. session.cwd
+    )
+    callback(items[1])
+  end)
+  picker.sessions({ session }, function(value)
+    selected = value
+  end)
+  test.expect.equality(selected, session)
+
+  local get_spec = capture_sessions()
+  session.title = "Renamed conversation"
+  require("agents").pick()
+  local spec = get_spec()
+  test.expect.equality(
+    spec.items[1].text,
+    "review · Renamed conversation  [visible]  " .. session.cwd
+  )
+  test.expect.equality(spec.items[1].data.id, session.id)
+  test.expect.equality(spec.items[1].data.label, "review")
+  session.title = nil
+  require("agents").pick()
+  test.expect.equality(get_spec().items[1].text, "review  [visible]  " .. session.cwd)
+  require("agents").hide("review")
+  test.expect.equality(vim.fn.win_findbuf(session.buf), {})
+end
+
 local layouts = { { "vsplit" }, { "split" }, { "tabnew" }, { "current" } }
 
 ---@param layout string

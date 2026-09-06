@@ -6,19 +6,25 @@ local T = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
 
 T["status returns independent snapshots with live visibility"] = function()
   local session = H.new({ label = "review" })
+  session.title = "Investigate flaky tests"
   local status = agents.status()
   eq(status, {
     {
       id = session.id,
       tool = "cat",
       label = "review",
+      title = "Investigate flaky tests",
       cwd = session.cwd,
       visible = true,
       state = "starting",
     },
   })
   status[1].label = "changed"
+  status[1].title = "changed"
   eq(session.label, "review")
+  eq(session.title, "Investigate flaky tests")
+  session.title = nil
+  eq(agents.status()[1].title, nil)
   vim.cmd.enew()
   eq(agents.status()[1].visible, false)
   agents.show(session.id)

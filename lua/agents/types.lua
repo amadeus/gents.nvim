@@ -1,11 +1,15 @@
 ---@meta
 
+---Normalize a CLI terminal title; nil means the current conversation is unnamed.
+---@alias agents.TitleParser fun(title: string, session: agents.Session): string?
+
 ---@class agents.Tool
 ---@field name string
 ---@field cmd string[]
 ---@field env? table<string, string|false>
 ---@field url? string
 ---@field location? fun(path: string, range?: agents.Range): string
+---@field title? agents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
 ---@field enabled? boolean
 
 ---Tool fields supplied to setup; the table key supplies the name.
@@ -14,6 +18,7 @@
 ---@field env? table<string, string|false>
 ---@field url? string
 ---@field location? fun(path: string, range?: agents.Range): string
+---@field title? agents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
 ---@field enabled? boolean
 
 ---Partial defaults for floating windows. Fractions in (0, 1] are screen proportions.
@@ -73,6 +78,10 @@
 ---@field id integer
 ---@field submit boolean
 
+---@class agents.TitleEvent
+---@field id integer
+---@field title? string Absent when the conversation becomes unnamed.
+
 ---@class agents.ReadyEvent
 ---@field id integer
 ---@field label string
@@ -87,6 +96,7 @@
 ---@field id integer
 ---@field tool string
 ---@field label string
+---@field title? string Conversation title; does not change the targeting label.
 ---@field visible boolean
 ---@field state agents.SessionState
 ---@field cwd string

@@ -122,6 +122,20 @@ local function footer_text(picker)
   return table.concat(text)
 end
 
+T["session titles reach Snacks display text and preserve selection"] = function()
+  local session = H.new({ label = "review" })
+  session.title = "Investigate flaky tests"
+  require("agents").hide(session.id)
+  require("agents").pick()
+  local picker = current_picker()
+  local item = picker.opts.items[1]
+  local text = "review · Investigate flaky tests  [hidden]  " .. session.cwd
+  test.expect.equality(item.text, text)
+  test.expect.equality(picker.opts.format(item)[1][1], text)
+  press(picker, "<CR>", "i", "input")
+  test.expect.equality(require("agents").current(), session)
+end
+
 T["built-in tool shortcuts"] = test.new_set({
   parametrize = {
     { "<CR>", "vsplit" },

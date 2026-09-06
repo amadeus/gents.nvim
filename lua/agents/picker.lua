@@ -184,7 +184,8 @@ function M.sessions(candidates, callback)
   local ranks = {}
   for _, session in ipairs(candidates) do
     ordered[#ordered + 1] = session
-    local hidden_here = session.tab == tab and not window.visible(session)
+    -- A native view elsewhere takes precedence over the last plugin-managed tab.
+    local hidden_here = session.tab == tab and #vim.fn.win_findbuf(session.buf) == 0
     ranks[session.id] = window.visible(session, tab) and 1 or (hidden_here and 2 or 3)
   end
   table.sort(ordered, function(a, b)
@@ -198,7 +199,7 @@ function M.sessions(candidates, callback)
   local items = {}
   for _, session in ipairs(ordered) do
     local state = session.state == "exited" and "exited"
-      or (window.visible(session) and "visible" or "hidden")
+      or (window.visible(session, tab) and "visible" or "hidden")
     local label = session.label .. (session.title and " · " .. session.title or "")
     local text = label .. "  [" .. state .. "]  " .. session.cwd
     if not vim.deep_equal(session.cmd, session.tool.cmd) then

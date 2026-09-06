@@ -33,6 +33,26 @@ T["status returns independent snapshots with live visibility"] = function()
   eq(agents.status(), {})
 end
 
+T["status visibility follows native tab navigation"] = function()
+  local session = H.new()
+  local status = agents.status()
+  eq(status[1].visible, true)
+  vim.cmd.tabnew()
+  eq(agents.status()[1].visible, false)
+  eq(status[1].visible, true)
+  vim.cmd.vsplit()
+  vim.api.nvim_win_set_buf(0, session.buf)
+  eq(agents.status()[1].visible, true)
+  vim.cmd.tabprevious()
+  eq(agents.status()[1].visible, true)
+  vim.cmd.enew()
+  eq(agents.status()[1].visible, false)
+  vim.cmd.tabnext()
+  eq(agents.status()[1].visible, true)
+  vim.cmd.tabprevious()
+  eq(agents.status()[1].visible, false)
+end
+
 T["a statusline reflects hidden sessions, show, hide, and exit"] = function()
   _G.agents_test_status = function()
     ---@type string[]

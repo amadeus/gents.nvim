@@ -122,10 +122,11 @@ local function footer_text(picker)
   return table.concat(text)
 end
 
-T["session titles reach Snacks display text and preserve selection"] = function()
+T["Snacks shows other-tab sessions as hidden with their titles and preserves selection"] = function()
   local session = H.new({ label = "review" })
   session.title = "Investigate flaky tests"
-  require("agents").hide(session.id)
+  local session_tab = vim.api.nvim_get_current_tabpage()
+  vim.cmd.tabnew()
   require("agents").pick()
   local picker = current_picker()
   local item = picker.opts.items[1]
@@ -134,6 +135,7 @@ T["session titles reach Snacks display text and preserve selection"] = function(
   test.expect.equality(picker.opts.format(item)[1][1], text)
   press(picker, "<CR>", "i", "input")
   test.expect.equality(require("agents").current(), session)
+  test.expect.equality(vim.api.nvim_get_current_tabpage(), session_tab)
 end
 
 T["built-in tool shortcuts"] = test.new_set({

@@ -375,8 +375,9 @@ T["session rows prefer this tab and show state cwd and changed argv"] = function
       exited.label .. "  [exited]  " .. exited.cwd .. "  sh -c exit 7"
     )
     test.expect.equality(items[3].text, hidden.label .. "  [hidden]  " .. hidden.cwd)
-    test.expect.equality(items[4].text, elsewhere.label .. "  [visible]  " .. elsewhere.cwd)
+    test.expect.equality(items[4].text, elsewhere.label .. "  [hidden]  " .. elsewhere.cwd)
     test.expect.equality(assert(opts.format_item)(items[1]), items[1].text)
+    test.expect.equality(assert(opts.format_item)(items[4]), items[4].text)
     callback(items[3])
   end)
   picker.sessions(require("agents").sessions(), function(session)
@@ -455,6 +456,11 @@ T["a native view in another tab ranks after hidden sessions from this tab"] = fu
     { assert(spec).items[1].data.id, assert(spec).items[2].data.id },
     { hidden.id, elsewhere.id }
   )
+  test.expect.equality(assert(spec).items[1].text, hidden.label .. "  [hidden]  " .. hidden.cwd)
+  test.expect.equality(
+    assert(spec).items[2].text,
+    elsewhere.label .. "  [hidden]  " .. elsewhere.cwd
+  )
 end
 
 ---@return fun(): agents.PickerSpec<agents.Tool>
@@ -481,6 +487,33 @@ local function capture_sessions()
   return function()
     return assert(captured)
   end
+end
+
+T["session rows follow native tab switches and multiple views"] = function()
+  local session = H.new()
+  local first_tab = vim.api.nvim_get_current_tabpage()
+  vim.cmd.tabnew()
+  local second_tab = vim.api.nvim_get_current_tabpage()
+  vim.api.nvim_win_set_buf(0, session.buf)
+  local get_spec = capture_sessions()
+
+  ---@param state string
+  local function expect_state(state)
+    require("agents").pick()
+    local item = get_spec().items[1]
+    test.expect.equality(item.data.id, session.id)
+    test.expect.equality(item.text, session.label .. "  [" .. state .. "]  " .. session.cwd)
+  end
+
+  expect_state("visible")
+  vim.cmd.tabnew()
+  expect_state("hidden")
+  vim.api.nvim_set_current_tabpage(first_tab)
+  expect_state("visible")
+  vim.cmd.enew()
+  expect_state("hidden")
+  vim.api.nvim_set_current_tabpage(second_tab)
+  expect_state("visible")
 end
 
 T["session picker reads current titles without changing labels or selection identity"] = function()

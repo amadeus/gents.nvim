@@ -92,6 +92,19 @@ T["lifecycle events occur once per plugin transition"] = function()
   eq(type(events("AgentsSessionExit")[1].data.exit_code), "number")
 end
 
+T["hide emits only when the last view across tabs is removed"] = function()
+  local session = H.new()
+  vim.cmd.tabnew()
+  vim.cmd.vsplit()
+  vim.api.nvim_win_set_buf(0, session.buf)
+  require("agents.window").hide(session, vim.api.nvim_get_current_tabpage())
+  eq(#events("AgentsSessionHide"), 0)
+  vim.cmd.tabprevious()
+  eq(#events("AgentsSessionShow"), 1)
+  agents.hide(session.id)
+  eq(#events("AgentsSessionHide"), 1)
+end
+
 T["process exit emits its actual exit code and keeps the buffer"] = function()
   local session = H.new({ cmd = { "sh", "-c", "exit 7" } })
   H.wait(function()
@@ -174,6 +187,40 @@ T["hook ready distinguishes visible and hidden sessions"] = function()
   eq(#events("AgentsReady"), 2)
 end
 
+T["hook ready treats sessions in another tab as hidden"] = function()
+  local session = H.new()
+  local terminal = vim.api.nvim_get_current_win()
+  vim.cmd.tabnew()
+  local data = agents.ready(session.id)
+  eq({ data.visible, data.focused }, { false, false })
+  eq(data.win, nil)
+  vim.cmd.tabprevious()
+  data = agents.ready(session.id)
+  eq({ data.visible, data.focused, data.win }, { true, true, terminal })
+  vim.cmd.tabnext()
+  data = agents.ready(session.id)
+  eq({ data.visible, data.focused }, { false, false })
+  eq(data.win, nil)
+end
+
+T["hook ready prefers the focused view among current-tab views"] = function()
+  local session = H.new()
+  vim.cmd.tabnew()
+  local source = vim.api.nvim_get_current_win()
+  vim.cmd.vsplit()
+  local visible = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(visible, session.buf)
+  vim.api.nvim_set_current_win(source)
+  local data = agents.ready(session.id)
+  eq({ data.visible, data.focused, data.win }, { true, false, visible })
+
+  vim.cmd.vsplit()
+  local focused = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(focused, session.buf)
+  data = agents.ready(session.id)
+  eq({ data.visible, data.focused, data.win }, { true, true, focused })
+end
+
 T["ready rejects unknown ids without opening a picker"] = function()
   test.expect.error(function()
     agents.ready(-1)
@@ -188,10 +235,11 @@ T["OSC notifications"] = test.new_set({
     { "777;notify;Agent;done", "focused" },
     { "9;done", "visible" },
     { "9;done", "hidden" },
+    { "9;done", "other-tab" },
   },
 }, {
   ---@param payload string
-  ---@param visibility "focused"|"visible"|"hidden"
+  ---@param visibility "focused"|"visible"|"hidden"|"other-tab"
   ["emit through a real terminal process"] = function(payload, visibility)
     local source = vim.api.nvim_get_current_win()
     local session = H.new({
@@ -203,6 +251,8 @@ T["OSC notifications"] = test.new_set({
     end
     if visibility == "hidden" then
       agents.hide(session.id)
+    elseif visibility == "other-tab" then
+      vim.cmd.tabnew()
     end
     vim.fn.chansend(session.job, "go\n")
     H.wait(function()
@@ -212,9 +262,10 @@ T["OSC notifications"] = test.new_set({
     local data = events("AgentsReady")[1].data
     eq(data.id, session.id)
     eq(data.source, "osc")
-    eq(data.visible, visibility ~= "hidden")
+    local visible = visibility == "focused" or visibility == "visible"
+    eq(data.visible, visible)
     eq(data.focused, visibility == "focused")
-    eq(data.win, visibility ~= "hidden" and terminal or nil)
+    eq(data.win, visible and terminal or nil)
   end,
 })
 

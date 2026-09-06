@@ -87,8 +87,8 @@
 ---@field label string
 ---@field tool string
 ---@field buf integer
----@field win? integer
----@field visible boolean
+---@field win? integer A window showing the session in the current tab; focused view preferred.
+---@field visible boolean Shown in a window in the current tab.
 ---@field focused boolean
 ---@field source "osc"|"hook"
 
@@ -97,7 +97,7 @@
 ---@field tool string
 ---@field label string
 ---@field title? string Conversation title; does not change the targeting label.
----@field visible boolean
+---@field visible boolean Shown in a window in the current tab.
 ---@field state agents.SessionState
 ---@field cwd string
 

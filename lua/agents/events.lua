@@ -44,16 +44,16 @@ end
 ---@param source "osc"|"hook"
 ---@return agents.ReadyEvent
 function M.ready(session, source)
-  local wins = vim.fn.win_findbuf(session.buf)
   local focused = vim.api.nvim_get_current_buf() == session.buf
+  local win = focused and vim.api.nvim_get_current_win() or require("agents.window").find(session)
   ---@type agents.ReadyEvent
   local data = {
     id = session.id,
     label = session.label,
     tool = session.tool.name,
     buf = session.buf,
-    win = focused and vim.api.nvim_get_current_win() or wins[1],
-    visible = #wins > 0,
+    win = win,
+    visible = win ~= nil,
     focused = focused,
     source = source,
   }

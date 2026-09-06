@@ -60,15 +60,22 @@ function M.attach(session)
 end
 
 ---@param session agents.Session
----@param tab? integer
----@return boolean
-function M.visible(session, tab)
+---@param tab? integer Defaults to the current tab.
+---@return integer?
+function M.find(session, tab)
+  tab = tab or vim.api.nvim_get_current_tabpage()
   for _, win in ipairs(vim.fn.win_findbuf(session.buf)) do
-    if not tab or vim.api.nvim_win_get_tabpage(win) == tab then
-      return true
+    if vim.api.nvim_win_get_tabpage(win) == tab then
+      return win
     end
   end
-  return false
+end
+
+---@param session agents.Session
+---@param tab? integer Defaults to the current tab.
+---@return boolean
+function M.visible(session, tab)
+  return M.find(session, tab) ~= nil
 end
 
 ---@param value number
@@ -181,7 +188,7 @@ function M.hide(session, tab)
       vim.api.nvim_win_set_buf(win, alternate)
     end
   end
-  if #wins > 0 and session.job and session.job > 0 and not M.visible(session) then
+  if #wins > 0 and session.job and session.job > 0 and #vim.fn.win_findbuf(session.buf) == 0 then
     require("agents.events").emit("AgentsSessionHide", { id = session.id })
   end
   return session

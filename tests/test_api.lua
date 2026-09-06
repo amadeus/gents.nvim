@@ -68,7 +68,8 @@ T["focus opens the picker when one session is visible here and another exists el
 
   eq(vim.api.nvim_get_current_win(), terminal)
   eq(agents.current(), here)
-  eq(window.visible(elsewhere), true)
+  eq(window.visible(elsewhere), false)
+  eq(window.visible(elsewhere, elsewhere.tab), true)
   eq(#agents.sessions(), 2)
   eq(vim.fn.jobwait({ here.job, elsewhere.job }, 0), { -1, -1 })
 end

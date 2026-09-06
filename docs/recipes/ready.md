@@ -19,6 +19,11 @@ The event includes `id`, `label`, `tool`, `buf`, optional `win`, `visible`,
 release the startup send queue. The plugin forwards the configured signal;
 an idle or attention notification does not necessarily mean successful work.
 
+`visible` means the session is shown in the current tab. Sessions shown only
+in other tabs are hidden, as they are in picker labels and status snapshots.
+`win` identifies a view in the current tab and is absent when hidden;
+`focused` means the current window contains the session.
+
 Choose one notification mechanism per tool to avoid duplicate events.
 Hooks use the `NVIM` server address inherited from Neovim and the plugin's
 `AGENTS_SESSION` ID. Start the CLI through agents.nvim so both are present.

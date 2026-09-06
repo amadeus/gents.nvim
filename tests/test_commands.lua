@@ -108,6 +108,10 @@ dispatch["actions composes with every leaf command"] = function()
     "send file explain",
     "send file explain --target cat #2",
     "send --target 12",
+    "send --no-focus",
+    "send --no-focus file explain",
+    "send file --no-focus explain --target cat #2",
+    "send --no-focus --target 12",
   }) do
     calls = {}
     vim.cmd("Agents " .. command)
@@ -128,6 +132,32 @@ dispatch["send targets preserve labels and prompt expansion"] = function()
       { { "file", { text = "Explain:" }, "selection" }, { target = "feature code review" } },
     },
     { "send", { nil, { target = 12 } } },
+  })
+end
+
+dispatch["send accepts a focus opt-out before the target"] = function()
+  config.setup({ prompts = { explain = { { text = "Explain:" }, "selection" } } })
+  vim.cmd("Agents send --no-focus")
+  vim.cmd("Agents send file --no-focus explain")
+  vim.cmd("Agents actions send --no-focus file explain --target cat #2")
+  vim.cmd("Agents send --no-focus --target 12")
+  expect(calls, {
+    { "send", { nil, { focus = false } } },
+    { "send", { { "file", { text = "Explain:" }, "selection" }, { focus = false } } },
+    {
+      "send",
+      { { "file", { text = "Explain:" }, "selection" }, { focus = false, target = "cat #2" } },
+    },
+    { "send", { nil, { focus = false, target = 12 } } },
+  })
+end
+
+dispatch["send preserves option-like text after the target separator"] = function()
+  vim.cmd("Agents send file --target feature --no-focus review")
+  vim.cmd("Agents actions send --no-focus --target --no-focus")
+  expect(calls, {
+    { "send", { { "file" }, { target = "feature --no-focus review" } } },
+    { "send", { nil, { focus = false, target = "--no-focus" } } },
   })
 end
 
@@ -155,12 +185,26 @@ dispatch["ranged send chains forward the range and explicit target"] = function(
   local ok, err = pcall(function()
     vim.cmd("1Agents actions send file --target cat #2")
     vim.cmd("1Agents send --target 12")
+    vim.cmd("1Agents send --no-focus")
+    vim.cmd("1Agents actions send file --no-focus --target cat #2")
+    vim.cmd("1Agents actions send --no-focus --target 12")
   end)
   set_run(run)
   assert(ok, err)
   expect(sent, {
     { items = { "file" }, opts = { target = "cat #2" }, range = { line1 = 1, line2 = 1 } },
     { items = { "selection" }, opts = { target = 12 }, range = { line1 = 1, line2 = 1 } },
+    { items = { "selection" }, opts = { focus = false }, range = { line1 = 1, line2 = 1 } },
+    {
+      items = { "file" },
+      opts = { focus = false, target = "cat #2" },
+      range = { line1 = 1, line2 = 1 },
+    },
+    {
+      items = { "selection" },
+      opts = { focus = false, target = 12 },
+      range = { line1 = 1, line2 = 1 },
+    },
   })
 end
 
@@ -217,7 +261,13 @@ dispatch["invalid command chains fail before invoking an action"] = function()
 end
 
 dispatch["send rejects a missing explicit target"] = function()
-  for _, command in ipairs({ "send --target", "send file --target", "actions send --target" }) do
+  for _, command in ipairs({
+    "send --target",
+    "send file --target",
+    "actions send --target",
+    "send --no-focus --target",
+    "actions send file --no-focus --target",
+  }) do
     test.expect.error(function()
       vim.cmd("Agents " .. command)
     end, "target")
@@ -270,6 +320,13 @@ T["send completes providers and prompts at every item position"] = function()
   expect(complete("'<,'>Agents actions send se"), { "selection" })
   expect(complete("Agents send file --t"), { "--target" })
   expect(complete("Agents actions send --t"), { "--target" })
+  expect(complete("Agents send --"), { "--no-focus", "--target" })
+  expect(complete("Agents send file --no"), { "--no-focus" })
+  expect(complete("Agents actions send --no"), { "--no-focus" })
+  expect(complete("Agents send --no-focus fi"), { "file" })
+  expect(complete("Agents actions send --no-focus file ex"), { "explain" })
+  expect(complete("Agents send file --no-focus --t"), { "--target" })
+  expect(complete("'<,'>Agents actions send --no"), { "--no-focus" })
   expect(vim.fn.getcompletion("Agents actions send file di", "cmdline"), { "diagnostics" })
 end
 
@@ -356,6 +413,8 @@ sessions["completion replaces only the current word of a session label"] = funct
     "toggle",
     "send --target",
     "send file --target",
+    "send --no-focus --target",
+    "send file --no-focus --target",
   }) do
     expect(complete("Agents " .. command .. " feature code r"), { "review" })
     expect(complete("Agents actions " .. command .. " cat   #"), { "#2" })
@@ -367,6 +426,15 @@ sessions["completion replaces only the current word of a session label"] = funct
   )
   vim.cmd("Agents close cat #2")
   expect(complete("Agents close cat #"), {})
+end
+
+sessions["send target completion preserves option-like label text"] = function()
+  H.new({ label = "feature --no-focus review" })
+  H.new({ label = "--no-focus" })
+  expect(complete("Agents send --target feature --no"), { "--no-focus review" })
+  expect(complete("Agents send --no-focus --target feature --no-focus r"), { "review" })
+  expect(complete("Agents actions send file --target --no"), { "--no-focus" })
+  expect(complete("Agents send --target --"), { "--no-focus" })
 end
 
 sessions["unknown tools report the requested name"] = function()

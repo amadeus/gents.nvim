@@ -3,9 +3,9 @@
 Tools that emit terminal titles add them to the session picker automatically,
 for example `claude · Fix terminal navigation  [hidden]  /path/to/project`.
 
-The label and session ID stay unchanged, so commands and mappings still target
-`claude`, `claude #2`, or your custom label. This works with every picker adapter;
-an open picker keeps its original snapshot until you reopen it.
+Commands and mappings target the session ID or label, such as `claude`,
+`claude #2`, or your custom label. Titles appear in every picker adapter;
+reopen the picker to see updated titles.
 
 ## Tool support
 
@@ -14,7 +14,7 @@ an open picker keeps its original snapshot until you reopen it.
 | `claude`                | Terminal title with Claude's activity prefix removed. Manual names and generated topics can appear; a custom agent name can also be used by Claude. |
 | `codex`                 | The built-in command requests the thread title with `-c 'tui.terminal_title=["thread"]'`. The unnamed thread UUID is omitted.                       |
 | `opencode`, `opencode2` | Terminal title with `OC \| ` removed. OpenCode truncates long titles before sending them.                                                           |
-| Other tools             | Cleaned terminal title as emitted by the CLI; no parser is required.                                                                                |
+| Other tools             | Cleaned terminal title emitted by the CLI.                                                                                                          |
 
 OSC 0 and OSC 2 title updates work for built-in and custom tools. Without a
 title signal, only the session label is shown. Dedicated parsers refine the
@@ -43,8 +43,8 @@ require("agents").setup({
 })
 ```
 
-A `cmd` override replaces the complete command without adding arguments or
-changing global configuration. For one launch, append a later Codex override:
+A `cmd` override replaces the complete launch command. For a single session,
+append a Codex override with `args`:
 
 ```lua
 require("agents").new("codex", { args = { "-c", "tui.terminal_title=[]" } })
@@ -85,9 +85,9 @@ cleared. Read `agents.status()` again when refreshing a cached statusline.
 
 ## Limits and verification
 
-This reads terminal signals without accessing transcripts or history. Recognized
-unnamed titles clear the previous title; resets without a usable signal can leave
-it stale. Neovim 0.12.4 did not emit `TermRequest` for empty title sequences in
+Titles come from the CLI's terminal title signals. Recognized unnamed titles
+clear the previous title; resets without a usable signal can leave it stale.
+Neovim 0.12.4 did not emit `TermRequest` for empty title sequences in
 testing. Exit retains the last title and subsequent updates are ignored.
 
 Terminal titles are display text: generic titles may be project, status, or tool

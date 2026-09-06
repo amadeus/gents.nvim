@@ -15,9 +15,8 @@ vim.api.nvim_create_autocmd("User", {
 ```
 
 The event includes `id`, `label`, `tool`, `buf`, optional `win`, `visible`,
-`focused`, and `source` (`"hook"` or `"osc"`). It does not submit a prompt or
-release the startup send queue. The plugin forwards the configured signal;
-an idle or attention notification does not necessarily mean successful work.
+`focused`, and `source` (`"hook"` or `"osc"`). Each event reflects the configured
+signal, which may indicate a completed response or a request for attention.
 
 `visible` means the session is shown in the current tab. Sessions shown only
 in other tabs are hidden, as they are in picker labels and status snapshots.
@@ -59,8 +58,6 @@ CLIs drove the normal response lifecycle. Amp and OpenCode used a hosted
 response. Each successful check produced one event with the correct session
 ID: `source = "osc"` for Codex, `"hook"` for the others. Pi's error response
 produced no ready event.
-These checks used temporary config files or CLI overrides; the recipes below
-exclude the test providers and probe logging.
 
 ## Claude Code
 
@@ -378,8 +375,8 @@ behavior have not been verified here, so do not use it as a strict success flag.
 
 ## Broader attention notifications
 
-The following options can signal that the tool needs attention. They are
-**unverified here and are not turn-only completion recipes**.
+These options signal when a tool needs attention, including events other than
+completed turns. **Live behavior is unverified.**
 
 ### Aider
 
@@ -408,8 +405,8 @@ option notifications osc
 
 The same stream includes completed turns, permission requests, and questions.
 Notifications require terminal focus reporting and are suppressed while focused.
-Crush currently exposes only a `PreToolUse` command hook, so no turn-only command
-recipe is offered. These limits are different from having no notification signal.
+Crush's `PreToolUse` command hook runs before tool calls. Use OSC notifications
+for turn completion and requests for attention.
 [Notification behavior](https://github.com/charmbracelet/crush/blob/v0.92.0/internal/ui/model/ui.go#L577),
 [configuration](https://github.com/charmbracelet/crush#notifications), and
 [hook support](https://github.com/charmbracelet/crush/blob/35a7bcab084a6022717d31b110c538a68d6fadf7/docs/hooks/README.md).

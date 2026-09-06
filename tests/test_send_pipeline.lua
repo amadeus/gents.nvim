@@ -76,21 +76,33 @@ local function choose(spec, prefix)
   spec.actions[spec.default](assert(find(spec, prefix)))
 end
 
-T["send shows a hidden target while preserving source window and cursor"] = function()
-  local origin = vim.api.nvim_get_current_win()
-  local session = H.new()
-  agents.hide(session.id)
-  vim.api.nvim_set_current_win(origin)
-  local cursor = vim.api.nvim_win_get_cursor(origin)
-  eq(agents.send({ "line" }, { target = session.id }), session)
-  eq(vim.api.nvim_get_current_win(), origin)
-  eq(vim.api.nvim_win_get_cursor(origin), cursor)
-  eq(require("agents.window").visible(session, vim.api.nvim_get_current_tabpage()), true)
-  H.wait(function()
-    return output(session):find("@context.lua:2", 1, true) ~= nil
-  end)
-  eq(vim.api.nvim_get_current_win(), origin)
-end
+T["send to a hidden target"] = test.new_set({ parametrize = { { true }, { false } } }, {
+  ---@param focus boolean
+  ["honors focus without disturbing source cursor or later navigation"] = function(focus)
+    local origin = vim.api.nvim_get_current_win()
+    local session = H.new()
+    agents.hide(session.id)
+    vim.api.nvim_set_current_win(origin)
+    local cursor = vim.api.nvim_win_get_cursor(origin)
+    ---@type agents.SendOptions
+    local opts = { target = session.id }
+    if not focus then
+      opts.focus = false
+    end
+    eq(agents.send({ "line" }, opts), session)
+    eq(vim.api.nvim_get_current_buf() == session.buf, focus)
+    eq(vim.api.nvim_get_current_win() == origin, not focus)
+    eq(vim.api.nvim_win_get_cursor(origin), cursor)
+    eq(require("agents.window").visible(session), true)
+    -- Delivery is queued; returning to the editor must survive the actual paste.
+    vim.api.nvim_set_current_win(origin)
+    H.wait(function()
+      return output(session):find("@context.lua:2", 1, true) ~= nil
+    end)
+    eq(vim.api.nvim_get_current_win(), origin)
+    eq(vim.api.nvim_win_get_cursor(origin), cursor)
+  end,
+})
 
 T["a target visible in another tab gets a view in the invoking tab"] = function()
   local origin = vim.api.nvim_get_current_win()
@@ -98,7 +110,7 @@ T["a target visible in another tab gets a view in the invoking tab"] = function(
   vim.api.nvim_set_current_win(origin)
   local tab = vim.api.nvim_get_current_tabpage()
   agents.send({ "file" }, { target = session.id })
-  eq(vim.api.nvim_get_current_win(), origin)
+  eq(vim.api.nvim_get_current_buf(), session.buf)
   eq(vim.api.nvim_get_current_tabpage(), tab)
   eq(#vim.fn.win_findbuf(session.buf), 2)
   H.wait(function()
@@ -106,14 +118,15 @@ T["a target visible in another tab gets a view in the invoking tab"] = function(
   end)
 end
 
-T["focus is opt in and target locations use the captured source cwd"] = function()
+T["focused target locations use the captured source cwd"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new({ layout = "tabnew" })
   session.tool.location = function(path, range)
     return "CUSTOM:" .. path .. ":" .. assert(range).start[1]
   end
+  vim.cmd.lcd(temp_dir)
   vim.api.nvim_set_current_win(origin)
-  agents.send({ "line" }, { target = session.id, focus = true })
+  agents.send({ "line" }, { target = session.id })
   eq(vim.api.nvim_get_current_buf(), session.buf)
   H.wait(function()
     return output(session):find("CUSTOM:context.lua:2", 1, true) ~= nil
@@ -130,33 +143,40 @@ T["context picker omits unavailable providers and prompts and previews defaults"
   eq(assert(find(spec, "explain [prompt]")).preview, "Explain:\n@context.lua:2")
 end
 
-T["two asynchronous pickers keep the original parts and invoking window"] = function()
-  local origin = vim.api.nvim_get_current_win()
-  local source = vim.api.nvim_get_current_buf()
-  local first = H.new()
-  agents.hide(first.id)
-  local second = H.new()
-  agents.hide(second.id)
-  vim.api.nvim_set_current_win(origin)
-  agents.send()
-  local context_picker = assert(pickers[1])
-  local preview = assert(find(context_picker, "buffer —")).preview
-  vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
-  vim.api.nvim_buf_set_name(source, vim.fs.joinpath(vim.fn.getcwd(), "changed.lua"))
-  vim.cmd("new")
-  choose(context_picker, "buffer —")
-  local target_picker = assert(pickers[2])
-  eq(target_picker.title, "Agents: sessions")
-  vim.cmd("new")
-  choose(target_picker, second.label .. "  ")
-  eq(vim.api.nvim_get_current_win(), origin)
-  H.wait(function()
-    return output(second):find("local second = 2", 1, true) ~= nil
-  end)
-  eq(output(second):find("changed after capture", 1, true), nil)
-  eq(output(first):find("local second = 2", 1, true), nil)
-  eq(assert(find(context_picker, "buffer —")).preview, preview)
-end
+T["two asynchronous send pickers"] = test.new_set({ parametrize = { { true }, { false } } }, {
+  ---@param focus boolean
+  ["preserve the original parts and honor focus after selecting a target"] = function(focus)
+    local origin = vim.api.nvim_get_current_win()
+    local source = vim.api.nvim_get_current_buf()
+    local first = H.new()
+    agents.hide(first.id)
+    local second = H.new()
+    agents.hide(second.id)
+    vim.api.nvim_set_current_win(origin)
+    agents.send(nil, focus and {} or { focus = false })
+    eq(vim.api.nvim_get_current_win(), origin)
+    local context_picker = assert(pickers[1])
+    local preview = assert(find(context_picker, "buffer —")).preview
+    vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
+    vim.api.nvim_buf_set_name(source, vim.fs.joinpath(vim.fn.getcwd(), "changed.lua"))
+    vim.cmd("new")
+    choose(context_picker, "buffer —")
+    local target_picker = assert(pickers[2])
+    eq(target_picker.title, "Agents: sessions")
+    eq(vim.api.nvim_get_current_win(), origin)
+    eq(vim.fn.win_findbuf(second.buf), {})
+    vim.cmd("new")
+    choose(target_picker, second.label .. "  ")
+    eq(vim.api.nvim_get_current_buf() == second.buf, focus)
+    eq(vim.api.nvim_get_current_win() == origin, not focus)
+    H.wait(function()
+      return output(second):find("local second = 2", 1, true) ~= nil
+    end)
+    eq(output(second):find("changed after capture", 1, true), nil)
+    eq(output(first):find("local second = 2", 1, true), nil)
+    eq(assert(find(context_picker, "buffer —")).preview, preview)
+  end,
+})
 
 T["target picker cannot change an already resolved provider or source path"] = function()
   local origin = vim.api.nvim_get_current_win()
@@ -170,6 +190,7 @@ T["target picker cannot change an already resolved provider or source path"] = f
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   vim.cmd.lcd(temp_dir)
   choose(spec, session.label .. "  ")
+  eq(vim.api.nvim_get_current_buf(), session.buf)
   H.wait(function()
     return output(session):find("@context.lua:2", 1, true) ~= nil
   end)
@@ -187,6 +208,7 @@ T["unknown and unavailable items send nothing and do not open target pickers"] =
   eq(#notifications, 1)
   eq(#pickers, 0)
   eq(vim.fn.win_findbuf(session.buf), {})
+  eq(vim.api.nvim_get_current_win(), origin)
 end
 
 T["ranged command sends selected lines directly and named prompts expand"] = function()
@@ -199,6 +221,7 @@ T["ranged command sends selected lines directly and named prompts expand"] = fun
   end)
   eq(output(session):find("local first = 1", 1, true), nil)
   eq(#pickers, 0)
+  eq(vim.api.nvim_get_current_buf(), session.buf)
   vim.cmd("Agents send explain")
   H.wait(function()
     return output(session):find("Explain:", 1, true) ~= nil
@@ -211,20 +234,26 @@ T["no sessions gives actionable feedback"] = function()
   eq(notifications[1]:find(":Agents new", 1, true) ~= nil, true)
 end
 
-T["composed ranged send uses an explicit target with a multiword label"] = function()
-  local origin = vim.api.nvim_get_current_win()
-  local selected = H.new({ label = "code review" })
-  local other = H.new()
-  vim.api.nvim_set_current_win(origin)
-  vim.cmd("2Agents actions send --target code review")
-  H.wait(function()
-    return output(selected):find("local second = 2", 1, true) ~= nil
-  end)
-  eq(output(selected):find("local first = 1", 1, true), nil)
-  eq(output(other):find("local second = 2", 1, true), nil)
-  eq(#pickers, 0)
-  eq(vim.api.nvim_get_current_win(), origin)
-end
+T["composed ranged send with an explicit multiword target"] = test.new_set({
+  parametrize = { { true }, { false } },
+}, {
+  ---@param focus boolean
+  ["focuses by default and accepts --no-focus"] = function(focus)
+    local origin = vim.api.nvim_get_current_win()
+    local selected = H.new({ label = "code review" })
+    local other = H.new()
+    vim.api.nvim_set_current_win(origin)
+    vim.cmd("2Agents actions send " .. (focus and "" or "--no-focus ") .. "--target code review")
+    H.wait(function()
+      return output(selected):find("local second = 2", 1, true) ~= nil
+    end)
+    eq(output(selected):find("local first = 1", 1, true), nil)
+    eq(output(other):find("local second = 2", 1, true), nil)
+    eq(#pickers, 0)
+    eq(vim.api.nvim_get_current_buf() == selected.buf, focus)
+    eq(vim.api.nvim_get_current_win() == origin, not focus)
+  end,
+})
 
 T["ranged actions keeps its original selection across picker changes"] = function()
   local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
@@ -241,7 +270,7 @@ T["ranged actions keeps its original selection across picker changes"] = functio
   end)
   eq(output(session):find("changed after capture", 1, true), nil)
   eq(#pickers, 1)
-  eq(vim.api.nvim_get_current_win(), origin)
+  eq(vim.api.nvim_get_current_buf(), session.buf)
 end
 
 T["ranged actions rejects a non-send choice before changing sessions"] = function()
@@ -269,6 +298,7 @@ T["exited targets are rejected before showing a window"] = function()
   eq(vim.fn.win_findbuf(session.buf), {})
   eq(#notifications, 1)
   eq(notifications[1]:find("exited session", 1, true) ~= nil, true)
+  eq(vim.api.nvim_get_current_win(), origin)
 end
 
 return T

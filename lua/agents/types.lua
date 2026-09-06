@@ -47,7 +47,7 @@
 ---@class agents.SendOptions
 ---@field target? agents.Target
 ---@field submit? boolean Send Enter after pasting; defaults to false.
----@field focus? boolean Focus the destination; defaults to false.
+---@field focus? boolean Focus the destination and enter terminal input; defaults to true.
 
 ---@class agents.SetupOptions
 ---@field layout? agents.Layout

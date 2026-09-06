@@ -77,21 +77,28 @@ function M.run(opts)
   if command == "send" then
     ---@type agents.SendOptions?
     local send_opts
+    ---@type string[]
+    local names = {}
     for i, arg in ipairs(args) do
       if arg == "--target" then
         local target = target_from(vim.list_slice(args, i + 1))
         assert(target ~= nil, "agents: --target requires a session id or label")
-        send_opts = { target = target }
-        args = vim.list_slice(args, 1, i - 1)
+        send_opts = send_opts or {}
+        send_opts.target = target
         break
+      elseif arg == "--no-focus" then
+        send_opts = send_opts or {}
+        send_opts.focus = false
+      else
+        names[#names + 1] = arg
       end
     end
     ---@type agents.Item[]?
     local items
-    if #args > 0 then
+    if #names > 0 then
       items = {}
       local prompts = require("agents.config").get().prompts
-      for _, name in ipairs(args) do
+      for _, name in ipairs(names) do
         vim.list_extend(items, prompts[name] or { name })
       end
     end
@@ -202,8 +209,10 @@ function M.complete(arglead, cmdline, cursorpos)
         names[#names + 1] = name
       end
     end
-    if not vim.list_contains(names, "--target") then
-      names[#names + 1] = "--target"
+    for _, option in ipairs({ "--no-focus", "--target" }) do
+      if not vim.list_contains(names, option) then
+        names[#names + 1] = option
+      end
     end
     table.sort(names)
     return matching(names, arglead)

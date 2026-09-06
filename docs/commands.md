@@ -11,25 +11,44 @@ picker choices:
 :Agents actions send file diagnostics --target claude #2
 ```
 
-The `actions` prefix works with every command below and uses the same handler
-as the direct form. For example, `:Agents actions hide` and `:Agents hide` do
-the same thing. `actions` cannot select itself.
+The `actions` prefix accepts each command below. For example,
+`:Agents actions hide` and `:Agents hide` perform the same action.
 
-| Command                                        | Behavior                                                                                                               |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `:Agents new [tool] [args...]`                 | Choose a tool or start the named tool with extra arguments.                                                            |
-| `:Agents pick [target]`                        | Choose a session, or show an explicit target.                                                                          |
-| `:Agents focus [target]`                       | Focus a session. Without a target, invoking from an agent returns to the previous window and leaves the agent visible. |
-| `:Agents toggle [target]`                      | Hide the selected session's views in the current tab, or show it if it is not visible there.                           |
-| `:Agents hide [target]`                        | Hide all views of the selected session and keep it running.                                                            |
-| `:Agents close [target]`                       | Stop and remove the selected session.                                                                                  |
-| `:Agents send [provider...] [--target target]` | Choose context, or send the named providers or prompts.                                                                |
+| Command                                                     | Behavior                                                                                                               |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `:Agents new [tool] [args...]`                              | Choose a tool or start the named tool with extra arguments.                                                            |
+| `:Agents pick [target]`                                     | Choose a session, or show an explicit target.                                                                          |
+| `:Agents focus [target]`                                    | Focus a session. Without a target, invoking from an agent returns to the previous window and leaves the agent visible. |
+| `:Agents toggle [target]`                                   | Hide the selected session's views in the current tab, or show it if it is not visible there.                           |
+| `:Agents hide [target]`                                     | Hide all views of the selected session and keep it running.                                                            |
+| `:Agents close [target]`                                    | Stop and remove the selected session.                                                                                  |
+| `:Agents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or prompts.                                                                |
 
 A target is a session ID or its complete label, including spaces. It is
 separate from the conversation title displayed in pickers. For `send`, put
-providers first and `--target` last: everything after that separator is the
-target. `:Agents send --target claude #2` opens the context picker with that
-destination already selected.
+providers and `--no-focus` before `--target`: everything after that separator
+is the target. `:Agents send --target claude #2` opens the context picker with
+that destination already selected.
+
+Sending context focuses the selected agent in terminal input mode. Use
+`--no-focus` or the Lua option `focus = false` to keep focus in your editor:
+
+```vim
+:Agents send selection --no-focus
+:Agents actions send file --no-focus --target claude #2
+```
+
+```lua
+require("agents").send()
+require("agents").send({ "selection" })
+require("agents").send({ "selection" }, { focus = false })
+```
+
+`focus = false` shows hidden sessions using your configured layout and returns
+focus to the originating window. With `layout = "current"`, the agent replaces
+that window's buffer.
+
+Use the Lua option `submit = true` to submit the message after inserting context.
 
 Session commands choose a target in this order:
 
@@ -38,9 +57,9 @@ Session commands choose a target in this order:
 3. The only session, counting hidden sessions and sessions in other tabs.
 4. The session picker.
 
-Visibility alone does not select a session. From an editor with several
-sessions, `toggle` asks which one to show or hide. An unmatched explicit target
-reports an error.
+From an editor with several sessions, `toggle` asks which one to show or hide,
+including when one is already visible. An unmatched explicit target reports an
+error.
 
 Untargeted `pick` always opens the session picker, even from an agent or when
 only one session exists. With no sessions, `pick`, `focus`, and `toggle` open
@@ -64,9 +83,7 @@ end
 ```
 
 For floating windows, a callback can use `nvim_open_win(0, true, opts)`.
-Move buffer-specific setup from old `function(buf)` callbacks into `TermOpen`
-or `FileType` hooks. Choosing the window before creating a new terminal lets
-Neovim track that terminal's window options correctly when it is shown elsewhere.
+Use `TermOpen` or `FileType` hooks for buffer-specific settings.
 
 Ranges work with `send`, including its composed form:
 
@@ -76,20 +93,19 @@ Ranges work with `send`, including its composed form:
 :2,5Agents actions
 ```
 
-Without providers, a ranged send sends the selected lines. A range also
-survives the actions menu: choosing send uses the captured lines, and choosing
-another command reports that only send accepts a range. A visual-mode mapping
-calling `require("agents").actions()` preserves the selection as context;
-choosing send opens the context picker, and other actions remain available.
+With a range and no providers, `send` uses the selected lines. The actions menu
+also retains the range for `send`; other actions reject ranges. A visual-mode
+mapping calling `require("agents").actions()` preserves the selection as
+context; choosing send opens the context picker, and other actions remain
+available.
 
 Completion follows each choice through `actions`, including tools, session
-IDs and labels, providers, prompts, and `--target`. Labels with spaces can be
-completed after partially typing them. Extra launch arguments are not
-completed by the plugin.
+IDs and labels, providers, prompts, `--no-focus`, and `--target`. Labels with
+spaces can be completed after partially typing them. Extra launch arguments
+are not completed by the plugin.
 
-Arguments split on whitespace and are passed literally. Quotes do not group
-words, and the plugin does not evaluate Ex commands or shell expansions in
-arguments. Use the Lua API for an argument containing spaces:
+Command arguments are separated by whitespace. Quotes and shell expressions
+are treated as literal text. Use the Lua API for an argument containing spaces:
 
 ```lua
 require("agents").new("claude", { args = { "--name", "Review this feature" } })

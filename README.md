@@ -22,8 +22,7 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
 }
 ```
 
-Install the agent CLIs you want to use separately. The mappings above are
-optional; the plugin installs none by default.
+Install the agent CLIs you want to use separately, and choose your own mappings.
 
 - `:Agents new` — pick a tool and start a session.
 - `:Agents new claude` — start Claude directly.
@@ -39,10 +38,12 @@ Supply choices to skip pickers: `:Agents actions hide codex #2` or
 `:Agents send file --target codex #2`. See [commands](docs/commands.md) for
 target selection, completion, and ranges.
 
-Sends paste context without an extra Enter or a focus change by default.
-Hidden sessions keep running. Run `:checkhealth agents` to check your setup.
+Sending context focuses the selected agent by default.
+Use `:Agents send file --no-focus` to keep focus in the originating window.
+
+Hidden sessions keep running. Use `:checkhealth agents` to check your setup.
 Set `picker = "snacks"` in `opts` to use the built-in Snacks picker
-and its extra shortcuts (requires snacks.nvim).
+and its shortcuts (requires snacks.nvim).
 See [specialized context](docs/recipes/context.md) for help, health checks,
 terminal scrollback, and message history. To react when a tool finishes, see
 [agent ready notifications](docs/recipes/ready.md).

@@ -168,7 +168,7 @@ local function deliver(parts, ctx, opts)
       )
       return
     end
-    present(session, opts.focus == true)
+    present(session, opts.focus ~= false)
     local text = require("agents.render").text(parts, ctx, session.tool)
     M.enqueue(session, text, opts.submit == true)
     return session

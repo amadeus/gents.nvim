@@ -221,6 +221,44 @@ T["same-window buffer reentry restores input only when left during input"] = fun
   eq(get("vim.api.nvim_get_current_buf() == session.buf"), true)
 end
 
+T["sending focuses terminal input once without stealing focus during queued delivery"] = function()
+  lua([[
+    _G.source_win = vim.api.nvim_get_current_win()
+    _G.sent = 0
+    vim.api.nvim_create_autocmd("User", {
+      pattern = "AgentsSend",
+      callback = function()
+        sent = sent + 1
+      end,
+    })
+    require("agents").setup({
+      tools = { cat = { cmd = { "sh", "-c", "printf '1\\n2\\n3\\n4\\n5\\n6\\n'; exec cat" } } },
+    })
+  ]])
+  spawn()
+  lua([[require("agents").hide(session.id)]])
+  mode("n")
+
+  lua([[require("agents").send({ { text = "first send" } }, { target = session.id })]])
+  mode("t")
+  eq(get("vim.api.nvim_get_current_buf() == session.buf"), true)
+  lua([[require("agents").focus()]])
+  mode("n")
+  eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+  eq(
+    vim.wait(2000, function()
+      return get("sent") == 1
+    end, 10),
+    true
+  )
+  mode("n")
+  eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+
+  lua([[require("agents").send({ { text = "second send" } }, { target = session.id })]])
+  mode("t")
+  eq(get("vim.api.nvim_get_current_buf() == session.buf"), true)
+end
+
 T["sending without focus preserves editor normal mode when reopening a session"] = function()
   lua([[
     _G.source_win = vim.api.nvim_get_current_win()

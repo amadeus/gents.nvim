@@ -180,6 +180,7 @@ function M.new(tool, opts)
 
   local ok, err = pcall(function()
     require("agents.events").attach(session)
+    require("agents.window").attach(session)
     local win = require("agents.window").open(session.buf, opts.layout)
     session.tab = vim.api.nvim_get_current_tabpage()
     session.job = vim.fn.jobstart(cmd, {

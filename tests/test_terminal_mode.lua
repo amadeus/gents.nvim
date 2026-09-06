@@ -180,6 +180,124 @@ T["native window reentry preserves terminal normal mode"] = function()
   eq(get("vim.api.nvim_get_current_win() == terminal_win"), true)
 end
 
+T["terminal navigation resumes input when returning to a session"] = function()
+  lua([[
+    vim.o.splitright = true
+    _G.source_win = vim.api.nvim_get_current_win()
+    vim.keymap.set("t", "<C-w>h", "<C-\\><C-n><C-w>h")
+  ]])
+  spawn()
+  lua([[_G.terminal_win = vim.api.nvim_get_current_win()]])
+
+  input("<C-w>h")
+  mode("n")
+  eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+  input("<C-w>l")
+  mode("t")
+  eq(get("vim.api.nvim_get_current_win() == terminal_win"), true)
+end
+
+T["same-window buffer reentry restores input only when left during input"] = function()
+  lua([[
+    require("agents").setup({ layout = "current", tools = { cat = { cmd = { "cat" } } } })
+    _G.source_buf = vim.api.nvim_get_current_buf()
+    vim.keymap.set("t", "<F6>", "<C-\\><C-n><C-^>")
+  ]])
+  spawn()
+
+  input("<F6>")
+  mode("n")
+  eq(get("vim.api.nvim_get_current_buf() == source_buf"), true)
+  input("<C-^>")
+  mode("t")
+  eq(get("vim.api.nvim_get_current_buf() == session.buf"), true)
+
+  input([[<C-\><C-n>]])
+  mode("nt")
+  input("<C-^>")
+  mode("n")
+  input("<C-^>")
+  mode("nt")
+  eq(get("vim.api.nvim_get_current_buf() == session.buf"), true)
+end
+
+T["sending without focus preserves editor normal mode when reopening a session"] = function()
+  lua([[
+    _G.source_win = vim.api.nvim_get_current_win()
+    vim.keymap.set("n", "<F7>", function()
+      require("agents").send({ { text = "test" } }, { target = session.id, focus = false })
+    end)
+  ]])
+  spawn()
+  lua([[require("agents").hide(session.id)]])
+  mode("n")
+
+  input("<F7>")
+  mode("n")
+  eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+  eq(get("require('agents.window').visible(session)"), true)
+end
+
+T["sending without focus preserves editor insert mode when reopening a session"] = function()
+  lua([[
+    _G.source_win = vim.api.nvim_get_current_win()
+    vim.keymap.set("i", "<F7>", function()
+      require("agents").send({ { text = "test" } }, { target = session.id, focus = false })
+    end)
+  ]])
+  spawn()
+  lua([[require("agents").hide(session.id)]])
+  mode("n")
+  input("i")
+  mode("i")
+
+  input("<F7>")
+  mode("i")
+  eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+  eq(get("require('agents.window').visible(session)"), true)
+end
+
+T["window reentry does not resume input after the session exits"] = function()
+  lua([[
+    vim.o.splitright = true
+    vim.keymap.set("t", "<C-w>h", "<C-\\><C-n><C-w>h")
+  ]])
+  spawn()
+
+  input("<C-w>h")
+  mode("n")
+  lua([[vim.fn.jobstop(session.job)]])
+  eq(
+    vim.wait(2000, function()
+      return get([[session.state == "exited"]])
+    end, 10),
+    true
+  )
+  input("<C-w>l")
+  mode("nt")
+  eq(get("vim.api.nvim_get_current_buf() == session.buf"), true)
+end
+
+T["window reentry does not change ordinary terminal behavior"] = function()
+  lua([[
+    vim.o.splitright = true
+    vim.keymap.set("t", "<C-w>h", "<C-\\><C-n><C-w>h")
+    vim.cmd.vsplit()
+    vim.cmd.enew()
+    _G.terminal_win = vim.api.nvim_get_current_win()
+    _G.terminal_job = vim.fn.jobstart({ "cat" }, { term = true })
+    vim.cmd.startinsert()
+  ]])
+  mode("t")
+
+  input("<C-w>h")
+  mode("n")
+  input("<C-w>l")
+  mode("nt")
+  eq(get("vim.api.nvim_get_current_win() == terminal_win"), true)
+  lua([[vim.fn.jobstop(terminal_job); vim.fn.jobwait({ terminal_job }, 2000)]])
+end
+
 T["loading setup and new install no global or terminal buffer keymaps"] = function()
   stop()
   start({ "-u", init, "-i", "NONE", "--noplugin" })

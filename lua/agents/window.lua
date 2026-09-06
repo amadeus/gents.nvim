@@ -1,6 +1,65 @@
 local M = {}
 
 ---@param session agents.Session
+function M.attach(session)
+  local terminal_input = false
+  local restoring_input = false
+  vim.api.nvim_create_autocmd("TermEnter", {
+    buffer = session.buf,
+    desc = "Remember agent terminal input mode",
+    callback = function()
+      terminal_input = true
+      restoring_input = false
+    end,
+  })
+  vim.api.nvim_create_autocmd("TermLeave", {
+    buffer = session.buf,
+    desc = "Remember deliberate exits from agent terminal input",
+    callback = function()
+      local win = vim.api.nvim_get_current_win()
+      -- Navigation mappings can leave terminal mode before switching windows.
+      vim.schedule(function()
+        if
+          vim.api.nvim_get_current_win() == win and require("agents.session").current() == session
+        then
+          terminal_input = vim.fn.mode() == "t"
+        end
+      end)
+    end,
+  })
+  vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
+    buffer = session.buf,
+    desc = "Restore agent terminal input on reentry",
+    callback = function()
+      ---@type string
+      local mode = vim.fn.mode():sub(1, 1)
+      if
+        terminal_input
+        and session.state ~= "exited"
+        and require("agents.session").current() == session
+        and mode ~= "t"
+        and mode ~= "i"
+        and mode ~= "R"
+      then
+        restoring_input = true
+        vim.cmd.startinsert()
+      end
+    end,
+  })
+  vim.api.nvim_create_autocmd({ "WinLeave", "BufLeave" }, {
+    buffer = session.buf,
+    desc = "Cancel agent input restoration when leaving before it starts",
+    callback = function()
+      if restoring_input then
+        -- Opening a hidden session for send can immediately return to the editor.
+        vim.cmd.stopinsert()
+        restoring_input = false
+      end
+    end,
+  })
+end
+
+---@param session agents.Session
 ---@param tab? integer
 ---@return boolean
 function M.visible(session, tab)

@@ -26,8 +26,7 @@ end
 local original
 ---@type { [1]: string, [2]: (agents.Target|agents.NewOptions|agents.Item[])[] }[]
 local calls
----@type ("new"|"toggle"|"pick"|"hide"|"close"|"send")[]
-local methods = { "new", "toggle", "pick", "hide", "close", "send" }
+local methods = commands.names()
 local dispatch = test.new_set({
   hooks = {
     pre_case = function()
@@ -56,11 +55,22 @@ local dispatch = test.new_set({
 T["dispatch"] = dispatch
 
 dispatch["every subcommand calls the Lua facade"] = function()
-  for _, command in ipairs({ "", "new", "new cat", "toggle", "pick", "hide", "close", "send" }) do
+  for _, command in ipairs({
+    "",
+    "actions",
+    "new",
+    "new cat",
+    "toggle",
+    "pick",
+    "hide",
+    "close",
+    "send",
+  }) do
     vim.cmd("Agents " .. command)
   end
   expect(calls, {
     { "pick", {} },
+    { "actions", {} },
     { "new", {} },
     { "new", { "cat" } },
     { "toggle", {} },
@@ -78,9 +88,11 @@ dispatch["send expands named prompts alongside provider names"] = function()
 end
 
 dispatch["ranges are rejected for commands other than send"] = function()
-  test.expect.error(function()
-    vim.cmd("1Agents new cat")
-  end, "only send accepts a range")
+  for _, command in ipairs({ "actions", "new cat" }) do
+    test.expect.error(function()
+      vim.cmd("1Agents " .. command)
+    end, "only send accepts a range")
+  end
   expect(calls, {})
 end
 
@@ -123,7 +135,7 @@ dispatch["invalid commands and extra arguments fail clearly"] = function()
   test.expect.error(function()
     vim.cmd("Agents unknown")
   end, "unknown command 'unknown'")
-  for _, command in ipairs({ "pick", "toggle" }) do
+  for _, command in ipairs({ "actions", "pick", "toggle" }) do
     test.expect.error(function()
       vim.cmd("Agents " .. command .. " cat")
     end, command .. " does not accept arguments")
@@ -141,11 +153,20 @@ T["setup replaces its command without resetting config"] = function()
 end
 
 T["completion covers only supported subcommands"] = function()
-  expect(complete("Agents "), { "close", "hide", "new", "pick", "send", "toggle" })
+  expect(complete("Agents "), { "actions", "close", "hide", "new", "pick", "send", "toggle" })
+  expect(complete("Agents a"), { "actions" })
   expect(complete("Agents n"), { "new" })
+  expect(complete("Agents actions "), {})
   expect(complete("Agents toggle "), {})
   expect(complete("Agents pick "), {})
   expect(complete("Agents unknown "), {})
+end
+
+T["command names are returned independently"] = function()
+  local names = commands.names()
+  expect(names, { "actions", "close", "hide", "new", "pick", "send", "toggle" })
+  table.remove(names, 1)
+  expect(commands.names(), { "actions", "close", "hide", "new", "pick", "send", "toggle" })
 end
 
 T["send completes providers and prompts at every item position"] = function()

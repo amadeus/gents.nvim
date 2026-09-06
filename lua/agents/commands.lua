@@ -1,6 +1,12 @@
 local M = {}
 
-local subcommands = { "close", "hide", "new", "pick", "send", "toggle" }
+---@type agents.CommandName[]
+local subcommands = { "actions", "close", "hide", "new", "pick", "send", "toggle" }
+
+---@return agents.CommandName[]
+function M.names()
+  return vim.list_slice(subcommands)
+end
 
 ---@param value string
 ---@return string[]
@@ -68,7 +74,7 @@ function M.run(opts)
     return agents[command](tonumber(target) or target)
   end
 
-  if command == "toggle" or command == "pick" then
+  if command == "actions" or command == "toggle" or command == "pick" then
     if #args > 0 then
       error("agents: " .. command .. " does not accept arguments", 0)
     end

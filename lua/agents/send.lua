@@ -175,16 +175,11 @@ local function deliver(parts, ctx, opts)
   end)
 end
 
+---@param ctx agents.Context
 ---@param items? agents.Item[]
 ---@param opts? agents.SendOptions
----@param range? { line1: integer, line2: integer }
 ---@return agents.Session?
-function M.run(items, opts, range)
-  local ctx = require("agents.context").capture(range)
-  local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
-    vim.cmd.normal({ args = { "\27" }, bang = true })
-  end
+function M.from_context(ctx, items, opts)
   opts = vim.deepcopy(opts or {})
   if items == nil then
     require("agents.picker").context(ctx, function(parts)
@@ -198,6 +193,19 @@ function M.run(items, opts, range)
     return
   end
   return deliver(parts, ctx, opts)
+end
+
+---@param items? agents.Item[]
+---@param opts? agents.SendOptions
+---@param range? { line1: integer, line2: integer }
+---@return agents.Session?
+function M.run(items, opts, range)
+  local ctx = require("agents.context").capture(range)
+  local mode = vim.fn.mode()
+  if mode == "v" or mode == "V" or mode == "\22" then
+    vim.cmd.normal({ args = { "\27" }, bang = true })
+  end
+  return M.from_context(ctx, items, opts)
 end
 
 return M

@@ -110,7 +110,8 @@
 
 ---@alias agents.Part { text: string }|{ path: string, range?: agents.Range }|{ code: string, ft?: string }
 ---@alias agents.Item string|agents.Part|{ any: agents.Item[] }|fun(ctx: agents.Context): agents.Part[]|nil
----@alias agents.KeyAction "new"|"toggle"|"pick"|"hide"|"close"|"send"
+---@alias agents.CommandName "actions"|"close"|"hide"|"new"|"pick"|"send"|"toggle"
+---@alias agents.KeyAction agents.CommandName
 ---@alias agents.KeyMode "n"|"x"|"t"
 
 ---@class agents.Keymap

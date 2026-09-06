@@ -11,7 +11,15 @@ local global_maps = {}
 ---@type table<integer, agents.keys.Mapping[]>
 local buffer_maps = {}
 ---@type table<agents.KeyAction, boolean>
-local actions = { new = true, toggle = true, pick = true, hide = true, close = true, send = true }
+local actions = {
+  actions = true,
+  new = true,
+  toggle = true,
+  pick = true,
+  hide = true,
+  close = true,
+  send = true,
+}
 ---@type table<agents.KeyMode, boolean>
 local allowed_modes = { n = true, x = true, t = true }
 
@@ -34,7 +42,7 @@ function M.validate(entries)
     assert(type(key[1]) == "string" and key[1] ~= "", prefix .. " requires a non-empty key")
     assert(
       type(key[2]) == "function" or (type(key[2]) == "string" and actions[key[2]]),
-      prefix .. " action must be new, toggle, pick, hide, close, send, or a function"
+      prefix .. " action must be actions, new, toggle, pick, hide, close, send, or a function"
     )
     assert(
       key.mode == nil

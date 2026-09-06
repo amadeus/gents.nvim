@@ -101,6 +101,27 @@ function M.pick()
   end)
 end
 
+---Open a picker for the top-level commands.
+---@return nil
+function M.actions()
+  ---@type agents.Context?
+  local ctx
+  local mode = vim.fn.mode()
+  if mode == "v" or mode == "V" or mode == "\22" then
+    if not M.current() then
+      ctx = require("agents.context").capture()
+    end
+    vim.cmd.normal({ args = { "\27" }, bang = true })
+  end
+  require("agents.picker").commands(function(command)
+    if command == "send" and ctx then
+      require("agents.send").from_context(ctx)
+    else
+      M[command]()
+    end
+  end)
+end
+
 ---@return agents.Session?
 function M.toggle()
   local window = require("agents.window")

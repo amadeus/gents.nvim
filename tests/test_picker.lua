@@ -110,6 +110,83 @@ T["configured adapter receives the complete spec unchanged"] = function()
   test.expect.equality(rawequal(received, spec), true)
 end
 
+T["actions lists the top-level commands without including itself"] = function()
+  ---@type agents.PickerSpec<agents.CommandName>?
+  local received
+  require("agents.config").get().picker = function(spec)
+    received = spec
+  end
+
+  require("agents").actions()
+
+  assert(received)
+  test.expect.equality(received.title, "Agents: actions")
+  test.expect.equality(received.default, "run")
+  ---@type string[]
+  local names = {}
+  for _, item in ipairs(received.items) do
+    names[#names + 1] = item.data
+    test.expect.equality(item.text, item.data)
+  end
+  test.expect.equality(names, { "close", "hide", "new", "pick", "send", "toggle" })
+  test.expect.equality(require("agents").sessions(), {})
+end
+
+T["actions restores the invoking window before dispatching toggle"] = function()
+  local origin = vim.api.nvim_get_current_win()
+  local session = H.new()
+  vim.api.nvim_set_current_win(origin)
+  ---@type agents.PickerSpec<agents.CommandName>?
+  local received
+  require("agents.config").get().picker = function(spec)
+    received = spec
+  end
+  require("agents").actions()
+  assert(received)
+  vim.cmd.new()
+
+  for _, item in ipairs(received.items) do
+    if item.data == "toggle" then
+      received.actions.run(item)
+    end
+  end
+
+  test.expect.equality(vim.api.nvim_get_current_win(), origin)
+  test.expect.equality(vim.fn.win_findbuf(session.buf), {})
+  test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
+end
+
+T["actions refuses to dispatch after its invoking window closes"] = function()
+  local session = H.new()
+  local origin = vim.api.nvim_get_current_win()
+  ---@type agents.PickerSpec<agents.CommandName>?
+  local received
+  require("agents.config").get().picker = function(spec)
+    received = spec
+  end
+  ---@type string?
+  local notification
+  set_notify(function(message)
+    notification = message
+  end)
+  require("agents").actions()
+  assert(received)
+  vim.api.nvim_win_close(origin, true)
+
+  for _, item in ipairs(received.items) do
+    if item.data == "close" then
+      received.actions.run(item)
+    end
+  end
+
+  test.expect.equality(require("agents").sessions(), { session })
+  test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
+  test.expect.equality(
+    notification,
+    "agents.nvim: the window that opened the actions picker no longer exists"
+  )
+end
+
 T["tools use the default adapter and launch the selected tool"] = function()
   ---@param items agents.PickerItem<agents.Tool>[]
   ---@param callback fun(item: agents.PickerItem<agents.Tool>?, idx?: integer)

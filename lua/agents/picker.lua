@@ -57,6 +57,31 @@ function M.open(spec)
   )
 end
 
+---@param callback fun(command: agents.CommandName)
+function M.commands(callback)
+  local origin = vim.api.nvim_get_current_win()
+  ---@type agents.PickerItem<agents.CommandName>[]
+  local items = {}
+  for _, command in ipairs(require("agents.commands").names()) do
+    if command ~= "actions" then
+      items[#items + 1] = { text = command, data = command }
+    end
+  end
+  M.open({
+    title = "Agents: actions",
+    items = items,
+    default = "run",
+    actions = {
+      ---@param item agents.PickerItem<agents.CommandName>
+      run = function(item)
+        if restore_origin(origin, "actions") then
+          callback(item.data)
+        end
+      end,
+    },
+  })
+end
+
 ---@param callback fun(tool: agents.Tool, opts: agents.NewOptions)
 ---@param opts? agents.NewOptions
 function M.tools(callback, opts)

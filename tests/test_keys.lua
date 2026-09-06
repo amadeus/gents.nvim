@@ -122,6 +122,20 @@ config["send opens the context picker"] = function()
   eq(title, "Agents: send context")
 end
 
+config["actions opens the command picker"] = function()
+  ---@type string?
+  local title
+  agents.setup({
+    keys = { { "<F6>", "actions", mode = "n" } },
+    ---@param spec agents.PickerSpec<agents.CommandName>
+    picker = function(spec)
+      title = spec.title
+    end,
+  })
+  assert(assert(mapping("n", "<F6>")).callback)()
+  eq(title, "Agents: actions")
+end
+
 config["FileType mappings can override configured terminal keys"] = function()
   setup({ { "<F6>", "hide" } })
   local replacement = function() end
@@ -280,6 +294,81 @@ input_tests["send captures an active selection and does not reuse it on later in
   input("<F7>")
   wait([[_G.previews ~= nil]])
   eq(lua([[return previews.file]]), "@key-context.lua")
+end
+
+input_tests["actions preserves the visual selection when choosing send after picker focus changes"] = function()
+  input("<F6>")
+  wait([[vim.api.nvim_get_mode().mode == "n"]])
+  lua([[
+    require("agents").setup({
+      tools = { cat = { cmd = { "cat" } } },
+      keys = { { "<F7>", "actions" } },
+      picker = function(spec)
+        if spec.title == "Agents: actions" then
+          _G.actions_spec = spec
+          vim.cmd.vnew()
+          vim.api.nvim_buf_set_lines(0, 0, -1, false, { "Picker buffer" })
+        elseif spec.title == "Agents: send context" then
+          _G.previews = {}
+          for _, item in ipairs(spec.items) do
+            _G.previews[item.text:match("^%S+")] = item.preview
+          end
+        end
+      end,
+    })
+    _G.source_win = vim.api.nvim_get_current_win()
+    vim.api.nvim_buf_set_name(0, vim.fs.joinpath(vim.fn.getcwd(), "actions-context.lua"))
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "    alpha beta", "second" })
+    vim.bo.filetype = "lua"
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  ]])
+  input("v8l<F7>")
+  wait([[_G.actions_spec ~= nil and vim.api.nvim_get_mode().mode == "n"]])
+  eq(lua([[return vim.api.nvim_get_current_win() ~= source_win]]), true)
+  lua([[
+    for _, item in ipairs(actions_spec.items) do
+      if item.data == "send" then
+        actions_spec.actions[actions_spec.default](item)
+        break
+      end
+    end
+  ]])
+  wait([[_G.previews ~= nil]])
+  eq(lua([[return previews.selection]]), "```lua\nalpha\n```")
+  eq(lua([[return previews.file]]), "@actions-context.lua")
+end
+
+input_tests["actions can hide a visually selected session without a source window"] = function()
+  input("Terminal text<CR>")
+  wait(
+    [[table.concat(vim.api.nvim_buf_get_lines(session.buf, 0, -1, false), "\n"):find("Terminal text", 1, true) ~= nil]]
+  )
+  input("<C-\\><C-n>")
+  wait([[vim.api.nvim_get_mode().mode == "nt"]])
+  lua([[
+    vim.cmd.only()
+    require("agents").setup({
+      tools = { cat = { cmd = { "cat" } } },
+      keys = { { "<F7>", "actions" } },
+      picker = function(spec)
+        _G.actions_spec = spec
+      end,
+    })
+  ]])
+  eq(lua([[return #vim.api.nvim_tabpage_list_wins(0)]]), 1)
+  input("ggv<F7>")
+  wait([[_G.actions_spec ~= nil and vim.api.nvim_get_mode().mode == "nt"]])
+  eq(lua([[return actions_spec.title]]), "Agents: actions")
+  lua([[
+    for _, item in ipairs(actions_spec.items) do
+      if item.data == "hide" then
+        actions_spec.actions[actions_spec.default](item)
+        break
+      end
+    end
+  ]])
+  wait([[#vim.fn.win_findbuf(session.buf) == 0]])
+  eq(lua([[return vim.fn.jobwait({ session.job }, 0)]]), { -1 })
 end
 
 return T

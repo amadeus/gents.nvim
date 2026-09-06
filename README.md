@@ -14,6 +14,7 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
     on_exit = "keep", -- "close" removes sessions that exit successfully
   },
   keys = {
+    { "<leader>ac", "<cmd>Agents actions<cr>", desc = "Agents actions" },
     { "<leader>aa", "<cmd>Agents toggle<cr>", desc = "Toggle agents" },
     { "<leader>an", "<cmd>Agents new<cr>", desc = "New agent session" },
     { "<leader>as", function() require("agents").send() end, mode = { "n", "x" }, desc = "Send context" },
@@ -26,6 +27,7 @@ optional; the plugin installs none by default.
 
 - `:Agents new` — pick a tool and start a session.
 - `:Agents new claude` — start Claude directly.
+- `:Agents actions` — choose a top-level command.
 - `:Agents toggle` — hide the current session, hide visible sessions from an
   editor buffer, or show/select a session when none are visible (current tab).
 - `:Agents pick` — choose a session.

@@ -11,10 +11,14 @@ end
 local pickers
 ---@type string[]
 local notifications
+---@type string
+local temp_dir
 local T = test.new_set({
   hooks = {
     pre_case = function()
       H.reset()
+      temp_dir = vim.fn.tempname()
+      vim.fn.mkdir(temp_dir, "p")
       pickers, notifications = {}, {}
       set_notify(function(message)
         notifications[#notifications + 1] = message
@@ -44,6 +48,7 @@ local T = test.new_set({
     post_case = function()
       set_notify(original_notify)
       H.reset()
+      vim.fn.delete(temp_dir, "d")
     end,
   },
 })
@@ -163,7 +168,7 @@ T["target picker cannot change an already resolved provider or source path"] = f
   local spec = assert(pickers[1])
   vim.api.nvim_buf_set_name(0, vim.fs.joinpath(vim.fn.getcwd(), "renamed.lua"))
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
-  vim.cmd.lcd("/private/tmp")
+  vim.cmd.lcd(temp_dir)
   choose(spec, session.label .. "  ")
   H.wait(function()
     return output(session):find("@context.lua:2", 1, true) ~= nil

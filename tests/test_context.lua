@@ -4,15 +4,23 @@ local context = require("agents.context")
 local eq = test.expect.equality
 local original_selection = vim.o.selection
 local original_virtualedit = vim.o.virtualedit
+---@type string
+local temp_dir
 
 local T = test.new_set({
   hooks = {
-    pre_case = H.reset,
+    pre_case = function()
+      H.reset()
+      temp_dir = vim.fn.tempname()
+      vim.fn.mkdir(temp_dir, "p")
+      temp_dir = assert(vim.uv.fs_realpath(temp_dir))
+    end,
     post_case = function()
       vim.cmd.normal({ args = { "\27" }, bang = true })
       vim.o.selection = original_selection
       vim.o.virtualedit = original_virtualedit
       H.reset()
+      vim.fn.delete(temp_dir, "d")
     end,
   },
 })
@@ -33,22 +41,22 @@ end
 T["normal source preserves its window buffer cwd and cursor"] = function()
   vim.api.nvim_buf_set_lines(0, 0, -1, false, { "first", "second" })
   vim.api.nvim_win_set_cursor(0, { 2, 3 })
-  vim.cmd.lcd("/private/tmp")
+  vim.cmd.lcd(temp_dir)
   local source = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_get_current_buf()
-  eq(context.capture(), { win = source, buf = buf, cwd = "/private/tmp", cursor = { 2, 3 } })
+  eq(context.capture(), { win = source, buf = buf, cwd = temp_dir, cursor = { 2, 3 } })
   eq(vim.api.nvim_get_current_win(), source)
 end
 
 T["session source prefers previous window with its own cwd"] = function()
-  vim.cmd.lcd("/private/tmp")
+  vim.cmd.lcd(temp_dir)
   local source = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_get_current_buf()
   H.new()
   local terminal = vim.api.nvim_get_current_win()
   vim.cmd.lcd("/")
   local ctx = context.capture()
-  eq({ ctx.win, ctx.buf, ctx.cwd }, { source, buf, "/private/tmp" })
+  eq({ ctx.win, ctx.buf, ctx.cwd }, { source, buf, temp_dir })
   eq(vim.api.nvim_get_current_win(), terminal)
 end
 

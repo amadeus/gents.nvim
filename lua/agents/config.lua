@@ -3,7 +3,7 @@ local tools = require("agents.tools")
 
 ---@type agents.Config
 local defaults = {
-  layout = "vsplit",
+  layout = "botright vsplit",
   float = { width = 0.8, height = 0.8, border = "rounded" },
   picker = nil,
   picker_help = true,

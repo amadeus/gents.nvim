@@ -97,11 +97,61 @@ The markers apply to every picker adapter. Snacks uses `DiagnosticInfo` for
 visible markers, `Comment` for hidden markers, and `SnacksPickerDir` for
 session directories, following your colorscheme.
 
-With the Snacks session picker, Ctrl-Enter puts the session in the window
-that opened the picker, regardless of where it is already displayed. Ctrl-V,
-Ctrl-X, and Ctrl-T likewise honor the requested split or tab placement.
-Existing views stay open. Normal Enter focuses an existing view when one is
-available. Custom adapters have the same named layout actions.
+`layout` chooses how new session windows open; it defaults to
+`"botright vsplit"`, a full-height vertical split on the right.
+`float` supplies the settings used when the chosen layout is `"float"`.
+Changing `float` alone keeps that default layout.
+To use floating windows by default with any picker:
+
+```lua
+require("agents").setup({
+  layout = "float",
+  float = { width = 0.8, height = 0.8, border = "rounded" },
+})
+```
+
+The `float` values above are the built-in defaults, so that table can be
+omitted. Partial settings such as `float = { border = "single" }` retain the
+default width and height. In a lazy.nvim spec, put these settings in `opts`.
+
+Enter runs the picker's default action:
+
+- In New Session, it starts the selected tool using your configured `layout`,
+  or the per-call layout supplied to `agents.new(nil, opts)`.
+- In the session picker opened by `:Agents pick` or `agents.show()`, it focuses
+  an existing window, including one in another tab, or opens one using your
+  configured layout if no view exists. An explicit per-call layout requests
+  that placement instead, even if the session already has a window.
+
+Session pickers opened by `hide`, `close`, or `send` select the target for
+that operation. Changing the default layout does not move existing windows.
+
+Snacks layout shortcuts choose placement for that selection: Ctrl-V for a
+vertical split, Ctrl-X for a horizontal split, Ctrl-T for a new tab, Ctrl-F
+for a float using your `float` settings, and Ctrl-Enter for the window that
+opened the picker. These choices override the configured or per-call layout.
+For existing sessions, they open the requested view even if another view
+exists, preserving the buffer, job, and other views. Custom adapters receive
+the same named layout actions.
+
+The Lua API also accepts a layout for one call without changing your defaults:
+
+```lua
+local agents = require("agents")
+agents.new("claude", { layout = "split" })
+agents.show("claude", {
+  layout = { width = 0.6, height = 0.5, border = "single" },
+})
+```
+
+`layout = "float"` uses the configured `float` table. An inline table is a
+separate float configuration and must include `width` and `height`; it does
+not inherit settings from `float`.
+
+Widths and heights in `(0, 1]` are fractions of the editor; larger values are
+cells, resolved when the float opens. Floats are centered unless you specify
+`row` and `col`. Hiding a session closes its views, including floats, while
+keeping the CLI running; closing it stops the CLI and removes the session.
 
 Snacks pickers widen as needed to fit their binding hints, accounting for
 borders and side-by-side previews. Wider configured layouts are preserved;

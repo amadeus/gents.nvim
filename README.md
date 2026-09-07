@@ -10,7 +10,7 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
   "amadeus/agents.nvim",
   cmd = "Agents",
   opts = {
-    layout = "vsplit", -- "split", "tabnew", "current", or "float"
+    layout = "botright vsplit", -- "split", "tabnew", "current", or "float"
     on_exit = "keep", -- "close" removes sessions that exit successfully
   },
   keys = {
@@ -23,6 +23,9 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
 ```
 
 Install the agent CLIs you want to use separately, and choose your own mappings.
+
+Set `layout = "float"` in `opts` for floating windows by default. The `float`
+option customizes their size and border; see [layout defaults and picker behavior](docs/commands.md).
 
 - `:Agents new` — pick a tool and start a session.
 - `:Agents new claude` — start Claude directly.

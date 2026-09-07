@@ -29,7 +29,7 @@ T["defaults work without setup"] = function()
   ---@type { get: fun(): agents.Config }
   local fresh = dofile("lua/agents/config.lua")
   local result = fresh.get()
-  expect(result.layout, "vsplit")
+  expect(result.layout, "botright vsplit")
   expect(result.float, { width = 0.8, height = 0.8, border = "rounded" })
   expect(result.picker, nil)
   expect(result.picker_help, true)

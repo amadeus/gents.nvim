@@ -208,7 +208,7 @@ function M.tools(callback, opts)
       end,
     },
   }
-  for _, layout in ipairs({ "vsplit", "split", "tabnew", "current" }) do
+  for _, layout in ipairs({ "vsplit", "split", "tabnew", "float", "current" }) do
     ---@param item agents.PickerItem<agents.Tool>
     spec.actions[layout] = function(item)
       local launch_opts = vim.deepcopy(opts or {})
@@ -338,7 +338,7 @@ function M.sessions(candidates, callback)
       end,
     },
   }
-  for _, layout in ipairs({ "vsplit", "split", "tabnew", "current" }) do
+  for _, layout in ipairs({ "vsplit", "split", "tabnew", "float", "current" }) do
     ---@param item agents.PickerItem<agents.Session>
     spec.actions[layout] = function(item)
       select(item, function(session)

@@ -871,7 +871,7 @@ T["session picker reads current titles without changing labels or selection iden
   test.expect.equality(vim.fn.win_findbuf(session.buf), {})
 end
 
-local layouts = { { "vsplit" }, { "split" }, { "tabnew" }, { "current" } }
+local layouts = { { "vsplit" }, { "split" }, { "tabnew" }, { "float" }, { "current" } }
 
 ---@param layout string
 ---@param origin integer
@@ -883,6 +883,8 @@ local function expect_layout(layout, origin, tab, buf)
   test.expect.equality(vim.api.nvim_get_current_tabpage() == tab, layout ~= "tabnew")
   if layout == "vsplit" or layout == "split" then
     test.expect.equality(vim.fn.winlayout()[1], layout == "vsplit" and "row" or "col")
+  elseif layout == "float" then
+    test.expect.equality(vim.api.nvim_win_get_config(0).relative, "editor")
   end
 end
 
@@ -891,7 +893,8 @@ T["tool layout actions"] = test.new_set({ parametrize = layouts }, {
   ["launch from the invoking window and preserve launch options"] = function(layout)
     local get_spec = capture_tools()
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-    local opts = { args = { "-u" }, layout = "float", label = "custom" }
+    local requested = layout == "float" and "current" or "float"
+    local opts = { args = { "-u" }, layout = requested, label = "custom" }
     require("agents").new(nil, opts)
     local spec = get_spec()
     vim.cmd.tabnew()
@@ -900,7 +903,7 @@ T["tool layout actions"] = test.new_set({ parametrize = layouts }, {
     expect_layout(layout, origin, tab, session.buf)
     test.expect.equality(session.cmd, { "cat", "-u" })
     test.expect.equality(session.label, "custom")
-    test.expect.equality(opts, { args = { "-u" }, layout = "float", label = "custom" })
+    test.expect.equality(opts, { args = { "-u" }, layout = requested, label = "custom" })
   end,
 })
 
@@ -1055,14 +1058,29 @@ T["session current action"] = test.new_set({ parametrize = { { false }, { true }
 T["session hide and close actions preserve or terminate the job"] = function()
   local get_spec = capture_sessions()
   local session = H.new()
+  local split = vim.api.nvim_get_current_win()
+  vim.cmd.tabnew()
   require("agents").pick()
   local spec = get_spec()
+  spec.actions.float(spec.items[1])
+  local float = vim.api.nvim_get_current_win()
+  test.expect.equality(#vim.fn.win_findbuf(session.buf), 2)
+  require("agents").pick()
+  spec = get_spec()
   spec.actions.hide(spec.items[1])
   test.expect.equality(vim.fn.win_findbuf(session.buf), {})
+  test.expect.equality(vim.api.nvim_win_is_valid(float), false)
+  test.expect.equality(vim.api.nvim_win_is_valid(split), false)
   test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
+  test.expect.equality(require("agents.session").get(session.id), session)
+  require("agents").pick()
+  spec = get_spec()
+  spec.actions.float(spec.items[1])
+  float = vim.api.nvim_get_current_win()
   require("agents").pick()
   spec = get_spec()
   spec.actions.close(spec.items[1])
+  test.expect.equality(vim.api.nvim_win_is_valid(float), false)
   test.expect.equality(require("agents.session").get(session.id), nil)
   H.wait(function()
     return not vim.api.nvim_buf_is_valid(session.buf)

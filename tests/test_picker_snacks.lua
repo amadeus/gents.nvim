@@ -195,24 +195,37 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
   test.expect.equality(vim.api.nvim_get_current_tabpage(), session_tab)
 end
 
-T["Snacks current action"] = test.new_set({
-  parametrize = { { "input", "i" }, { "list", "n" } },
+T["Snacks explicit placement"] = test.new_set({
+  parametrize = {
+    { "input", "i", "<C-CR>", "current" },
+    { "list", "n", "<C-CR>", "current" },
+    { "input", "i", "<C-f>", "float" },
+    { "list", "n", "<C-f>", "float" },
+  },
 }, {
   ---@param from "input"|"list"
   ---@param mode "i"|"n"
-  ["replaces the invoking buffer and preserves the session view in another tab"] = function(
+  ---@param key string
+  ---@param layout string
+  ["uses the invoking tab and preserves the session view in another tab"] = function(
     from,
-    mode
+    mode,
+    key,
+    layout
   )
     local session = H.new()
     local win = vim.api.nvim_get_current_win()
     vim.cmd.tabnew()
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
     require("agents").pick()
-    press(current_picker(), "<C-CR>", mode, from)
-    test.expect.equality(vim.api.nvim_get_current_win(), origin)
+    press(current_picker(), key, mode, from)
+    test.expect.equality(vim.api.nvim_get_current_win() == origin, layout == "current")
     test.expect.equality(vim.api.nvim_get_current_tabpage(), tab)
-    test.expect.equality(vim.api.nvim_win_get_buf(origin), session.buf)
+    test.expect.equality(vim.api.nvim_get_current_buf(), session.buf)
+    if layout == "float" then
+      test.expect.equality(vim.api.nvim_win_get_config(0).relative, "editor")
+      test.expect.equality(vim.api.nvim_win_get_buf(origin) == session.buf, false)
+    end
     test.expect.equality(vim.api.nvim_win_get_buf(win), session.buf)
     test.expect.equality(#vim.fn.win_findbuf(session.buf), 2)
     test.expect.equality(require("agents").sessions(), { session })
@@ -222,17 +235,27 @@ T["Snacks current action"] = test.new_set({
 
 T["built-in tool shortcuts"] = test.new_set({
   parametrize = {
-    { "<CR>", "vsplit" },
+    { "<CR>", "botright vsplit" },
     { "<C-v>", "vsplit" },
     { "<C-x>", "split" },
     { "<C-t>", "tabnew" },
+    { "<C-f>", "float" },
     { "<C-CR>", "current" },
-    { "<C-e>", "vsplit" },
+    { "<C-e>", "botright vsplit" },
   },
 }, {
   ---@param key string
   ---@param layout string
   ["launch a real session from input and list mappings"] = function(key, layout)
+    if layout == "float" then
+      require("agents.config").get().float = {
+        width = 0.5,
+        height = 0.25,
+        row = 1,
+        col = 2,
+        border = "single",
+      }
+    end
     ---@type { [1]: "input"|"list", [2]: "i"|"n" }[]
     local windows = { { "input", "i" }, { "list", "n" } }
     for _, from in ipairs(windows) do
@@ -248,6 +271,17 @@ T["built-in tool shortcuts"] = test.new_set({
       test.expect.equality(vim.api.nvim_get_current_tabpage() == tab, layout ~= "tabnew")
       test.expect.equality(session.cmd, key == "<C-e>" and { "cat", "-u" } or { "cat" })
       test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
+      if layout == "float" then
+        local config = vim.api.nvim_win_get_config(0)
+        test.expect.equality(config.relative, "editor")
+        test.expect.equality(config.width, math.floor(vim.o.columns * 0.5))
+        test.expect.equality(config.height, math.floor(vim.o.lines * 0.25))
+        test.expect.equality({ config.row, config.col }, { 1, 2 })
+        test.expect.equality(
+          config.border,
+          { "┌", "─", "┐", "│", "┘", "─", "└", "│" }
+        )
+      end
       require("agents").close(session.id)
     end
   end,
@@ -255,10 +289,11 @@ T["built-in tool shortcuts"] = test.new_set({
 
 T["built-in session shortcuts"] = test.new_set({
   parametrize = {
-    { "<CR>", "vsplit" },
+    { "<CR>", "botright vsplit" },
     { "<C-v>", "vsplit" },
     { "<C-x>", "split" },
     { "<C-t>", "tabnew" },
+    { "<C-f>", "float" },
     { "<C-CR>", "current" },
     { "<C-h>", "hide" },
     { "<C-d>", "close" },
@@ -301,6 +336,9 @@ T["built-in session shortcuts"] = test.new_set({
         test.expect.equality(vim.api.nvim_get_current_buf(), session.buf)
         test.expect.equality(vim.api.nvim_get_current_win() == origin, action == "current")
         test.expect.equality(vim.api.nvim_get_current_tabpage() == tab, action ~= "tabnew")
+        if action == "float" then
+          test.expect.equality(vim.api.nvim_win_get_config(0).relative, "editor")
+        end
       end
       if action ~= "close" then
         require("agents").close(session.id)
@@ -456,8 +494,8 @@ T["binding footer"] = test.new_set({
     local footer = footer_text(picker)
     ---@type table<string, string>
     local expected = {
-      tools = "  C-v  vsplit   C-x  split   C-t  tab   C-Ent  here   C-e  args  ",
-      sessions = "  C-v  vsplit   C-x  split   C-t  tab   C-Ent  here   C-h  hide   C-d  close  ",
+      tools = "  C-v  vsplit   C-x  split   C-t  tab   C-f  float   C-Ent  here   C-e  args  ",
+      sessions = "  C-v  vsplit   C-x  split   C-t  tab   C-f  float   C-Ent  here   C-h  hide   C-d  close  ",
       actions = "",
       context = "",
     }
@@ -698,7 +736,7 @@ T["binding footer preserves a dynamic layout and runs its configuration hook onc
   )
   test.expect.equality(
     footer_text(picker),
-    "  C-v  vsplit   C-x  split   C-t  tab   C-Ent  here   C-e  args  "
+    "  C-v  vsplit   C-x  split   C-t  tab   C-f  float   C-Ent  here   C-e  args  "
   )
   test.expect.equality(layout[2].border, "none")
 end
@@ -740,7 +778,7 @@ T["binding footer border"] = test.new_set({
     local picker = current_picker()
     test.expect.equality(
       footer_text(picker),
-      "  C-v  vsplit   C-x  split   C-t  tab   C-Ent  here   C-e  args  "
+      "  C-v  vsplit   C-x  split   C-t  tab   C-f  float   C-Ent  here   C-e  args  "
     )
     test.expect.equality(vim.api.nvim_win_get_config(assert(picker.list.win.win)).border, expected)
   end,
@@ -751,7 +789,7 @@ T["binding footer takes precedence over Snacks automatic key hints"] = function(
   require("agents").new()
   test.expect.equality(
     footer_text(current_picker()),
-    "  C-v  vsplit   C-x  split   C-t  tab   C-Ent  here   C-e  args  "
+    "  C-v  vsplit   C-x  split   C-t  tab   C-f  float   C-Ent  here   C-e  args  "
   )
 end
 
@@ -778,7 +816,16 @@ T["hidden binding hints preserve layout and shortcuts"] = function()
   for _, win in ipairs({ picker.input.win, picker.list.win }) do
     vim.api.nvim_set_current_win(assert(win.win))
     for _, mode in ipairs({ "n", "i" }) do
-      for _, key in ipairs({ "<CR>", "<C-v>", "<C-x>", "<C-t>", "<C-CR>", "<C-h>", "<C-d>" }) do
+      for _, key in ipairs({
+        "<CR>",
+        "<C-v>",
+        "<C-x>",
+        "<C-t>",
+        "<C-f>",
+        "<C-CR>",
+        "<C-h>",
+        "<C-d>",
+      }) do
         test.expect.equality(type(vim.fn.maparg(key, mode, false, true).callback), "function")
       end
     end

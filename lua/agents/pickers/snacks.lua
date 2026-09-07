@@ -309,6 +309,7 @@ function M.open(spec)
     { "vsplit", "<C-v>", "vsplit" },
     { "split", "<C-x>", "split" },
     { "tabnew", "<C-t>", "tab" },
+    { "float", "<C-f>", "float" },
     { "current", "<C-CR>", "here" },
     { "edit_args", "<C-e>", "args" },
     { "hide", "<C-h>", "hide" },

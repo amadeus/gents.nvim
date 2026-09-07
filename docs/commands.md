@@ -20,6 +20,16 @@ descriptions are separated by aligned dots; Snacks renders the descriptions
 and separators in a muted color. New Session uses the same treatment for
 `Not installed` tools.
 
+The Actions picker orders its choices by context:
+
+| Context                                                | Actions, in order                                         |
+| ------------------------------------------------------ | --------------------------------------------------------- |
+| No running sessions                                    | `new`, `send`                                             |
+| Inside a running agent session                         | `focus`, `hide`, `toggle`, `close`, `pick`, `send`, `new` |
+| Outside a running agent session, with sessions running | `send`, `toggle`, `focus`, `pick`, `hide`, `close`, `new` |
+
+Hidden sessions and sessions in other tabs count as running.
+
 | Command                                                     | Behavior                                                                                                               |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `:Agents new [tool] [args...]`                              | Choose a tool or start the named tool with extra arguments.                                                            |

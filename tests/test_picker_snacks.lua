@@ -10,6 +10,7 @@ end
 
 ---@class agents.test.SnacksList: agents.test.SnacksWindow
 ---@field count fun(self: agents.test.SnacksList): integer
+---@field get fun(self: agents.test.SnacksList, index: integer): agents.pickers.SnacksItem?
 
 ---@class agents.test.SnacksInput: agents.test.SnacksWindow
 ---@field set fun(self: agents.test.SnacksInput, pattern: string)
@@ -347,6 +348,37 @@ T["built-in session shortcuts"] = test.new_set({
   end,
 })
 
+T["actions ordering"] = test.new_set({
+  parametrize = {
+    { "empty", { "new", "send" } },
+    { "session", { "focus", "hide", "toggle", "close", "pick", "send", "new" } },
+    { "editor", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
+  },
+}, {
+  ---@param context string
+  ---@param expected string[]
+  ["preserves context order in the visible Snacks list"] = function(context, expected)
+    if context ~= "empty" then
+      local session = H.new()
+      if context == "editor" then
+        require("agents").hide(session.id)
+      end
+    end
+    require("agents").actions()
+    local picker = current_picker()
+    H.wait(function()
+      return not picker:is_active()
+    end)
+    ---@type string[]
+    local names = {}
+    for index = 1, picker.list:count() do
+      local item = assert(picker.list:get(index))
+      names[#names + 1] = assert(item.text:match("^(%w+)"))
+    end
+    test.expect.equality(names, expected)
+  end,
+})
+
 T["actions picker runs the chosen command in the invoking window"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
@@ -355,11 +387,11 @@ T["actions picker runs the chosen command in the invoking window"] = function()
   local picker = current_picker()
   test.expect.equality(picker.opts.title, "Agents: Actions")
   test.expect.equality(picker.opts.confirm, "agents_run")
-  test.expect.equality(picker.opts.items[1].text, "close  · Hide and kill a session")
+  test.expect.equality(picker.opts.items[1].text, "send   · Pick context to send to an agent")
   test.expect.equality(picker.opts.format(picker.opts.items[1]), {
-    { "close " },
+    { "send  " },
     { " · ", "Comment" },
-    { "Hide and kill a session", "Comment" },
+    { "Pick context to send to an agent", "Comment" },
   })
   picker.input:set("and kill")
   picker:find({ refresh = false })

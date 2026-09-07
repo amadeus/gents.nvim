@@ -150,44 +150,82 @@ T["Snacks is loaded on demand and reports a missing dependency"] = function()
   test.expect.equality(assert(notification):find("requires snacks.nvim", 1, true) ~= nil, true)
 end
 
-T["actions lists the top-level commands without including itself"] = function()
-  ---@type agents.PickerSpec<agents.CommandName>?
-  local received
-  require("agents.config").get().picker = function(spec)
-    received = spec
-  end
+T["actions context"] = test.new_set({
+  parametrize = {
+    { "none", { "new", "send" } },
+    { "inside", { "focus", "hide", "toggle", "close", "pick", "send", "new" } },
+    { "outside", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
+    { "hidden", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
+    { "other tab", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
+    { "exited only", { "new", "send" } },
+    { "exited with live", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
+  },
+}, {
+  ---@param context string
+  ---@param expected agents.CommandName[]
+  ["orders available commands and retains their descriptions"] = function(context, expected)
+    local agents = require("agents")
+    local origin = vim.api.nvim_get_current_win()
+    if context ~= "none" then
+      if context == "exited with live" then
+        H.new()
+      end
+      local exited = context == "exited only" or context == "exited with live"
+      local session = H.new(exited and { cmd = { "sh", "-c", "exit 0" } } or nil)
+      if exited then
+        H.wait(function()
+          return session.state == "exited"
+        end)
+        test.expect.equality(agents.current(), session)
+      elseif context == "outside" then
+        vim.api.nvim_set_current_win(origin)
+      elseif context == "hidden" then
+        agents.hide(session.id)
+        test.expect.equality(vim.fn.win_findbuf(session.buf), {})
+      elseif context == "other tab" then
+        vim.cmd.tabnew()
+      end
+    end
+    local sessions = agents.sessions()
+    ---@type agents.PickerSpec<agents.CommandName>?
+    local received
+    require("agents.config").get().picker = function(spec)
+      received = spec
+    end
 
-  require("agents").actions()
+    agents.actions()
 
-  assert(received)
-  test.expect.equality(received.title, "Agents: Actions")
-  test.expect.equality(received.default, "run")
-  ---@type table<agents.CommandName, string>
-  local descriptions = {
-    close = "Hide and kill a session",
-    focus = "Switch focus between an agent and your last buffer",
-    hide = "Hide a session without killing it",
-    new = "Start a new session",
-    pick = "Existing session picker",
-    send = "Pick context to send to an agent",
-    toggle = "Show or hide a session",
-  }
-  ---@type string[]
-  local names = {}
-  for _, item in ipairs(received.items) do
-    names[#names + 1] = item.data
-    ---@type string
-    local name = item.data .. string.rep(" ", 6 - #item.data)
-    test.expect.equality(item.text, name .. " · " .. descriptions[item.data])
-    test.expect.equality(item.chunks, {
-      { text = name },
-      { text = " · ", kind = "separator" },
-      { text = descriptions[item.data], kind = "description" },
-    })
-  end
-  test.expect.equality(names, { "close", "focus", "hide", "new", "pick", "send", "toggle" })
-  test.expect.equality(require("agents").sessions(), {})
-end
+    assert(received)
+    test.expect.equality(received.title, "Agents: Actions")
+    test.expect.equality(received.default, "run")
+    ---@type table<agents.CommandName, string>
+    local descriptions = {
+      close = "Hide and kill a session",
+      focus = "Switch focus between an agent and your last buffer",
+      hide = "Hide a session without killing it",
+      new = "Start a new session",
+      pick = "Existing session picker",
+      send = "Pick context to send to an agent",
+      toggle = "Show or hide a session",
+    }
+    ---@type string[]
+    local names = {}
+    local width = #expected == 2 and 4 or 6
+    for _, item in ipairs(received.items) do
+      names[#names + 1] = item.data
+      ---@type string
+      local name = item.data .. string.rep(" ", width - #item.data)
+      test.expect.equality(item.text, name .. " · " .. descriptions[item.data])
+      test.expect.equality(item.chunks, {
+        { text = name },
+        { text = " · ", kind = "separator" },
+        { text = descriptions[item.data], kind = "description" },
+      })
+    end
+    test.expect.equality(names, expected)
+    test.expect.equality(agents.sessions(), sessions)
+  end,
+})
 
 T["actions restores the invoking window before dispatching toggle"] = function()
   local origin = vim.api.nvim_get_current_win()

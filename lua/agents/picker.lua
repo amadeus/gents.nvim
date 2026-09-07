@@ -88,6 +88,26 @@ local function describe_items(items, descriptions)
   end
 end
 
+---@return agents.CommandName[]
+local function contextual_commands()
+  local registry = require("agents.session")
+  local running = false
+  for _, session in ipairs(registry.list()) do
+    if session.state ~= "exited" then
+      running = true
+      break
+    end
+  end
+  if not running then
+    return { "new", "send" }
+  end
+  local current = registry.current()
+  if current and current.state ~= "exited" then
+    return { "focus", "hide", "toggle", "close", "pick", "send", "new" }
+  end
+  return { "send", "toggle", "focus", "pick", "hide", "close", "new" }
+end
+
 ---@param callback fun(command: agents.CommandName)
 function M.commands(callback)
   local origin = vim.api.nvim_get_current_win()
@@ -105,7 +125,7 @@ function M.commands(callback)
   }
   ---@type string[]
   local details = {}
-  for _, command in ipairs(require("agents.commands").names(true)) do
+  for _, command in ipairs(contextual_commands()) do
     items[#items + 1] = { text = command, data = command }
     details[#items] = assert(descriptions[command])
   end

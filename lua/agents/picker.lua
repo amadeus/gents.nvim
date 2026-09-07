@@ -116,11 +116,11 @@ function M.commands(callback)
   ---@type table<agents.CommandName, string>
   local descriptions = {
     close = "Hide and kill a session",
-    focus = "Switch focus between an agent and your last buffer",
+    focus = "Switch focus between a session and your last buffer",
     hide = "Hide a session without killing it",
     new = "Start a new session",
     pick = "Existing session picker",
-    send = "Pick context to send to an agent",
+    send = "Pick context to send to a session",
     toggle = "Show or hide a session",
   }
   ---@type string[]
@@ -152,21 +152,25 @@ function M.tools(callback, opts)
   local origin = vim.api.nvim_get_current_win()
   ---@type agents.PickerItem<agents.Tool>[]
   local items = {}
+  ---@type agents.PickerItem<agents.Tool>[]
+  local unavailable = {}
   ---@type table<integer, string>
   local descriptions = {}
   for _, name in ipairs(require("agents.tools").names(config.tools)) do
     local tool = config.tools[name]
     if tool.enabled ~= false then
       local missing = vim.fn.executable(tool.cmd[1]) == 0
-      items[#items + 1] = {
+      local group = missing and unavailable or items
+      group[#group + 1] = {
         text = name,
         data = tool,
         hl = missing and "Comment" or nil,
       }
-      if missing then
-        descriptions[#items] = "Not installed"
-      end
     end
+  end
+  for _, item in ipairs(unavailable) do
+    items[#items + 1] = item
+    descriptions[#items] = "Not installed"
   end
   describe_items(items, descriptions)
 

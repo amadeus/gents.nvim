@@ -11,36 +11,6 @@ local M = {}
 ---@type table<agents.Context, agents.context.Selection>
 local selections = setmetatable({}, { __mode = "k" })
 
----@param win integer
----@return boolean
-local function is_session(win)
-  local buf = vim.api.nvim_win_get_buf(win)
-  for _, session in ipairs(require("agents.session").list()) do
-    if session.buf == buf then
-      return true
-    end
-  end
-  return false
-end
-
----@return integer
-local function source_window()
-  local current = vim.api.nvim_get_current_win()
-  if not is_session(current) then
-    return current
-  end
-  local previous = vim.fn.win_getid(vim.fn.winnr("#"))
-  if previous ~= 0 and not is_session(previous) then
-    return previous
-  end
-  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if not is_session(win) then
-      return win
-    end
-  end
-  error("agents: no source window available in this tab")
-end
-
 ---@param ctx agents.Context
 ---@param first agents.context.Position
 ---@param last agents.context.Position
@@ -63,7 +33,7 @@ end
 ---@param range? { line1: integer, line2: integer } An explicit Ex range is linewise.
 ---@return agents.Context
 function M.capture(range)
-  local win = source_window()
+  local win = vim.api.nvim_get_current_win()
   ---@type agents.Context
   local ctx = {
     win = win,
@@ -74,6 +44,7 @@ function M.capture(range)
     cursor = vim.api.nvim_win_get_cursor(win),
   }
   local mode = vim.fn.mode()
+  mode = mode == "s" and "v" or mode == "S" and "V" or mode == "\19" and "\22" or mode
   ---@type agents.context.Position?, agents.context.Position?
   local first, last
   local exclusive = false

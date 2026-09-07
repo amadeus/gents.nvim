@@ -149,6 +149,54 @@ T["context picker omits unavailable providers and prompts and previews defaults"
   eq(assert(find(spec, "explain")).preview, "Explain:\n@context.lua:2")
 end
 
+T["session sources"] = test.new_set({ parametrize = { { false }, { true } } }, {
+  ---@param only boolean
+  ["reject picker and direct sends without changing focus"] = function(only)
+    local session = H.new()
+    if only then
+      vim.cmd.only()
+    end
+    local origin = vim.api.nvim_get_current_win()
+    local mode = vim.api.nvim_get_mode().mode
+    local sends = {
+      function()
+        eq(agents.send(), nil)
+      end,
+      function()
+        eq(agents.send({ "file" }), nil)
+      end,
+      function()
+        eq(agents.send({ { text = "Literal prompt" } }), nil)
+      end,
+      function()
+        vim.cmd("Agents send")
+      end,
+      function()
+        vim.cmd("Agents send explain")
+      end,
+      function()
+        vim.cmd("1Agents send")
+      end,
+      function()
+        vim.cmd("Agents actions send")
+      end,
+      function()
+        vim.cmd("1Agents actions send --no-focus --target " .. session.id)
+      end,
+    }
+    for _, send in ipairs(sends) do
+      notifications = {}
+      send()
+      eq(notifications, { "agents.nvim: send context from a non-session buffer" })
+      eq(pickers, {})
+      eq(vim.api.nvim_get_current_win(), origin)
+      eq(vim.api.nvim_get_current_buf(), session.buf)
+      eq(vim.api.nvim_get_mode().mode, mode)
+      eq(agents.sessions(), { session })
+    end
+  end,
+})
+
 T["two asynchronous send pickers"] = test.new_set({ parametrize = { { true }, { false } } }, {
   ---@param focus boolean
   ["preserve the original parts and honor focus after selecting a target"] = function(focus)
@@ -230,6 +278,7 @@ T["ranged command sends selected lines directly and named prompts expand"] = fun
   eq(output(session):find("local first = 1", 1, true), nil)
   eq(#pickers, 0)
   eq(vim.api.nvim_get_current_buf(), session.buf)
+  vim.api.nvim_set_current_win(origin)
   vim.cmd("Agents send explain")
   H.wait(function()
     return output(session):find("Explain:", 1, true) ~= nil
@@ -421,6 +470,38 @@ T["ranged actions keeps its original selection across picker changes"] = functio
   eq(output(session):find("changed after capture", 1, true), nil)
   eq(#pickers, 1)
   eq(vim.api.nvim_get_current_buf(), session.buf)
+end
+
+T["actions from a session"] = test.new_set({ parametrize = { { false }, { true } } }, {
+  ---@param ranged boolean
+  ["rejects send after picker focus changes"] = function(ranged)
+    local session = H.new()
+    local origin = vim.api.nvim_get_current_win()
+    vim.cmd(ranged and "1Agents actions" or "Agents actions")
+    local menu = assert(pickers[1])
+    eq(menu.title, "Agents: Actions")
+    vim.cmd("new")
+    choose(menu, "send")
+    eq(notifications, { "agents.nvim: send context from a non-session buffer" })
+    eq(#pickers, 1)
+    eq(vim.api.nvim_get_current_win(), origin)
+    eq(vim.api.nvim_get_current_buf(), session.buf)
+    eq(agents.sessions(), { session })
+  end,
+})
+
+T["ranged actions can send captured editor context after its window displays a session"] = function()
+  local origin = vim.api.nvim_get_current_win()
+  local session = H.new()
+  vim.api.nvim_set_current_win(origin)
+  vim.cmd("2Agents actions")
+  vim.api.nvim_win_set_buf(origin, session.buf)
+  choose(assert(pickers[1]), "send")
+  H.wait(function()
+    return output(session):find("local second = 2", 1, true) ~= nil
+  end)
+  eq(notifications, {})
+  eq(#pickers, 1)
 end
 
 T["ranged actions rejects a non-send choice before changing sessions"] = function()

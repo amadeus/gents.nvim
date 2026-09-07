@@ -63,14 +63,12 @@ local builtins = {
     name = "opencode",
     cmd = { "opencode" },
     title = titles.opencode,
-    env = { OPENCODE_THEME = "system" },
     url = "https://opencode.ai/docs/",
   },
   {
     name = "opencode2",
     cmd = { "opencode2" },
     title = titles.opencode,
-    env = { OPENCODE_THEME = "system" },
     url = "https://opencode.ai/v2/docs",
   },
   {
@@ -136,20 +134,9 @@ end
 ---@param configured_tools table<string, agents.Tool>
 ---@return string[]
 function M.names(configured_tools)
-  ---@type string[], string[]
-  local names, custom = {}, {}
-  for _, tool in ipairs(builtins) do
-    if configured_tools[tool.name] then
-      names[#names + 1] = tool.name
-    end
-  end
-  for name in pairs(configured_tools) do
-    if not M.defaults[name] then
-      custom[#custom + 1] = name
-    end
-  end
-  table.sort(custom)
-  vim.list_extend(names, custom)
+  ---@type string[]
+  local names = vim.tbl_keys(configured_tools)
+  table.sort(names)
   return names
 end
 

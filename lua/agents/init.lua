@@ -129,7 +129,7 @@ end
 function M.actions(range)
   local ctx = range and require("agents.context").capture(range) or nil
   local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
+  if mode == "v" or mode == "V" or mode == "\22" or mode == "s" or mode == "S" or mode == "\19" then
     if not ctx and not M.current() then
       ctx = require("agents.context").capture()
     end

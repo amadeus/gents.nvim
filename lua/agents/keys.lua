@@ -22,16 +22,30 @@ local actions = {
   send = true,
 }
 ---@type table<agents.KeyMode, boolean>
-local allowed_modes = { n = true, x = true, t = true }
+local allowed_modes = { n = true, i = true, x = true, s = true, v = true, t = true }
 
 ---@param key agents.Keymap
 ---@return agents.KeyMode[]
 local function modes(key)
   local mode = key.mode
+  ---@type agents.KeyMode[]
+  local configured
   if type(mode) == "string" then
-    return { mode }
+    configured = { mode }
+  else
+    configured = mode or { "n", "x", "t" }
   end
-  return mode or { "n", "x", "t" }
+  ---@type agents.KeyMode[]
+  local resolved = {}
+  for _, entry in ipairs(configured) do
+    if entry == "v" then
+      -- Track each mode separately to preserve user replacements during cleanup.
+      vim.list_extend(resolved, { "x", "s" })
+    else
+      resolved[#resolved + 1] = entry
+    end
+  end
+  return resolved
 end
 
 ---@param entries agents.Keymap[]
@@ -50,10 +64,10 @@ function M.validate(entries)
       key.mode == nil
         or type(key.mode) == "string"
         or (type(key.mode) == "table" and vim.islist(key.mode)),
-      prefix .. " mode must be n, x, t, or a list of those modes"
+      prefix .. " mode must be n, i, x, s, v, t, or a list of those modes"
     )
     for _, mode in ipairs(modes(key)) do
-      assert(allowed_modes[mode], prefix .. " mode must be n, x, or t")
+      assert(allowed_modes[mode], prefix .. " mode must be n, i, x, s, v, or t")
     end
   end
 end

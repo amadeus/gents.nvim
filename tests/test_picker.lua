@@ -201,11 +201,11 @@ T["actions context"] = test.new_set({
     ---@type table<agents.CommandName, string>
     local descriptions = {
       close = "Hide and kill a session",
-      focus = "Switch focus between an agent and your last buffer",
+      focus = "Switch focus between a session and your last buffer",
       hide = "Hide a session without killing it",
       new = "Start a new session",
       pick = "Existing session picker",
-      send = "Pick context to send to an agent",
+      send = "Pick context to send to a session",
       toggle = "Show or hide a session",
     }
     ---@type string[]
@@ -373,6 +373,39 @@ T["tools use the default adapter and launch the selected tool"] = function()
   assert(session)
   test.expect.equality(session.tool.name, "cat")
   test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
+end
+
+T["tools sort installed and missing groups alphabetically across built-ins and custom names"] = function()
+  local executable = vim.v.progpath
+  local missing = "/__agents_missing_executable__"
+  require("agents.config").get().tools = {
+    zeta = { name = "zeta", cmd = { executable } },
+    claude = { name = "claude", cmd = { executable } },
+    beta = { name = "beta", cmd = { executable } },
+    qwen = { name = "qwen", cmd = { missing } },
+    amp = { name = "amp", cmd = { missing } },
+    alpha = { name = "alpha", cmd = { missing } },
+    ignored = { name = "ignored", cmd = { executable }, enabled = false },
+  }
+  ---@type agents.PickerItem<agents.Tool>[]?
+  local received
+  ---@param items agents.PickerItem<agents.Tool>[]
+  set_select(function(items)
+    received = items
+  end)
+  picker.tools(function()
+    error("no tool was selected")
+  end)
+
+  assert(received)
+  ---@type string[]
+  local names = {}
+  for index, item in ipairs(received) do
+    names[#names + 1] = item.data.name
+    test.expect.equality(item.hl, index > 3 and "Comment" or nil)
+    test.expect.equality(item.text:find("Not installed", 1, true) ~= nil, index > 3)
+  end
+  test.expect.equality(names, { "beta", "claude", "zeta", "alpha", "amp", "qwen" })
 end
 
 T["missing tools are annotated and selection reports the install URL"] = function()

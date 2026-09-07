@@ -20,25 +20,27 @@ descriptions are separated by aligned dots; Snacks renders the descriptions
 and separators in a muted color. New Session uses the same treatment for
 `Not installed` tools.
 
+New Session lists installed tools first, followed by uninstalled tools.
+
 The Actions picker orders its choices by context:
 
-| Context                                                | Actions, in order                                         |
-| ------------------------------------------------------ | --------------------------------------------------------- |
-| No running sessions                                    | `new`, `send`                                             |
-| Inside a running agent session                         | `focus`, `hide`, `toggle`, `close`, `pick`, `send`, `new` |
-| Outside a running agent session, with sessions running | `send`, `toggle`, `focus`, `pick`, `hide`, `close`, `new` |
+| Context                                          | Actions, in order                                         |
+| ------------------------------------------------ | --------------------------------------------------------- |
+| No running sessions                              | `new`, `send`                                             |
+| Inside a running session                         | `focus`, `hide`, `toggle`, `close`, `pick`, `send`, `new` |
+| Outside a running session, with sessions running | `send`, `toggle`, `focus`, `pick`, `hide`, `close`, `new` |
 
 Hidden sessions and sessions in other tabs count as running.
 
-| Command                                                     | Behavior                                                                                                               |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `:Agents new [tool] [args...]`                              | Choose a tool or start the named tool with extra arguments.                                                            |
-| `:Agents pick [target]`                                     | Choose a session, or show an explicit target.                                                                          |
-| `:Agents focus [target]`                                    | Focus a session. Without a target, invoking from an agent returns to the previous window and leaves the agent visible. |
-| `:Agents toggle [target]`                                   | Hide the selected session's views in the current tab, or show it if it is not visible there.                           |
-| `:Agents hide [target]`                                     | Hide all views of the selected session and keep it running.                                                            |
-| `:Agents close [target]`                                    | Stop and remove the selected session.                                                                                  |
-| `:Agents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or prompts.                                                                |
+| Command                                                     | Behavior                                                                                                                   |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `:Agents new [tool] [args...]`                              | Choose a tool or start a session with the named tool and extra arguments.                                                  |
+| `:Agents pick [target]`                                     | Choose a session, or show an explicit target.                                                                              |
+| `:Agents focus [target]`                                    | Focus a session. Without a target, invoking from a session returns to the previous window and leaves that session visible. |
+| `:Agents toggle [target]`                                   | Hide the selected session's views in the current tab, or show it if it is not visible there.                               |
+| `:Agents hide [target]`                                     | Hide all views of the selected session and keep it running.                                                                |
+| `:Agents close [target]`                                    | Stop and remove the selected session.                                                                                      |
+| `:Agents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or prompts.                                                                    |
 
 A target is a session ID or its complete label, including spaces. It is
 separate from the conversation title displayed in pickers. For `send`, put
@@ -47,11 +49,14 @@ is the target. `:Agents send --target claude #2` opens the context picker with
 that destination already selected.
 
 The `line` and `file` providers send file references. `selection` and `buffer`
-copy the selected text or entire buffer into the agent's input, including
+copy the selected text or entire buffer into the session's input, including
 unsaved edits. See [sending context](recipes/context.md) for examples and other
 providers.
 
-Sending context focuses the selected agent in terminal input mode. Use
+Send from a non-session buffer. Invoking send inside an Agents session
+shows a warning and sends nothing.
+
+Sending context focuses the selected session in terminal input mode. Use
 `--no-focus` or the Lua option `focus = false` to keep focus in your editor:
 
 ```vim
@@ -66,8 +71,8 @@ require("agents").send({ "selection" }, { focus = false })
 ```
 
 `focus = false` shows hidden sessions using your configured layout and returns
-focus to the originating window. With `layout = "current"`, the agent replaces
-that window's buffer.
+focus to the originating window. With `layout = "current"`, the session's
+buffer replaces that window's buffer.
 
 Use the Lua option `submit = true` to submit the message after inserting context.
 
@@ -82,7 +87,7 @@ From an editor with several sessions, `toggle` asks which one to show or hide,
 including when one is already visible. An unmatched explicit target reports an
 error.
 
-Untargeted `pick` always opens the session picker, even from an agent or when
+Untargeted `pick` always opens the session picker, even from a session or when
 only one session exists. With no sessions, `pick`, `focus`, and `toggle` open
 the tool picker; `hide` and `close` do nothing. After choosing context, `send`
 opens the tool picker, starts the selected CLI, and queues the context for it.
@@ -90,9 +95,9 @@ Named providers skip the context picker.
 
 Use the built-in Agents session picker (`:Agents pick` or
 `require("agents").pick()`) to switch sessions. This is the recommended way to
-browse agents and choose their window placement.
+browse sessions and choose their window placement.
 
-`buflisted = true` is an advanced escape hatch for integrating agent terminals
+`buflisted = true` is an advanced escape hatch for integrating session buffers
 with ordinary buffer lists and pickers. Enable it only if you understand how
 your buffer navigation and cleanup tools handle live terminals: bulk deletion
 can stop their CLI processes.
@@ -103,18 +108,18 @@ require("agents").setup({
 })
 ```
 
-`buflisted` defaults to `false` and applies to newly created agent buffers.
+`buflisted` defaults to `false` and applies to newly created session buffers.
 Pickers that explicitly filter out terminals may still omit them. Changing
 this setting does not change the listed state of existing buffers.
 
-Hiding a listed agent keeps its buffer in the list and its CLI running.
+Hiding a session keeps its listed buffer available and its CLI running.
 Selecting that buffer again continues the same live session; it stays managed
 by Agents, including its normal terminal-input restoration. Ordinary buffer
 pickers control their own labels and window placement. The Agents `layout`
 setting and picker shortcuts apply when opening through Agents.
 
-Listed agents also participate in `:ls`, buffer cycling, and commands that
-operate on listed buffers. Buffer cleanup tools may select them as a
+Listed session buffers also participate in `:ls`, buffer cycling, and commands
+that operate on listed buffers. Buffer cleanup tools may select them as a
 replacement buffer or include them in bulk deletion. Native `:bdelete!` and
 `:bwipeout!` stop the CLI and remove the session; use `:Agents hide` to keep
 it running. With `on_exit = "keep"`, exited transcripts remain listed until
@@ -138,9 +143,11 @@ require("agents").setup({
 })
 ```
 
-The markers apply to every picker adapter. Snacks uses `DiagnosticInfo` for
-visible markers, `Comment` for hidden markers, and `SnacksPickerDir` for
-session directories, following your colorscheme.
+The markers apply to every picker adapter. Snacks uses `AgentsPickerVisible`,
+`AgentsPickerHidden`, and `AgentsPickerDirectory` for visibility markers and
+session directories. Their default links are `DiagnosticInfo`, `Comment`, and
+`SnacksPickerDir`, respectively. Override the `AgentsPicker*` groups to customize
+the picker; see `:help agents-picker-snacks` for all groups and an example.
 
 `layout` chooses how new session windows open; it defaults to
 `"botright vsplit"`, a full-height vertical split on the right.
@@ -161,8 +168,8 @@ default width and height. In a lazy.nvim spec, put these settings in `opts`.
 
 Enter runs the picker's default action:
 
-- In New Session, it starts the selected tool using your configured `layout`,
-  or the per-call layout supplied to `agents.new(nil, opts)`.
+- In New Session, it starts a session with the selected tool using your
+  configured `layout`, or the per-call layout supplied to `agents.new(nil, opts)`.
 - In the session picker opened by `:Agents pick` or `agents.show()`, it focuses
   an existing window, including one in another tab, or opens one using your
   configured layout if no view exists. An explicit per-call layout requests
@@ -237,9 +244,9 @@ Ranges work with `send`, including its composed form:
 With a range and no providers, `send` copies the text in that range using
 `selection`. Specify `line` to send a file reference to the range. The actions
 menu retains the range for `send`; other actions reject ranges. A visual-mode
-mapping calling `require("agents").actions()` preserves the selection as
-context; choosing send opens the context picker, and other actions remain
-available.
+mapping calling `require("agents").actions()` from a non-session buffer
+preserves the selection as context; choosing send opens the context picker,
+and other actions remain available.
 
 Completion follows each choice through `actions`, including tools, session
 IDs and labels, providers, prompts, `--no-focus`, and `--target`. Labels with

@@ -1,7 +1,2404 @@
-*agents.txt*  agents.nvim
+*agents.txt*  Run CLI agents in Neovim terminal buffers
 
-*agents.nvim*
+AGENTS.NVIM                                                     *agents.nvim*
 
-Docs coming soon.
+Agents.nvim runs your existing CLI agents in Neovim terminal buffers. Start
+several sessions, arrange their windows, and send context from your editor.
+Commands, Lua functions, pickers, and User events let you fit those sessions
+into your own workflow.
+
+CONTENTS                                                   *agents-contents*
+
+  1. Getting started .................................. |agents-install|
+  2. Commands and targeting ........................... |agents-commands|
+  3. Configuration .................................... |agents-config|
+  4. Tools ............................................ |agents-tools|
+  5. Sessions and windows ............................. |agents-sessions|
+  6. Keymaps .......................................... |agents-keymaps|
+  7. Pickers .......................................... |agents-pickers|
+  8. Sending context .................................. |agents-context|
+  9. Lua API .......................................... |agents-api|
+ 10. Public types ..................................... |agents-types|
+ 11. Events and integrations .......................... |agents-events|
+ 12. Health and troubleshooting ....................... |agents-health|
+
+Jump to a linked topic with CTRL-], and return with CTRL-T. You can also use
+`:help agents.new()`, `:help agents-config.layout`, or `:help AgentsReady`.
+
+==============================================================================
+1. GETTING STARTED                                          *agents-install*
+
+Terminology ~
+
+A tool is a configured CLI, such as Claude or Codex. Its definition controls
+how sessions launch and how file references and terminal titles are handled.
+A session owns one CLI process and its terminal buffer. Several sessions can
+use the same tool. "Agent" refers to the AI you interact with through the CLI.
+
+Requirements ~
+
+- Neovim 0.12 or newer.
+- Install the CLI tools you want to use separately. Their executable names
+  must resolve on Neovim's PATH, or use absolute paths in tool overrides.
+  See |agents-tools| for the built-in tool definitions.
+- Git for the installation examples below.
+- Optional: snacks.nvim for |agents-picker-snacks|. Otherwise Agents uses
+  |vim.ui.select()| and has no required plugin dependency.
+
+Choose one installation method. Calling |agents.setup()| is optional if you
+want the defaults; loading the plugin registers |:Agents|. Put custom options
+in one setup call. Calling setup again replaces the previous configuration
+with defaults plus the options in that call; see |agents-config|.
+
+lazy.nvim ~                                              *agents-install-lazy*
+
+Add this spec to your lazy.nvim configuration: >lua
+    {
+      "amadeus/agents.nvim",
+      cmd = "Agents",
+      opts = {},
+      keys = {
+        { "<leader>an", "<cmd>Agents new<cr>", desc = "New session" },
+        { "<leader>ac", "<cmd>Agents actions<cr>", desc = "Agents actions" },
+        { "<leader>aa", "<cmd>Agents toggle<cr>", desc = "Toggle session" },
+        {
+          "<leader>as", "<cmd>Agents send<cr>",
+          mode = { "n", "x" }, desc = "Send context",
+        },
+      },
+    }
+<
+lazy.nvim installs the plugin and loads it when you run `:Agents` or press one
+of the keymaps. Its `opts` table is passed to `require("agents").setup()`; you do
+not need a second setup call. Here `keys` is lazy.nvim's mapping API. See
+|agents-keymaps| for the separate mapping helper inside Agents setup.
+
+To use the Snacks adapter, add this dependency and option to that spec: >lua
+    dependencies = { "folke/snacks.nvim" },
+    opts = { picker = "snacks" },
+<
+If you already configure Snacks in another spec, keep that configuration;
+the dependency ensures it is available when Agents opens a picker.
+
+Manager instructions: https://lazy.folke.io/spec
+
+Neovim's built-in plugin manager ~                       *agents-install-pack*
+
+Add this to your init.lua. |vim.pack.add()| installs missing plugins and makes
+their Lua modules available before setup. Pass plugin options directly to
+setup(), alongside keys: >lua
+    vim.pack.add({ "https://github.com/amadeus/agents.nvim" })
+    require("agents").setup({
+      keys = {
+        { "<leader>an", "new", mode = "n" },
+        { "<leader>ac", "actions", mode = "n" },
+        { "<leader>aa", "toggle", mode = "n" },
+        { "<leader>as", "send", mode = { "n", "x" } },
+      },
+    })
+<
+For Snacks, include `"https://github.com/folke/snacks.nvim"` in the add list,
+then set `picker = "snacks"` in Agents setup. A call to `setup()` on Snacks is
+not required just to use its picker through Agents.
+
+Manager instructions: |vim.pack| and https://neovim.io/doc/user/pack/
+
+vim-plug ~                                           *agents-install-vim-plug*
+
+Add the declaration inside your existing plug#begin()/plug#end() block: >vim
+    Plug 'amadeus/agents.nvim'
+<
+Run `:PlugInstall`. Place configuration after plug#end() in init.vim, then
+restart Neovim: >vim
+    lua << EOF
+    require("agents").setup({
+      keys = {
+        { "<leader>an", "new", mode = "n" },
+        { "<leader>ac", "actions", mode = "n" },
+        { "<leader>aa", "toggle", mode = "n" },
+        { "<leader>as", "send", mode = { "n", "x" } },
+      },
+    })
+    EOF
+<
+For Snacks, also declare `Plug 'folke/snacks.nvim'` and set
+`picker = "snacks"` in Agents setup. This installation uses Neovim, including
+its Lua support, even when the surrounding configuration is Vimscript.
+
+Manager instructions: https://github.com/junegunn/vim-plug
+
+Manual native packages ~                               *agents-install-manual*
+
+Neovim also loads packages without a plugin manager. Find your data directory
+with `:echo stdpath('data')`. Clone the repository into this location, using
+that directory in place of {data}: >
+    git clone https://github.com/amadeus/agents.nvim \
+      {data}/site/pack/agents/start/agents.nvim
+<
+The clone must contain plugin/agents.lua and doc/agents.txt directly inside
+agents.nvim. Neovim loads packages under `pack/*/start/*` during startup.
+Restart Neovim, then configure Agents in init.lua with |agents.setup()|.
+
+To keep the plugin unloaded until requested, clone into
+`{data}/site/pack/agents/opt/agents.nvim` instead. Load it before calling its
+API or commands: >lua
+    vim.cmd("packadd agents.nvim")
+    require("agents").setup({})
+<
+Generate help tags for a manual installation with: >
+    :helptags {data}/site/pack/agents/start/agents.nvim/doc
+<
+Use the opt path if you chose that directory. Package directories are found
+through 'packpath'. See |packages|, |:packadd|, and |:helptags|.
+
+Your first session ~                                    *agents-first-session*
+
+Run `:Agents new` and choose an installed tool. Its CLI opens in a full-height
+vertical split on the right, ready for terminal input. The CLI handles its
+own login, conversation, and permissions.
+
+Press <C-\><C-n> to leave terminal input before typing an Ex command.
+Use `:Agents pick` to choose a session and switch to it. Use `:Agents toggle`
+to show or hide a session while its CLI keeps running. With several sessions,
+toggle uses the current session buffer or asks you to choose one.
+
+To send context, return to a file and run `:Agents send`: choose a provider,
+then a destination if several sessions exist. With no sessions, the tool
+picker lets you start one for that context.
+
+For terminal mappings and ordinary window navigation, see |agents-keymaps|
+and |agents-sessions|. For floating windows, see |agents-layouts|.
+
+After loading Agents, run `:checkhealth agents` to check your setup.
+
+==============================================================================
+2. COMMANDS AND TARGETING                                    *agents-commands*
+
+`:Agents` is the single user command. Its subcommands are also available as
+Lua functions; see |agents-api|. Names and examples are case-sensitive.
+
+                                                              *:Agents*
+:Agents
+    Same as `:Agents pick`.
+
+                                                              *:Agents-new*
+:Agents new [tool] [args...]
+    With no tool, open New Session to choose a tool and start its CLI. With
+    a tool name, start it directly. Extra arguments are appended to the
+    configured tool command. Every invocation creates a separate session.
+    An unknown tool or failed launch reports an error.
+
+    Examples: >
+        :Agents new
+        :Agents new claude --resume
+<
+    CLI arguments depend on that tool. The Lua API supports arguments with
+    spaces and complete argv overrides: |agents.new()|.
+
+                                                              *:Agents-pick*
+:Agents pick [target]
+    With no target, always open the session picker, even from a session or
+    when only one session exists. With no sessions, open New Session.
+    With a target, show that session directly. An ordinary show focuses an
+    existing window, including one in another tab, or opens a new window
+    using your layout if the session has no views. See |agents-layouts|.
+
+    When using the built in snacks picker you'll be able to perform a variety
+    of other actions on any of your existing sessions.
+
+                                                              *:Agents-focus*
+:Agents focus [target]
+    With no target, calling from a session switches to the previous window
+    and leaves terminal input mode. The session stays visible. The previous
+    window may contain another terminal or session.
+
+    From another buffer, show the only session or open the session picker.
+    With no sessions, open New Session.
+
+    An explicit target always shows that session. Showing a running session
+    enters terminal input mode; exited sessions remain in Normal mode.
+
+                                                              *:Agents-toggle*
+:Agents toggle [target]
+    Show or hide an existing session. Hidden sessions continue to run in the
+    background and are never paused or closed.
+
+    If `target` is provided, it is resolved using |agents-targets|. If it has
+    a window in the current tab, hide all its views in that tab. Otherwise
+    show it. Showing may focus a view in another tab; use an explicit picker
+    layout to place it in the invoking window or tab instead. With no sessions
+    and no target, open New Session.
+
+    From a non-session buffer with several sessions, choose which session to
+    toggle, even if one is already visible. This command affects the chosen
+    session; it does not hide every session in the tab.
+
+                                                              *:Agents-hide*
+:Agents hide [target]
+    Hide every window showing the selected session, across all tabs,
+    including floating windows. The buffer and CLI keep running.
+    With no sessions and no target, do nothing.
+
+                                                              *:Agents-close*
+:Agents close [target]
+    Stop the selected CLI, remove its session, and delete its buffer. All
+    its views are hidden. With no sessions and no target, do nothing.
+
+    Closing explicitly always removes the buffer, including with
+    `on_exit = "keep"`. To keep the CLI running, use |:Agents-hide|. To keep
+    its final output after quitting inside the CLI, see |agents-on-exit|.
+
+                                                              *:Agents-send*
+:[range]Agents send [name...] [--no-focus] [--target target]
+    Choose context to send, or provide one or more provider/prompt names.
+    Send uses |agents-targets| after the context has been chosen. If there
+    are no sessions and no explicit target, open New Session, start the
+    selected tool, and queue the context for it. Canceling a picker cancels
+    that send.
+
+    Invoke from a non-session buffer. Sending from an Agents session buffer
+    warns and sends nothing, including with names, ranges, or a target.
+
+    Sending focuses the destination and enters terminal input by default.
+    `--no-focus` returns focus to your originating window. The destination
+    is still shown; with `layout = "current"`, that window's buffer changes.
+    Context is pasted into the CLI input. Use the Lua `submit = true` option
+    to submit it as a message. See |agents-context| and |agents.SendOptions|.
+
+    Put all provider names and `--no-focus` before `--target`: everything
+    after it is the target. A prompt name expands to its item list; otherwise
+    the name is interpreted as a provider. An unavailable context produces
+    a warning; sending to an exited session reports an error notification.
+
+    Examples: >
+        :Agents send
+        :Agents send file diagnostics
+        :Agents send line --no-focus
+        :Agents send selection --target claude #2
+<
+                                                             *:Agents-actions*
+:[range]Agents actions [command [arguments...]]
+    With no command, open a menu of actions ordered for your current context;
+    see |agents-pickers|. A command after `actions` runs directly with the
+    same syntax as the top-level form. For example: >
+        :Agents actions hide claude #2
+        :Agents actions new claude --resume
+        :Agents actions send file --no-focus --target claude #2
+<
+    `actions` accepts new, pick, focus, toggle, hide, close, and send. It does
+    not nest another actions menu. Ranges apply to send; see below.
+
+Choosing a session ~                                        *agents-targets*
+
+A command target is an integer session ID or its complete, case-sensitive
+label, such as `claude #2`. Do not quote labels containing spaces. Command
+arguments are joined with single spaces; use an ID or Lua for a custom label
+containing other whitespace. Numeric command targets are treated as IDs.
+A conversation title is display text, not a targeting label; see
+|agents-sessions|.
+
+For focus outside a session, toggle, hide, close, and send, selection follows:
+
+1. Use an explicit target if supplied. A missing match is an error.
+2. Otherwise use the session in the current buffer.
+3. Otherwise use the only session.
+4. Otherwise open the session picker.
+
+Hidden sessions, sessions in other tabs, and retained exited sessions are
+included. Sending to an exited session fails instead of restarting its CLI.
+The Actions menu counts only running sessions when choosing which actions to
+offer; that does not restrict direct commands or the session picker.
+
+Untargeted pick always opens a picker. Untargeted focus from a session returns
+to the previously accessed window. With no sessions, pick, focus, and toggle
+offer a New Session picker; send offers it after resolving context; hide and
+close do nothing. Explicit targets that do not match still report an error.
+
+Lua targets can also be predicates. Matching candidates then use the same
+current/only/picker rule. See |agents.Target|.
+
+Ranges and selections ~                               *agents-command-ranges*
+
+An explicit Ex range is linewise. With no provider names, send copies that
+range with the selection provider. With `line`, it sends a file reference to
+those lines instead: >
+    :2,5Agents send
+    :2,5Agents send line
+    :2,5Agents actions send --target claude #2
+<
+`:2,5Agents actions` retains the range for send. Choosing an action that
+does not accept a range reports an error. Only send and the actions menu
+accept ranges; they are not session IDs.
+
+For a mapping that preserves characterwise or blockwise selections, use
+<Cmd> or a Lua callback; neither inserts a linewise Ex range: >lua
+    vim.keymap.set({ "n", "x" }, "<leader>as", "<cmd>Agents send<cr>")
+    vim.keymap.set({ "n", "x" }, "<leader>ac", "<cmd>Agents actions<cr>")
+<
+From a non-session buffer, the actions menu captures an active Visual or Select
+selection before opening. Choosing send opens the context picker with that
+selection, while other actions remain available. Choosing send from a session
+buffer warns and sends nothing. See |agents.Context| and |agents.Range|.
+
+Argument syntax and completion ~                   *agents-command-arguments*
+
+Command arguments and the New Session command editor split at whitespace.
+Quotes are ordinary characters: they do not group arguments. There is no
+shell expansion of variables, pipes, redirects, wildcards, or substitutions.
+Use Lua argv lists when a single argument needs spaces: >lua
+    require("agents").new("claude", {
+      args = { "Explain this project" },
+    })
+<
+Completion offers subcommands, configured tools, session IDs and labels,
+provider and prompt names, `--no-focus`, and `--target`, according to the
+command being entered. The same completion works after `actions`. Tool names
+hidden from New Session with `enabled = false` can still be completed and
+launched directly. CLI arguments after a tool name are not completed.
+
+==============================================================================
+3. CONFIGURATION                                               *agents-config*
+
+Call require("agents").setup({opts}) after the plugin is available on
+'runtimepath'. Every option is optional; using the plugin without setup uses
+the defaults below. The argument is an |agents.SetupOptions| table.
+
+Each setup call starts from the defaults, not the previous configuration.
+Options and nested tables are copied. Ordinary option tables merge with their
+defaults, so float = { border = "single" } preserves the default dimensions,
+and icons = { hidden = "-" } preserves the visible icon. Lists such as keys
+and each prompt's items replace the corresponding list. Tool definitions use
+the separate field replacement rules in |agents-tools|.
+
+Complete defaults (the empty tools override preserves all built-in tools):
+>lua
+    require("agents").setup({
+      layout = "botright vsplit",
+      float = { width = 0.8, height = 0.8, border = "rounded" },
+      buflisted = false,
+      picker = nil,
+      picker_help = true,
+      icons = { visible = "●", hidden = "○" },
+      on_exit = "keep",
+      tools = {}, -- Built-in definitions are listed in section 4.
+      prompts = {},
+      keys = {},
+    })
+<
+Changing configuration affects subsequent actions. Existing sessions retain
+their launch command, tool definition, environment, working directory,
+'buflisted' value, and on_exit policy. New picker menus use the current
+picker, picker_help, icons, tools, and prompts. New window openings use the
+current layout and float defaults; existing windows are not rearranged.
+Configured keymaps update immediately, including existing session buffers.
+
+layout                                                 *agents-config.layout*
+    Type: agents.Layout. Default: "botright vsplit".
+    Chooses the window when starting a session or showing one with no existing
+    view. The default creates a full-height split on the right. An ordinary
+    show may focus a view in another tab instead of opening a window. See
+    |agents-layouts| for strings, inline floats, callbacks, and per-call
+    placement overrides.
+
+float                                                   *agents-config.float*
+    Type: agents.FloatOptions.
+    Default: { width = 0.8, height = 0.8, border = "rounded" }.
+    Supplies window options when layout is "float". Partial setup overrides
+    merge with these defaults. An inline layout table is independent of this
+    option. See |agents-float|.
+
+buflisted                                           *agents-config.buflisted*
+    Type: boolean. Default: false.
+    Sets 'buflisted' on newly created session buffers. With true,
+    sessions appear in normal buffer lists and native buffer navigation.
+
+    We recommend using `:Agents pick` to choose sessions and their window
+    placement instead of exposing session buffers to standard buffer pickers.
+
+    Hiding a session or retaining its output after exit preserves this value.
+    Changing setup does not alter existing buffers. See |agents-health| for
+    finding unlisted buffers.
+
+picker                                                 *agents-config.picker*
+    Type: nil, "snacks", or agents.PickerAdapter. Default: nil.
+    Selects the adapter for new menus. Nil uses |vim.ui.select()|. "snacks"
+    uses the built-in adapter and requires the optional snacks.nvim plugin.
+    A function receives an |agents.PickerSpec|.
+    See |agents-pickers| for shortcuts, previews, and custom adapters.
+
+picker_help                                       *agents-config.picker_help*
+    Type: boolean. Default: true.
+    Shows shortcut hints in newly opened built-in Snacks picker menus. False
+    hides the hints but shortcuts still work. It has no effect on
+    vim.ui.select or custom picker adapters.
+
+icons                                                   *agents-config.icons*
+    Type: agents.IconsOptions.
+    Default: { visible = "●", hidden = "○" }.
+    Marks session rows according to whether a window shows the session in the
+    current tab. Override either field independently. Each value must be a
+    nonempty string without whitespace or control characters. Emoji and
+    multiple-character strings are accepted, for example:
+>lua
+    require("agents").setup({ icons = { visible = "+", hidden = "-" } })
+<
+on_exit                                               *agents-config.on_exit*
+    Type: "keep" or "close". Default: "keep".
+    Controls what happens when a session's CLI quits on its own. With "keep",
+    the program stops but its terminal buffer remains: the output stays
+    available to read or copy, and you cannot continue chatting in that
+    stopped session. With "close", a successful exit (code 0) automatically
+    removes the buffer; a failed exit leaves the output available to inspect.
+    The value is captured when each session is created, so setup changes
+    apply to sessions created afterward. Explicit buffer removal ignores
+    this option. See |agents-on-exit|.
+
+tools                                                   *agents-config.tools*
+    Type: table<string, agents.ToolOverride|false>.
+    Default: all definitions in |agents-tools|.
+    Adds custom tools, overrides fields of built-ins, or removes names. Each
+    table key supplies the tool's name. An override table merges by field;
+    false removes that tool. Changes affect subsequent launches and menus;
+    existing sessions retain their tool definition.
+
+prompts                                               *agents-config.prompts*
+    Type: table<string, agents.Item[]>. Default: {}.
+    Adds named item lists to the context menu and to :Agents send completion.
+    Prompt names must be nonempty strings without whitespace. Each value must
+    be a nonempty list. Items may include provider names, text, paths, code,
+    alternatives, and callbacks; they are resolved when used. Prompt item
+    lists are replaced, not appended. See |agents-context| and |agents.Item|.
+
+keys                                                     *agents-config.keys*
+    Type: agents.Keymap[]. Default: {}.
+    Installs optional action or callback mappings. The list replaces earlier
+    configured mappings on each setup call. Normal, Insert, Visual, and Select
+    mappings are global; Terminal mappings are local to session buffers.
+    See |agents-keymaps|.
+
+==============================================================================
+4. TOOLS                                                        *agents-tools*
+
+Install the CLI programs separately. A tool definition tells Agents how to
+start a program and format its file references and terminal titles; it does
+not install or authenticate the program. Built-in tools:
+
+    Name          Default command and installation documentation ~
+    aider         { "aider" }
+                  https://aider.chat/docs/install.html
+    amp           { "amp" }
+                  https://ampcode.com/docs/cli
+    claude        { "claude" }
+                  https://code.claude.com/docs/en/quickstart
+    codex         { "codex", "-c", 'tui.terminal_title=["thread"]' }
+                  https://developers.openai.com/codex/cli
+    copilot       { "copilot", "--banner" }
+                  https://github.com/github/copilot-cli
+    crush         { "crush" }
+                  https://github.com/charmbracelet/crush
+    cursor-agent  { "cursor-agent" }
+                  https://cursor.com/docs/cli/installation
+    gemini        { "gemini" }
+                  https://github.com/google-gemini/gemini-cli
+    grok          { "grok" }
+                  https://github.com/superagent-ai/grok-cli
+    opencode      { "opencode" }
+                  https://opencode.ai/docs/
+    opencode2     { "opencode2" }
+                  https://opencode.ai/v2/docs
+    pi            { "pi" }
+                  https://pi.dev/
+    q             { "q" }
+                  https://github.com/aws/amazon-q-developer-cli
+    qwen          { "qwen" }
+                  https://github.com/QwenLM/qwen-code
+
+All tools can use terminal titles emitted by their CLI, unless title reporting
+is disabled. Claude, Codex, OpenCode, and OpenCode 2 apply additional
+tool-specific parsing; other tools use the cleaned title directly. See
+|agents-tool-titles|. I haven't had time to test all existing CLI tools,
+however please file a bug if any specific tool is broken so we can get it
+sorted.
+
+Claude, Gemini, and Qwen have location writers described below. Other optional
+tool fields are absent by default.
+
+Overrides and custom tools ~
+
+Each tools entry is an |agents.ToolOverride| table or false. Omitted fields
+retain the built-in value. Supplied fields replace that value completely,
+including cmd and env; environment tables do not merge with built-in ones.
+A new tool must supply a nonempty cmd list whose first string is its
+executable. Every command argument must be a string. The table key supplies
+the name, so a name field inside the definition is unnecessary.
+>lua
+    require("agents").setup({
+      tools = {
+        claude = { cmd = { "claude", "--verbose" } },
+        grok = { enabled = false }, -- Hide from the new-session menu.
+        q = false, -- Remove this tool definition.
+        mycli = {
+          cmd = { "/path/to/mycli", "--interactive" },
+          env = { MYCLI_MODE = "editor", REMOVE_ME = false },
+          url = "https://example.com/mycli/install",
+        },
+      },
+    })
+<
+enabled = false hides a tool from the new-session picker, while a direct
+agents.new("name") or :Agents new name still launches it. Removing the
+definition with tools = { name = false } makes direct launches of that name
+fail as unknown tools. Neither operation stops existing sessions.
+
+The new-session picker includes tools whose executable is missing, marked
+"Not installed". Selecting one reports the missing executable and opens the
+tool's url when present. See |agents-pickers| for editing launch arguments.
+
+Commands and environments ~
+
+cmd is an argv list passed directly to the job, not a shell command string.
+Shell expansion, quoting, pipelines, and redirections require explicitly
+launching a shell. A Lua argument containing spaces remains one argument.
+For an individual session, args appends to the configured command; cmd
+replaces the entire command. Supplying both is an error:
+>lua
+    require("agents").new("claude", { args = { "--verbose" } })
+    require("agents").new("claude", { cmd = { "/path/to/claude" } })
+<
+These per-session overrides preserve the tool's name, environment, location
+writer, and title parser. The session's cmd records the final argv; its
+tool.cmd retains the configured command. See |agents.NewOptions|.
+
+env values are strings, or false to remove a variable from the child's
+inherited environment. The parent Neovim environment is unchanged. Agents
+starts from Neovim's environment and removes these inherited values:
+NVIM, NVIM_LISTEN_ADDRESS, NVIM_LOG_FILE, VIM, VIMRUNTIME, TERM, COLORTERM,
+COLUMNS, LINES, TERMCAP, and COLORFGBG. It supplies COLORTERM=truecolor when
+'termguicolors' is enabled.
+The tool's env then applies, and AGENTS_SESSION is always set to the session
+ID as a string, overriding any supplied value. Neovim supplies the terminal
+job's own variables, including TERM and NVIM; see |jobstart()|. Use
+AGENTS_SESSION for readiness hooks described in |agents-events|.
+
+Location writers                                      *agents-tool-locations*
+
+A tool's location(path, range) callback returns the string pasted for a path
+part. The path has already been normalized relative to the captured source
+working directory where possible; outside paths remain absolute. range is
+an optional |agents.Range| with inclusive line endpoints. This callback only
+formats path parts; copied text and code parts are unaffected.
+
+The default writer uses @path, @path:5, or @path:5-9. Claude uses @path#L5
+and @path#L5-9 for ranges. Gemini and Qwen use the default colon form while
+escaping characters consumed by their path parsers; Gemini also escapes
+backslashes. Writers use the lowest and highest line numbers, and omit
+columns. A path reference does not copy file contents.
+>lua
+    require("agents").setup({
+      tools = {
+        mycli = {
+          cmd = { "mycli" },
+          location = function(path, range)
+            local line = range and math.min(range.start[1], range.finish[1])
+            return line and (path .. ":" .. line) or path
+          end,
+        },
+      },
+    })
+<
+There is no false opt-out for location: omit it on a custom tool to use the
+default, or supply a callback to replace a built-in writer.
+
+Conversation titles                                     *agents-tool-titles*
+
+Terminal title signals (OSC 0 or OSC 2) from a session's CLI can supply a
+conversation title. Titles appear in session rows, native buffer names,
+session objects, and status snapshots. The stable label and ID remain the
+targets for commands. No signal means the session continues to display its
+label and "Untitled".
+
+Built-in parsers behave as follows:
+
+    claude      Removes the leading activity marker (✳, ◐, or ◑ followed by
+                a space); "Claude Code" clears the title.
+    codex       Uses titles only when the final launch arguments explicitly
+                configure tui.terminal_title=["thread"]. "Codex" and unnamed
+                thread UUIDs clear the title. A replacement cmd without this
+                setting, a different title format, or a later replacement
+                of the whole tui table prevents title reporting.
+    opencode    Keeps text following the "OC | " prefix. Other titles clear
+    opencode2   the conversation title.
+    others      Use the cleaned terminal title without a dedicated parser.
+                Please report any bugs you find with other tools so we can
+                provide proper custom parsers
+
+A title callback receives the cleaned title and the |agents.Session| and
+returns a string or nil. Nil clears the title; it does not fall back to raw
+text. Control characters become spaces and surrounding whitespace is trimmed
+before and after parsing. Empty results and results equal to the session's
+cwd or its basename clear the title.
+>lua
+    require("agents").setup({
+      tools = {
+        mycli = {
+          cmd = { "mycli" },
+          title = function(raw)
+            return raw:match("^Conversation: (.+)$")
+          end,
+        },
+        claude = { title = false },
+      },
+    })
+<
+title = false disables reporting without changing the CLI command or its
+own title output. To also stop requesting Codex title output, replace its
+command, for example:
+>lua
+    require("agents").setup({
+      tools = {
+        codex = {
+          cmd = { "codex", "-c", "tui.terminal_title=[]" },
+          title = false,
+        },
+      },
+    })
+<
+Title support depends on the CLI emitting a usable signal. Disabled title
+settings produce no updates; empty signals may not reach Agents, and a reset
+without a recognized signal can leave the previous title visible. Generic
+titles may describe a project, status, or screen instead of a conversation.
+OpenCode can shorten a title before sending it. Changing Codex's title format
+inside the running CLI cannot be detected by inspecting its launch arguments.
+Exit retains the last title and ignores later updates. See |agents-events|
+for AgentsSessionTitle and |agents.TitleParser| for the callback signature.
+
+==============================================================================
+5. SESSIONS AND WINDOWS                                     *agents-sessions*
+
+Each session owns a native terminal buffer and one CLI process. It can have
+zero, one, or several windows showing that same buffer. Its buffer has
+'buftype' "terminal", 'filetype' "agents_terminal", and 'bufhidden' "hide".
+b:agents_session contains its numeric session ID.
+
+Working directory, labels, and titles ~
+
+A new process starts in the invoking window's effective working directory,
+including |:lcd| or |:tcd|. This is captured before choosing the destination
+window, so a layout that switches to another window does not change it.
+Change directory before starting the session; new options have no cwd field.
+A send that starts a session uses its captured source working directory.
+Changing Neovim's directory afterward does not change an existing job's cwd.
+
+IDs increase during the Neovim instance and are not reused. Default labels
+start with the tool name, such as "claude", and add a suffix such as
+"claude #2" when needed. A custom label must contain a non-whitespace
+character and must be unique among registered sessions:
+>lua
+    require("agents").new("claude", { label = "review" })
+<
+Labels remain stable when conversation titles change. A titled buffer is
+named agents://<id>/<tool> · <title>; an untitled buffer is named
+agents://<id>/<label>. Path separators and control characters are replaced,
+and whitespace is normalized in buffer names. Session data retains the full
+title. The ID distinguishes sessions with the same title. Native buffer
+navigation returns to the existing buffer and process.
+
+States ~
+
+    starting    The CLI has started and outgoing context can be queued while
+                startup output settles.
+    ready       The startup wait has completed and queued input can be sent.
+    exited      The process has stopped; exit_code records its result.
+
+The starting-to-ready transition is a bounded startup wait, not evidence
+that the CLI is at an input prompt or that a response has finished. The
+|AgentsReady| event is a separate notification; see |agents-context| and
+|agents-events|. A retained exited session remains available to show, hide,
+pick, and close, but it cannot receive sent context or continue a chat.
+
+Lifetime, hiding, and exit                                    *agents-on-exit*
+
+    Action                    Process               Buffer ~
+    :Agents hide              Keeps running         Remains, views hidden
+    CLI quits; "keep"         Stops                 Output remains readable
+    CLI exits 0; "close"      Stops                 Removed automatically
+    CLI exits nonzero         Stops                 Output remains readable
+    :Agents close             Stops if running      Removed
+    :bdelete! / :bwipeout!    Stops if running      Removed
+
+The CLI exit rows use the session's |agents-config.on_exit| policy. With the
+default "keep", quitting the CLI leaves output to read or copy. You cannot
+type another message to that stopped program; start a new session to chat
+again. With "close", only a successful exit automatically removes its
+buffer. Setup changes apply to sessions created afterward.
+
+:Agents close explicitly removes a session regardless of on_exit, stops a
+running CLI, hides its views, and removes the terminal buffer once the job
+has stopped. Native :bdelete! and :bwipeout! also remove the session and stop
+its process. Closing is different from hiding, which leaves the process and
+buffer working to view later. Ordinary window or buffer navigation also works
+the same way.
+
+:Agents hide hides all views of its target across tabs. Toggle hides only
+the target's views in the current tab when it is visible there.
+
+Sessions live within the current Neovim instance. Saving a native Vim session
+does not preserve or restore these processes; see |agents-health|.
+
+Placement and multiple views                                  *agents-layouts*
+
+layout accepts these |agents.Layout| forms:
+
+    "botright vsplit"     Default: a full-height vertical split on the right.
+    "split" / "vsplit"    An Ex command that opens a split.
+    "botright 20vsplit"   An Ex command can include modifiers and a size.
+    "tabnew"              Open a tab.
+    "current"             Use the current window.
+    "float"               Use |agents-config.float|.
+    { width=..., ... }    Inline floating window configuration.
+    function()            Create or choose a window and return its valid ID.
+
+An Ex layout command must leave the desired window current. A callback takes
+no arguments and returns a window ID; Agents focuses that window and assigns
+the session buffer. For a new session, the callback runs before its terminal
+buffer exists. Callbacks may return an existing window.
+>lua
+    require("agents").setup({
+      layout = function()
+        vim.cmd("botright 60vsplit")
+        return vim.api.nvim_get_current_win()
+      end,
+    })
+<
+The setup layout is a default for window openings. new("tool", { layout =
+... }) uses an explicit placement for that session's initial window. show
+with no explicit layout focuses the current view if already in the session,
+otherwise it focuses an existing view, even in another tab. Only when no
+view exists does it open a window with the current default layout.
+
+show(target, { layout = ... }) always applies the requested placement,
+preserving existing views. It can add a second view of the same process:
+>lua
+    local agents = require("agents")
+    local session = agents.new("claude")
+    if session then
+      agents.show(session.id, { layout = "float" })
+    end
+<
+Explicit "current" placement displays the existing session buffer in the
+current window. A session's layout is not a permanent home: moving between
+views and opening new ones does not replace its process or buffer.
+
+Status visibility and picker markers describe the current tab. Toggle uses
+that same visibility check: if visible here it hides the views here;
+otherwise it shows the session, which can focus an existing view elsewhere.
+
+Floating windows                                                *agents-float*
+
+The float setup option accepts partial |agents.FloatOptions|. Inline layout
+tables require width and height and do not merge with float defaults. Other
+fields pass through to |nvim_open_win()|, including border, title, style,
+zindex, relative, row, and col.
+
+For width and height, numbers in (0, 1] are proportions of 'columns' and
+'lines', rounded down. Numbers above 1 are cell dimensions. Omitted relative
+defaults to "editor"; omitted row and col center the float using the editor
+dimensions. Explicit zero coordinates are preserved. Geometry is resolved
+when opening the window; it does not automatically track later resizes.
+>lua
+    require("agents").setup({
+      layout = "float",
+      float = { width = 60, height = 0.8 },
+    })
+<
+For custom relative anchors, supply suitable row and col. Values still need
+to satisfy Neovim's window configuration constraints.
+
+Terminal input and ordinary navigation ~
+
+Starting or explicitly showing a running session enters Terminal-mode so you
+can type into the CLI. Use |CTRL-\_CTRL-N| to leave terminal input and move
+through or copy its output with ordinary Normal-mode commands.
+
+When you navigate away from a session window while using terminal input,
+Agents remembers that state and restores it when native window or buffer
+navigation brings you back. Navigation mappings that leave Terminal-mode
+and immediately switch windows also preserve that intention. If you
+deliberately leave terminal input and stay in the session buffer to inspect
+output, returning later keeps you in Normal-mode. Exited sessions never
+resume terminal input through this restoration.
+
+Explicit show/focus/pick actions enter input for a running session even if
+you last left its buffer in Normal-mode. focus() without a target, invoked
+from a session buffer, goes to the previous window and leaves Terminal-mode.
+See |agents-api| for targeting and return values.
+
+==============================================================================
+6. KEYMAPS                                                    *agents-keymaps*
+
+Agents installs no mappings by default. Add |agents.Keymap| entries to keys
+inside setup. Each entry contains a key and a named action or zero-argument
+callback, with an optional mode:
+>lua
+    require("agents").setup({
+      keys = {
+        { "<leader>an", "new", mode = "n" }, -- Start a CLI session.
+        { "<leader>ac", "actions" },         -- Choose an Agents action.
+        { "<leader>aa", "toggle" },          -- Show or hide a session.
+        { "<leader>as", "send" },            -- Choose context to send.
+        {
+          "<leader>ar",
+          function()
+            require("agents").send({
+              { text = "Review this code:" },
+              { any = { "selection", "buffer" } },
+            })
+          end,
+          mode = { "n", "x" },
+        },
+      },
+    })
+<
+Named actions are actions, new, toggle, pick, focus, hide, close, and send.
+Each calls the matching require("agents") function without arguments.
+Use a callback for a specific tool, target, or send payload. The callback
+receives no arguments and its return value is ignored.
+
+The supported modes are "n" (Normal), "i" (Insert), "x" (Visual),
+"s" (Select), "v" (Visual and Select), and "t" (Terminal). mode can be one
+string or a list. Omitting it uses "n", "x", and "t". Normal, Insert, Visual,
+and Select mappings are global; Terminal mappings are local to each session
+buffer, including existing buffers after setup.
+Unrelated terminal buffers do not receive these Terminal-mode mappings.
+
+Mappings are silent and get an "Agents <action>" description, or "Agents
+callback" for functions. Repeating setup removes previous Agents-installed
+mappings before installing the new list; mappings you have replaced yourself
+are not removed as old Agents mappings. A FileType agents_terminal autocmd
+can override configured terminal keys for newly created buffers.
+
+Calling send or actions directly from a Visual or Select mapping preserves the
+active selection for choosing context, even if a picker changes focus. Use
+<Cmd> or a Lua callback without leaving the selection mode first:
+>lua
+    vim.keymap.set({ "n", "x" }, "<leader>as", "<cmd>Agents send<cr>", {
+      desc = "Choose context to send",
+    })
+<
+A mapping beginning with : enters the command line and supplies an Ex line
+range in Visual mode. <Cmd> preserves the mode, keeping characterwise and
+blockwise selections available. Standard |vim.keymap.set()| mappings outside
+setup allow your own descriptions and mapping options; choose their modes
+and buffer scope there. See |agents-command-ranges|.
+For context capture and native terminal navigation, see |agents-context| and
+|agents-sessions|.
+
+==============================================================================
+7. PICKERS                                                    *agents-pickers*
+
+The plugin opens menus for actions, tools, sessions, and context. By default,
+these use |vim.ui.select()|. Each row displays its `text`; confirming a row
+runs that menu's default action. Cancelling does nothing. An existing
+`vim.ui.select` replacement also handles these menus.
+
+The default adapter exposes only the default action. For placement shortcuts,
+argument editing, or preview panes, use |agents-picker-snacks| or supply a
+custom adapter as described in |agents-picker-custom|.
+
+Menus and ordering ~
+
+Actions (`Agents: Actions`):
+    With no running sessions: new, send.
+    Inside a running session: focus, hide, toggle, close, pick, send, new.
+    Otherwise, while any session is running: send, toggle, focus, pick,
+    hide, close, new.
+
+    Each command has a short description. The default action `run` invokes
+    the selected command. Retained exited sessions count as sessions for
+    targeting, but do not count as running when choosing this menu's rows.
+    Inside a session buffer, choosing send warns and sends nothing.
+    See |:Agents-actions| and |agents-targets|.
+
+New Session (`Agents: New Session`):
+    Installed tools appear first, followed by uninstalled tools. Removed
+    tools and tools with `enabled = false` are omitted. See |agents-tools|.
+
+    Tools whose configured executable is missing remain selectable with
+    a `Not installed` description and a suggested `Comment` highlight.
+    Launching checks the selected command's executable again. If missing,
+    it reports an error and opens the tool's `url`, when provided.
+
+    The default action `new` launches with the configured layout or the
+    per-call layout. Additional actions are `vsplit`, `split`, `tabnew`,
+    `float`, `current`, and `edit_args`.
+
+    `edit_args` opens `vim.ui.input` containing the complete command,
+    including per-call arguments. Confirming replaces the complete argv;
+    words are split on whitespace. Quotes, escapes, and shell expressions
+    have no special meaning. Empty input reports an error; cancellation
+    does nothing. Use |agents.new()| for individual arguments with spaces.
+
+Sessions (`Agents: Sessions`):
+    Candidates appear in these groups, with ascending session IDs within
+    each group:
+    1. Visible in the current tab.
+    2. Hidden everywhere, with the current tab as their last tab recorded
+       by Agents.
+    3. All remaining sessions, including those shown only in another tab.
+
+    Retained exited sessions can appear. The default action is named
+    `show`, but invokes the operation that requested a target: for example,
+    choosing a row for `hide` hides that session, and choosing one for
+    `send` sends the captured context. See |agents-targets|.
+
+    Additional actions are `vsplit`, `split`, `tabnew`, `float`, `current`,
+    `hide`, and `close`. Placement actions show the selected session in
+    that placement; they do not invoke the operation awaiting a target.
+    The `hide` action hides every view, and `close` stops the CLI and
+    removes the session. See |agents-sessions| and |agents-on-exit|.
+
+Send Context (`Agents: Send Context`):
+    Saved prompts appear alphabetically, followed by the built-in providers
+    line, selection, file, buffer, messages, diagnostics, quickfix,
+    locationlist, terminal.
+    Custom providers follow alphabetically. Only entries that resolve to
+    available context appear. Prompts have the description `Saved prompt`;
+    provider descriptions come from their `desc` field.
+
+    The default and only action is `send`. Each item includes a plain-text
+    preview made from the captured context. The actual send renders again
+    for the destination tool, so its file-reference syntax can differ from
+    the generic preview. See |agents-context|.
+
+Placement actions override configured or per-call layouts. For existing
+sessions they request that placement even when another view already exists,
+preserving the same buffer, job, and other views. `current` uses the window
+that opened the picker. `float` uses the configured float settings.
+See |agents-layouts| and |agents-float|.
+
+Session rows ~
+
+Rows show a visibility marker, a name, a conversation title, and the working
+directory, with aligned columns and ` · ` separators. The default markers
+are `●` for visible in the current tab and `○` for hidden in that tab.
+Sessions visible only in another tab use the hidden marker.
+
+A titled session shows the tool name and title. An unnamed session shows its
+label and `Untitled`. Titles longer than 60 display columns are shortened
+with `...`; session data keeps the full title. Exited sessions append
+`[exited]`. Directories inside the home directory use `~`. If the actual
+command differs from the session's tool command, its argv follows the
+directory, joined with spaces. See |agents-tool-titles|.
+
+Override either marker in |agents-config|, for example: >lua
+    require("agents").setup({
+      icons = { visible = "v", hidden = "h" },
+    })
+<
+Rows and previews are prepared when a menu opens. Reopen it to see updated
+titles or other changes. Session actions look up the selected ID again and
+ignore sessions closed while the menu was open. Actions return to the
+originating window before running; if that window has closed, the plugin
+reports an error instead of continuing from the picker window.
+
+Snacks adapter                                          *agents-picker-snacks*
+
+Install folke/snacks.nvim, then select the adapter: >lua
+    require("agents").setup({ picker = "snacks" })
+<
+The adapter can call Snacks directly without a separate Snacks setup call.
+For lazy.nvim dependency setup, see |agents-install-lazy|. The dependency is
+optional; selecting `"snacks"` without it reports an error when opening a
+menu. It does not switch to `vim.ui.select` automatically.
+
+The adapter uses your Snacks picker layout and supports these shortcuts in
+both Normal and Insert modes, in the input and list windows:
+
+    Key         Action       Available in
+    <CR>        default      Every menu
+    <C-v>       vsplit       New Session, Sessions
+    <C-x>       split        New Session, Sessions
+    <C-t>       tabnew       New Session, Sessions
+    <C-f>       float        New Session, Sessions
+    <C-CR>      current      New Session, Sessions
+    <C-e>       edit_args    New Session
+    <C-h>       hide         Sessions
+    <C-d>       close        Sessions
+
+Snacks also provides its normal-mode `?` help for the full binding list.
+
+The footer shows available non-Enter shortcuts when `picker_help = true`
+(the default). Menus with only a default action have no binding footer.
+The adapter adds a bottom list border where needed to show these hints.
+Picker widths grow to fit the footer, including borders and side-by-side
+previews, while retaining wider configured layouts. Sizing responds to
+editor resizing. On a small screen the footer can still be clipped.
+
+Set `picker_help = false` to omit the footer and its border/width adjustments;
+shortcuts still work and your configured sizing remains in effect: >lua
+    require("agents").setup({
+      picker = "snacks",
+      picker_help = false,
+    })
+<
+Snacks renders context previews as text and uses these groups for row chunks:
+
+    Chunk kind      Highlight group             Default link
+    directory       AgentsPickerDirectory       SnacksPickerDir
+    visible         AgentsPickerVisible         DiagnosticInfo
+    hidden          AgentsPickerHidden          Comment
+    placeholder     AgentsPickerPlaceholder     Comment
+    separator       AgentsPickerSeparator       Comment
+    description     AgentsPickerDescription     Comment
+
+Chunks without a kind use the item's suggested `hl`, if present. Rows
+without chunks use that highlight for the whole text.
+
+The default links follow your colorscheme. Defaults are reapplied after
+colorscheme changes without replacing existing definitions. Define overrides
+in your colorscheme, or use a callback: >lua
+    local function picker_highlights()
+      vim.api.nvim_set_hl(0, "AgentsPickerVisible", { fg = "#a6e3a1" })
+    end
+
+    vim.api.nvim_create_autocmd("ColorScheme", {
+      callback = picker_highlights,
+    })
+    picker_highlights()
+<
+
+Custom adapters                                         *agents-picker-custom*
+
+Set `picker` to a function accepting |agents.PickerSpec|. The adapter owns
+the menu UI and receives:
+
+    title      Menu prompt/title.
+    items      Ordered |agents.PickerItem| array.
+    actions    Map of action names to callbacks accepting the selected item.
+    default    Action name used for ordinary confirmation.
+
+An item has display `text` and opaque `data`. Optional `preview` is plain
+text. Optional `hl` suggests a highlight group. Optional `chunks` is an
+ordered array of |agents.PickerChunk| values whose `text` concatenates to
+the item's full text. A chunk's optional `kind` describes its role:
+`directory`, `visible`, `hidden`, `placeholder`, `separator`, or
+`description`. Adapters can map these roles to their own highlight groups.
+The full `text` remains usable for matching and plain-text menus.
+
+Pass the original item to `spec.actions[name](item)`; do not pass only its
+`data` or infer an action from its label. Offer only actions present in the
+spec. Use `spec.default` for confirmation. The action names and their menu
+specific behavior are listed above.
+
+Close the picker and finish its focus restoration before invoking an
+action. For UIs that restore focus while closing, schedule the action with
+`vim.schedule` after closing, as the Snacks adapter does. Actions may open
+another picker or an input prompt. Cancelling must not invoke an action.
+The adapter can complete asynchronously; its return value is ignored.
+See |agents-api| for the return values of calls that open a picker.
+
+This complete adapter supports the default action through `vim.ui.select`:
+>lua
+    require("agents").setup({
+      picker = function(spec)
+        vim.ui.select(spec.items, {
+          prompt = spec.title,
+          format_item = function(item)
+            return item.text
+          end,
+        }, function(item)
+          if item then
+            spec.actions[spec.default](item)
+          end
+        end)
+      end,
+    })
+<
+An adapter can expose the remaining actions as mappings or a second action
+menu and display `item.preview` in a preview pane. Keep the original item
+associated with each UI row even if filtering or sorting changes its
+position. Treat supplied data as read-only; invoke the provided callbacks
+to act on a session or launch a tool.
+
+==============================================================================
+8. SENDING CONTEXT                                            *agents-context*
+
+Use |:Agents-send| or |agents.send()| to choose or compose context. The
+selected context is pasted into a session's terminal input. Submission
+is optional.
+
+Source and capture ~
+
+The source is the current window. Invoke send from a file, help buffer,
+ordinary terminal, or another non-session buffer. Sending from an Agents
+session buffer, including a retained exited session, stops with a warning:
+    agents.nvim: send context from a non-session buffer
+This applies to every send form: named providers, saved prompts, literal Lua
+items, ranges, and the Actions menu's send command.
+
+A send captures the source window and buffer, its working directory and
+cursor, and any active Visual or Select selection as an |agents.Context|.
+Cursor rows are one-based and columns are zero-based byte offsets. Character,
+line, and block selections honor 'selection', tabs, multibyte characters, and
+virtual block columns. The selected text is captured before the selection
+mode ends.
+
+An explicit Ex range is linewise. For example, `:3,8Agents send` copies lines
+3 through 8 directly; `:3,8Agents send line` sends a reference to those lines.
+Without an active selection or Ex range, `selection` is unavailable and `line`
+uses the source cursor's line. Lua Visual and Select mappings should call the
+function while the selection mode is active; see |agents-keymaps| and
+|:Agents-send|.
+
+Providers resolve before the context, session, or tool picker opens. Resolved
+parts own copies of their text, paths, and ranges, so editing or renaming the
+source while those pickers are open does not change the chosen context. The
+Actions menu also captures a Visual or Select selection or explicit range
+before opening its menu; see |agents.actions()|. Context captured from a
+non-session buffer remains valid if focus moves to a session while a picker
+is open.
+
+Built-in providers ~
+
+Providers return |agents.Part| lists. A provider that returns nil or an empty
+list is unavailable and is omitted from the context picker. The built-in order
+is line, selection, file, buffer, messages, diagnostics, quickfix,
+locationlist, terminal.
+
+                                                        *agents-provider.line*
+line
+    Reference the current line or all lines covered by the captured selection.
+    Available when the source has a name and 'buftype' is empty or "help".
+    Character and block selections become whole-line references. For example,
+    the default writer produces `@lua/main.lua:12-15`. No buffer text
+    is copied.
+
+                                                   *agents-provider.selection*
+selection
+    Copy selected text into a code block using the source 'filetype'.
+    Available only when the captured context has a range. Common leading
+    indentation is removed from nonblank lines; tab width follows the source
+    'tabstop'. This includes unsaved text and preserves the shape of a
+    block selection.
+
+                                                        *agents-provider.file*
+file
+    Reference the source file, for example `@lua/main.lua`. Available when the
+    source has a name and 'buftype' is empty or "help". No text is copied and
+    the plugin does not save the file or check that it exists on disk.
+
+                                                      *agents-provider.buffer*
+buffer
+    Copy the entire source buffer into a code block using its 'filetype'.
+    Available for every captured source buffer, including unnamed buffers.
+    Includes unsaved edits; no file reference is added automatically.
+
+                                                    *agents-provider.messages*
+messages
+    Copy the output of `:messages` as plain text. Available when the message
+    history contains a non-whitespace character. This is Neovim's global
+    message history, independent of the source buffer.
+
+                                                 *agents-provider.diagnostics*
+diagnostics
+    Copy diagnostics from the source buffer as plain text, one per line:
+        path:line:column: SEVERITY: message
+    Lines and columns in this output are one-based. Diagnostics are ordered by
+    line, column, severity, then message. With a captured range, include only
+    diagnostics intersecting the selection, including multiline diagnostics
+    and the selected spans of a block. A linewise range includes whole lines.
+    Without a range, include all diagnostics in the buffer. Available only
+    when at least one diagnostic remains.
+
+                                                    *agents-provider.quickfix*
+quickfix
+    Copy the current global quickfix list as plain text in its existing order.
+    Each entry contains its available path, positive line and column numbers,
+    and message. Entries without a location still include their text.
+    Available when the list is nonempty. This does not read a window's
+    location list or filter entries to the source buffer or selection.
+
+                                                *agents-provider.locationlist*
+locationlist
+    Copy the source window's current location list as plain text in its
+    existing order, including when the source is a location-list window.
+    Entries use the same `path:line:column: text` format as quickfix, with
+    only available path and positive line and column numbers included.
+    Entries without a location still include their text. Available when
+    the list is nonempty; a captured selection does not filter entries.
+    Use `:Agents send locationlist` or
+    `require("agents").send({ "locationlist" })`.
+
+                                                    *agents-provider.terminal*
+terminal
+    Copy the last 1,000 source terminal buffer lines into a `text` code block,
+    after removing trailing whitespace-only lines. Available only when the
+    source 'buftype' is "terminal" and nonblank output remains. Buffer lines
+    include the screen and available scrollback, subject to 'scrollback'. Use
+    |agents.providers.terminal()| for a different limit on one send.
+
+`file` and `line` insert references that the receiving CLI interprets. They do
+not include unsaved edits. `selection` and `buffer` copy Neovim's current
+text. The remaining built-ins copy their described text sources. Choose copied
+text when the agent needs the exact unsaved content.
+
+Combining context and saving prompts ~
+
+A single send can include several kinds of context plus instructions for the
+agent. For example, send a file reference and its diagnostics together:
+>
+    :Agents send file diagnostics
+<
+To include your own instructions, pass a list to |agents.send()|:
+>lua
+    require("agents").send({
+      { text = "Explain this code:" },
+      { any = { "selection", "line" } },
+    })
+<
+This asks the agent to explain the selected text. When nothing is selected,
+it sends a reference to the current line instead. `any` chooses the first
+available alternative, so one mapping can handle either case.
+
+Save requests you use often in the `prompts` setup option. A saved prompt
+gives your instructions and context choices a name you can use in a command,
+a keymap, or the Send Context picker. Each use reads the source buffer and
+selection at that time, so the same prompt works across files:
+>lua
+    require("agents").setup({
+      prompts = {
+        explain = {
+          { text = "Explain this code:" },
+          { any = { "selection", "line" } },
+        },
+        review = { { text = "Review this code for bugs:" }, "buffer" },
+      },
+    })
+<
+Run `:Agents send explain`, or choose `explain` in the Send Context picker.
+The `review` prompt sends the whole buffer, including unsaved edits, along
+with the review request. You can also combine a prompt with more context:
+`:Agents send review diagnostics` adds the source buffer's diagnostics.
+
+Prompts appear first in the context picker, sorted by name. A prompt appears
+only when its required context is available. In commands, a prompt name
+takes precedence over a provider of the same name.
+
+Strings passed to Lua `agents.send()` identify providers, not saved prompts.
+To reuse a Lua composition, keep its item list in a variable and pass that
+list to both `setup({ prompts = ... })` and `send()`. Prompt contents are item
+lists; a string inside a prompt also names a provider, not another prompt.
+
+Both `send()` and saved prompts take a list of |agents.Item| values. Each item
+can be a provider name, a literal part, an inline provider function, or an
+`any` table. Items are combined in list order. `any` selects the first
+available alternative; alternatives can themselves be `any` tables.
+
+Every top-level item is required. If one is unavailable, the entire send is
+cancelled with a warning, and no destination picker or window opens. An empty
+item list is also unavailable. Unknown provider names and malformed items
+raise errors; all names are validated, including unused alternatives.
+
+Literal parts let you supply text, a file reference, or a code block directly:
+>lua
+    local parts = {
+      { text = "Review this:" },
+      { path = "/project/src/main.lua" },
+      {
+        path = "/project/src/main.lua",
+        range = { kind = "line", start = { 3, 0 }, finish = { 8, 0 } },
+      },
+      { code = "local answer = 42", ft = "lua" },
+    }
+<
+Each part has exactly one of these forms. For the complete fields and
+indexing rules, see |agents.Part| and |agents.Range|. An empty text or code
+string is a valid part; an empty path is not.
+
+Custom providers ~
+
+Custom providers let you choose what editor or project information to send.
+For example, you can write one that shares the current Git branch or test
+results collected by another plugin. Registered providers become choices in
+the Send Context picker and can also be used in commands and saved prompts.
+
+Register one with |agents.provider()|. This example adds a provider that sends
+the source window's working directory:
+>lua
+    require("agents").provider("working-directory", {
+      desc = "Copy the source working directory",
+      render = function(ctx)
+        return { { text = "Working directory: " .. ctx.cwd } }
+      end,
+    })
+<
+Run `:Agents send working-directory`, or choose `working-directory` in the
+Send Context picker. You can include that name in a saved prompt alongside
+instructions and other providers.
+
+The `render(ctx)` function receives the captured |agents.Context| and returns
+a list of |agents.Part| values: text, file references, or code blocks. Return
+nil when the context is unavailable; the picker then omits that provider.
+
+The name also appears in command completion. Custom names are sorted after
+the built-ins. Registering an existing name replaces that provider. `desc` is
+shown beside its name. Provider functions run while the context picker builds
+its choices, even if the user chooses a different item; they should read
+context without changing editor state. The same provider can run more than
+once when several saved prompts use it.
+
+You can also compute context for a single send by passing a function directly
+to `send()`. This example sends the last 50 lines of terminal scrollback:
+>lua
+    require("agents").send({
+      function(ctx)
+        return require("agents.providers").terminal(ctx, 50)
+      end,
+    })
+<
+Inline functions receive the same context and return the same kinds of parts
+as registered providers.
+
+Provider output must be a list of literal parts, not provider names, fallback
+tables, or further functions. Returned lists and parts are validated and
+copied. Errors in provider functions propagate to the caller.
+
+How context is formatted ~
+
+Agents converts your context into the message pasted into the CLI. It keeps
+instructions as plain text, wraps copied code in Markdown code blocks, and
+formats file references for the destination tool. This lets you reuse the
+same providers and saved prompts with different tools.
+
+For example, sending `line` from line 12 of `src/main.lua` produces
+`@src/main.lua:12` with the default format, or `@src/main.lua#L12` for Claude.
+The provider supplies the path and line; Agents chooses the reference syntax
+when you select the destination session.
+
+The default reference format is `@path`, `@path:12`, or `@path:12-15`.
+Built-in Claude uses `@path#L12` or `@path#L12-15` for ranges. Gemini and Qwen
+use the default row notation and escape path punctuation; Gemini also escapes
+literal backslashes. Other built-ins use the default format. These formats
+include line numbers, not columns within a line.
+
+Paths are normalized against the captured source working directory, not the
+session's directory. Paths inside that directory become relative; paths
+outside it remain absolute. Environment variables in paths are not expanded. A
+path equal to the working directory becomes `.`.
+
+Custom providers use this formatting by returning a `path` part; references
+written inside a `text` part stay as written. For a tool with different
+reference syntax, define its `location(path, range)` function. It receives the
+normalized path and original structured range; see |agents-tools|.
+
+Text parts are unchanged. Code parts become Markdown code blocks with an
+optional filetype label. The surrounding backtick fence grows to accommodate
+backticks inside the code; newlines and backticks are removed from the
+filetype label. The formatted parts are joined with one newline.
+
+Context picker previews use the default reference format before a tool is
+selected. The actual message uses the destination tool's format, so its
+references may differ from the preview.
+
+What happens when you send ~
+
+Sending context handles choosing a session, opening it, and pasting your
+message into its CLI input. By default, it focuses that session so you can
+continue the conversation there. You can also choose a specific destination,
+keep focus in your editor, or submit the message automatically.
+
+For example, to send a reference to the current line and keep editing:
+>
+    :Agents send line --no-focus
+<
+Use `target` to choose a session by ID, label, or filter; see |agents.Target|.
+When omitted, the destination follows |agents-targets|. If no sessions exist,
+an available context opens the New Session picker. Choosing a tool
+creates a session in the captured source working directory and queues the
+message. Cancelling either picker creates no session and sends nothing. An
+explicit missing target raises an error; it does not offer to create a
+session. An exited target reports an error notification and receives no input.
+A retained exited session still counts as a registered session.
+
+Sending to an existing session uses a view in the current tab, or opens one
+with the configured layout. Views in other tabs remain open. This differs from
+ordinary |agents.show()|, which can focus an existing view in another tab. A
+layout such as "tabnew", "current", or a callback can choose a different
+placement; see |agents-layouts|.
+
+By default, `focus = true` focuses the destination and enters terminal input.
+With `focus = false`, the plugin restores the invoking window after preparing
+the destination. The destination still opens if needed. If a layout replaces
+the invoking window's buffer, restoring that window cannot restore the old
+buffer. Queued delivery itself does not move focus or the source cursor.
+
+To submit the message after pasting, set `submit = true` in a Lua send:
+>lua
+    require("agents").send({ "selection" }, { submit = true })
+<
+This sends one Enter (carriage return) after the paste, on the next queue
+tick. The default is `submit = false`; there is no Ex `--submit` flag.
+
+When a CLI has just launched, Agents briefly queues messages while it starts.
+This lets you choose a new tool and send context in the same flow. New
+sessions start in the "starting" state. Every 100 ms, the startup check looks
+for more than five terminal buffer lines after empty trailing lines are
+removed, with output unchanged for at least 500 ms. After five seconds it
+proceeds regardless of output. The session then becomes "ready" and queued
+messages are delivered in order. This startup check is separate from
+|AgentsReady| notifications and does not detect completion of an agent turn.
+
+Delivery uses Neovim's terminal paste behavior. When the CLI enables bracketed
+paste, Neovim sends the corresponding paste delimiters. CRLF line endings are
+normalized to LF and a final newline is appended if missing. Without
+submission, no separate Enter keystroke is sent; the CLI controls how it
+handles the paste. |AgentsSend| fires after the paste is issued, before the
+optional Enter. Closing, wiping, or exiting a session discards any remaining
+queued input.
+
+==============================================================================
+9. LUA API                                                        *agents-api*
+
+Load the facade with `local agents = require("agents")`. The following
+functions form its public surface. Public values and callbacks are described
+under |agents-types|. Unless noted, omitted option tables behave as `{}`.
+
+Picker calls return nil; selections run through callbacks later. Do not expect
+a session return value from a call that opens a picker, even when an adapter
+chooses synchronously. Cancelling a picker does nothing. Actions that resolve
+a target immediately return the affected session where specified. A send's
+return value confirms queuing, not completion of the paste or an agent reply.
+
+The target-taking methods use |agents.Target|: numeric ID, exact label string,
+or predicate function. Numeric strings are labels in Lua. Omission selects the
+current session, then the sole session, then opens a session picker. A
+predicate first narrows those candidates. Explicit unmatched targets and
+unsupported target types raise errors. The no-session exceptions are listed
+per function. Errors from user callbacks and Neovim operations can
+also propagate.
+
+                                                            *agents.setup()*
+setup({opts}?) -> nil
+    {opts}: |agents.SetupOptions|, default `{}`. Configure the plugin and
+    install configured keymaps. Each call starts from defaults, not the
+    previous setup. Calling no setup at all uses defaults. Invalid option
+    values raise errors. See |agents-config| for complete validation, merging,
+    and when options affect existing or new sessions.
+>lua
+    require("agents").setup({ layout = "float" })
+<
+                                                              *agents.new()*
+new({tool}?, {opts}?) -> agents.Session?
+    {tool}: configured tool name; nil opens the New Session picker. {opts}:
+    |agents.NewOptions|. `cmd` replaces the complete argv; `args` appends to
+    the tool argv. They are mutually exclusive. `layout` defaults to the
+    configured layout; `label` defaults to a unique session label based on the
+    tool name.
+    With a name, create, show, and focus the session and enter terminal input.
+    The working directory is the current window's directory at launch. With no
+    name, pass the options through the tool picker and return nil. With a
+    name, return the new live |agents.Session| in "starting" state. Unknown
+    tools, invalid argv, duplicate or blank labels, invalid layouts, and
+    failed process launches raise errors. A missing executable selected
+    through the picker reports an error and opens its tool URL when available.
+>lua
+    local session = require("agents").new("claude", {
+      args = { "Explain this project" },
+      label = "review",
+      layout = "vsplit",
+    })
+<
+                                                         *agents.sessions()*
+sessions() -> agents.Session[]
+    Return a new list of all registered sessions, sorted by ascending ID.
+    Includes hidden and retained exited sessions. Returns `{}` when empty.
+    Entries are live session records, not copies; treat them as read-only.
+    This call opens no picker and has no plugin-specific error condition.
+>lua
+    for _, session in ipairs(require("agents").sessions()) do
+      print(session.id, session.label, session.state)
+    end
+<
+                                                          *agents.current()*
+current() -> agents.Session?
+    Return the registered session whose buffer is current, or nil for any
+    other buffer. Retained exited sessions can be current. The returned record
+    is live; treat it as read-only. No picker or plugin-specific errors.
+>lua
+    local session = require("agents").current()
+    if session then
+      print(session.label)
+    end
+<
+                                                           *agents.status()*
+status() -> agents.Status[]
+    Return fresh status snapshots for all sessions in ascending ID order.
+    `visible` means shown in the current tab. Includes retained exited
+    sessions; returns `{}` when empty. Snapshots do not update after this call
+    and do not expose mutable session records. No picker or
+    plugin-specific errors.
+>lua
+    for _, status in ipairs(require("agents").status()) do
+      print(status.label, status.visible, status.state)
+    end
+<
+                                                            *agents.ready()*
+ready({id}) -> agents.ReadyEvent
+    {id}: required numeric session ID; labels and predicates are not accepted.
+    Emit |AgentsReady| with `source = "hook"` and return its
+    |agents.ReadyEvent| payload. Unknown IDs raise "agents: no session with id
+    ...". This does not change session state or release the startup queue. It
+    can report a retained exited session; callers should choose when a ready
+    notification is useful.
+>lua
+    local session = require("agents").current()
+    if session then
+      require("agents").ready(session.id)
+    end
+<
+                                                             *agents.send()*
+send({items}?, {opts}?) -> agents.Session?
+    {items}: |agents.Item| list; nil opens the context picker.
+    {opts}: |agents.SendOptions|; defaults are no target, `focus = true`, and
+    `submit = false`. An empty item list sends nothing and warns.
+
+    Capture the source and active Visual or Select selection, resolve the
+    items, choose the target, prepare its window, and queue the message.
+    A directly resolved target returns its session; any picker path returns
+    nil. With no sessions and no explicit target, open the tool picker after
+    context is chosen. Calling from a session buffer warns and returns nil
+    before capture or item resolution, including for literal items.
+    Unavailable context warns and returns nil; an exited target reports an
+    error notification and returns nil. Missing explicit targets, unknown
+    providers, malformed items, and invalid provider output raise errors.
+    See |agents-context| for complete delivery behavior.
+>lua
+    require("agents").send({ "file", "buffer" }, {
+      target = "review",
+      focus = false,
+    })
+<
+                                                         *agents.provider()*
+provider({name}, {spec}) -> nil
+    {name}: nonempty string without whitespace. {spec}: |agents.Provider| with
+    string `desc` and function `render`. Register or replace a provider
+    globally for this Neovim instance. Later sends, picker construction, and
+    completion use the registration. Setup does not clear registered
+    providers. Invalid names or specs raise errors; output is validated when
+    the provider runs. See |agents-context|.
+>lua
+    require("agents").provider("cwd", {
+      desc = "Copy the source directory",
+      render = function(ctx)
+        return { { text = ctx.cwd } }
+      end,
+    })
+<
+                                                             *agents.show()*
+show({target}?, {opts}?) -> agents.Session?
+    {target}: |agents.Target|; {opts}: |agents.ShowOptions|. Show and focus
+    the resolved session; enter terminal input if it is running. Without
+    `opts.layout`, use an existing view, including in another tab, or open one
+    using the configured layout. An explicit layout chooses placement while
+    preserving other existing views. See |agents-layouts|. Return the session
+    on immediate resolution, otherwise nil. With no target and no sessions, do
+    nothing. Target and layout errors propagate.
+>lua
+    require("agents").show("review", { layout = "float" })
+<
+                                                            *agents.focus()*
+focus({target}?) -> agents.Session?
+    {target}: |agents.Target|. An explicit target behaves like `show(target)`.
+    With no target while a session buffer is current, switch to the previous
+    window with `:wincmd p`, leave terminal input mode, and return nil. The
+    session stays visible and its CLI keeps running. The previous window can
+    itself contain another terminal; it is not restricted to an editor buffer.
+    Otherwise show the current/sole/picked session, or open the tool picker if
+    there are no sessions. Return the immediately shown session, otherwise
+    nil. Target and window errors propagate.
+>lua
+    require("agents").focus()
+<
+                                                             *agents.hide()*
+hide({target}?) -> agents.Session?
+    {target}: |agents.Target|. Hide every view of the resolved session in
+    every tab. The buffer and running CLI remain; show it to continue typing.
+    Return the hidden session on immediate resolution, otherwise nil.
+    No target and no sessions does nothing. Target and unexpected window
+    errors propagate.
+    See |agents-sessions|.
+>lua
+    require("agents").hide("review")
+<
+                                                            *agents.close()*
+close({target}?) -> agents.Session?
+    {target}: |agents.Target|. Remove the resolved session from the registry,
+    discard queued sends, stop its running CLI, hide its views, and remove its
+    terminal buffer. This applies regardless of `on_exit`; see
+    |agents-sessions|. A running process and its buffer finish closing
+    asynchronously after job exit. Return the removed session on immediate
+    resolution, otherwise nil. No target and no sessions does nothing. Target
+    and window errors propagate.
+>lua
+    require("agents").close("review")
+<
+                                                             *agents.pick()*
+pick({target}?) -> agents.Session?
+    {target}: |agents.Target|. With no target, always open the session picker
+    when sessions exist, even for one session; open the tool picker otherwise.
+    Return nil on those picker paths. An explicit target behaves like
+    `show(target)` and returns an immediately resolved session, otherwise nil.
+    Explicit missing targets raise an error and do not create sessions.
+>lua
+    require("agents").pick()
+<
+                                                          *agents.actions()*
+actions({range}?) -> nil
+    {range}: optional `{ line1 = integer, line2 = integer }`, inclusive
+    one-based source lines. Open the Actions picker. With an explicit range,
+    capture it before opening; selecting send copies that selection directly.
+    Selecting another command with that range raises "agents: only send
+    accepts a range". Invalid ranges raise errors at capture. With an active
+    Visual or Select selection in a non-session source window, capture it
+    before leaving that mode. Selecting send opens the context picker with
+    that selection available. Without a range or active source selection,
+    context is captured when send is chosen.
+    The menu remains available inside session buffers; selecting send warns
+    and sends nothing, including when a range was captured there.
+    See |agents-pickers|.
+>lua
+    require("agents").actions()
+    -- Or choose an action with lines 3 through 8 captured for sending:
+    require("agents").actions({ line1 = 3, line2 = 8 })
+<
+                                                           *agents.toggle()*
+toggle({target}?) -> agents.Session?
+    {target}: |agents.Target|. If the resolved session is visible in the
+    current tab, hide its views in this tab only. Otherwise show it using
+    normal show behavior, which can focus a view in another tab. Other
+    sessions stay open. Return the immediately affected session, otherwise
+    nil. With no target and no sessions, open the tool picker. Target and
+    window errors propagate.
+>lua
+    require("agents").toggle("review")
+<
+                                              *agents.providers.terminal()*
+require("agents.providers").terminal({ctx}, {limit}?) -> agents.Part[]?
+    {ctx}: |agents.Context| whose `buf` identifies the terminal to read.
+    {limit}: positive integer; default 1000. Invalid limits raise "agents:
+    terminal line limit must be a positive integer". Trim trailing
+    whitespace-only buffer lines, then return at most the last {limit} lines
+    as one `{ code = ..., ft = "text" }` part. Return nil for a non-terminal
+    or terminal with no nonblank output. No picker opens. This helper reads
+    the supplied buffer directly, including a session buffer if supplied.
+    Send calls must originate from a non-session buffer. A per-call limit
+    does not change the registered terminal provider's default.
+>lua
+    local providers = require("agents.providers")
+    require("agents").send({
+      function(ctx)
+        return providers.terminal(ctx, 50)
+      end,
+    })
+<
+
+==============================================================================
+10. PUBLIC TYPES                                               *agents-types*
+
+Types are available to LuaLS through the plugin's Lua annotations. A trailing
+`?` below means the field can be absent (nil); `{}` denotes a Lua table and
+`T[]` a list with consecutive integer keys starting at 1. Buffer, window, and
+tab values are Neovim handles, not positions in a list. Treat returned
+session objects as read-only; use the public functions to change sessions.
+
+Setup and per-call options ~
+
+                                                        *agents.SetupOptions*
+Fields accepted by |agents.setup()|; all are optional:
+
+    layout?       agents.Layout             "botright vsplit"
+    float?        agents.FloatOptions       80% width/height, rounded border
+    buflisted?    boolean                   false
+    picker?       agents.Picker             nil (vim.ui.select)
+    picker_help?  boolean                   true
+    icons?        agents.IconsOptions       visible = "●", hidden = "○"
+    on_exit?      "keep" or "close"         "keep"
+    tools?        table<string, agents.ToolOverride or false>
+                                            built-in tools plus overrides
+    prompts?      table<string, agents.Item[]> 
+                                            {}
+    keys?         agents.Keymap[]           {}
+
+See |agents-config| for validation, merging, and when each setting applies.
+
+                                                              *agents.Config*
+The resolved configuration has the same field names. layout, float,
+buflisted, picker_help, icons, on_exit, tools, prompts, and keys are present;
+picker may be nil. float is |agents.FloatConfig|, icons is |agents.Icons|,
+and tools maps names to complete |agents.Tool| objects. This type describes
+resolved values; |agents.setup()| does not return the configuration.
+
+                                                          *agents.NewOptions*
+An optional table passed to |agents.new()|:
+
+    cmd?     string[]        Replace the complete tool argv for this launch.
+    args?    string[]        Append arguments to the configured tool argv.
+    layout?  agents.Layout   Placement for this launch; default: setup layout.
+    label?   string          A unique, nonblank targeting label.
+
+cmd and args are mutually exclusive. A cmd list must contain at least one
+string and start with a nonempty executable name. Arguments are literal;
+they are not parsed by a shell. Omitting label generates one from the tool
+name. See |agents.new()| and |agents-sessions|.
+
+                                                         *agents.ShowOptions*
+An optional table passed to |agents.show()|:
+
+    layout?  agents.Layout   Explicit placement, even if another view exists.
+
+Omitting layout reuses an existing window when possible. An explicit layout
+keeps other views of the session. See |agents-layouts|.
+
+                                                         *agents.SendOptions*
+An optional table passed to |agents.send()|:
+
+    target?  agents.Target   Destination; omitted uses |agents-targets|.
+    submit?  boolean         Submit after pasting; default: false.
+    focus?   boolean         Focus the destination for input; default: true.
+
+focus = false still shows the session; it does not make delivery invisible.
+submit sends a separate Enter after the pasted context. Neither field changes
+how providers choose the source. See |agents-context|.
+
+Targets, sessions, and status ~
+
+                                                              *agents.Target*
+An integer session ID, exact label string, or predicate:
+
+    fun(session: agents.Session): boolean
+
+A predicate filters existing sessions, then the current matching session,
+the only match, or a picker determines the target. No matches is an error.
+Lua string targets always mean labels, even if the string contains only
+digits; pass a number for an ID. Command targets interpret numeric text as
+an ID. Targets do not match conversation titles. See |agents-targets|.
+
+                                                             *agents.Session*
+Session objects are returned by operations that complete synchronously,
+|agents.sessions()|, and |agents.current()|. They are live objects, not copied
+snapshots. A session's buffer is shared by all of its views.
+
+    id          integer              Unique ID for this Neovim instance.
+    tool        agents.Tool          Tool definition copied at launch.
+    label       string               Stable, unique targeting label.
+    title?      string               Tool-provided conversation title.
+    cmd         string[]             Actual argv used for this session.
+    cwd         string               Working directory chosen at launch.
+    buf         integer              Terminal buffer handle.
+    job?        integer              Terminal job ID, assigned on startup.
+    state       agents.SessionState  Startup/exit state, defined below.
+    exit_code?  integer              Process exit code after it exits.
+    tab?        integer              Last tab used by an Agents operation.
+
+tab is a hint for picker ordering, not proof of where the buffer is visible.
+Native window changes can leave it unchanged. Closed sessions are removed
+from the registry; holding a returned object does not keep its CLI alive.
+See |agents-sessions| for lifetime and naming.
+
+                                                        *agents.SessionState*
+One of these strings:
+
+    "starting"  CLI launched; the initial send delay has not completed.
+    "ready"     The initial delay has completed; queued input can be sent.
+    "exited"    The CLI process has stopped.
+
+This is not a busy/idle indicator for the agent's conversation. "ready" does
+not mean the CLI has finished a reply. |AgentsReady| is a separate event.
+
+                                                              *agents.Status*
+Each entry from |agents.status()| is a fresh snapshot:
+
+    id        integer              Session ID.
+    tool      string               Tool name, such as "claude".
+    label     string               Stable targeting label.
+    title?    string               Conversation title, if available.
+    visible   boolean              Has a window in the current tab.
+    state     agents.SessionState  Startup/exit state.
+    cwd       string               Session working directory.
+
+The list includes retained exited sessions. Call status() again when you
+need current visibility or title values; no cached list is updated for you.
+
+Tools and layouts ~
+
+                                                                *agents.Tool*
+A resolved tool definition:
+
+    name      string           Name used in commands and setup's tools map.
+    cmd       string[]         Executable followed by its default arguments.
+    env?      table<string, string or false>
+                               Environment overrides; false removes a value.
+    url?      string           Tool's installation/help URL.
+    location? fun(path: string, range?: agents.Range): string
+                               Format a file reference for this CLI.
+    title?    agents.TitleParser or false
+                               Normalize titles, or disable them with false.
+    enabled?  boolean          false hides the tool from New Session.
+
+Without a location callback, references use the default formatter. Without
+a title callback, cleaned terminal titles are used directly. Built-in tools
+can supply their own callbacks. See |agents-tools|.
+
+                                                        *agents.ToolOverride*
+The fields supplied under `setup({ tools = { name = ... } })`. It has the
+same fields as |agents.Tool| except name, which comes from the map key.
+All fields are optional for a built-in tool. A new tool must provide cmd.
+Use false in place of a tool table to remove that definition entirely.
+See |agents-config.tools| for the difference from enabled = false.
+
+                                                         *agents.TitleParser*
+    fun(title: string, session: agents.Session): string?
+
+Called with cleaned title text from the CLI and its session. Return
+the conversation title, or nil to clear it. Returned strings are cleaned
+before storage. Parsers should not mutate the session. See
+|agents-tool-titles| for reset signals and tool-specific behavior.
+
+                                                              *agents.Layout*
+One of:
+
+- An Ex command string that creates a window, such as "botright vsplit",
+  "split", or "tabnew".
+- "current", to use the invoking window.
+- "float", to use the configured float defaults.
+- An inline |agents.FloatConfig| table.
+- A function taking no arguments and returning a valid window handle.
+
+Agents assigns the session buffer to the chosen window. Inline float tables
+do not inherit setup's float table. See |agents-layouts|.
+
+                                                        *agents.FloatOptions*
+Partial floating-window defaults for setup. Accepts the floating-window
+configuration fields supported by |nvim_open_win()|. Agents handles these
+dimensions before opening the window:
+
+    width?   number  In (0, 1]: fraction of editor columns; otherwise cells.
+    height?  number  In (0, 1]: fraction of editor lines; otherwise cells.
+
+Setup supplies default width = 0.8, height = 0.8, border = "rounded". Other
+fields, such as relative, row, col, anchor, border, title, and zindex, use
+Neovim's configuration types. See |agents-float| for placement details.
+
+                                                         *agents.FloatConfig*
+An inline float layout or the resolved setup float table. Same fields as
+|agents.FloatOptions|, but width and height are required. The native API must
+accept the resulting geometry; invalid dimensions produce an error.
+
+                                                         *agents.IconsOptions*
+Partial visibility markers:
+
+    visible?  string  Default "●".
+    hidden?   string  Default "○".
+
+Each must be nonempty and contain no whitespace or control characters.
+See |agents-config.icons|.
+
+                                                               *agents.Icons*
+Resolved markers with both visible and hidden strings present.
+
+Keymaps ~
+
+                                                         *agents.CommandName*
+"actions", "new", "pick", "focus", "toggle", "hide", "close", or "send".
+
+                                                           *agents.KeyAction*
+A named mapping action. Same values as |agents.CommandName|.
+
+                                                             *agents.KeyMode*
+"n" (Normal), "i" (Insert), "x" (Visual), "s" (Select),
+"v" (Visual and Select), or "t" (Terminal input).
+
+                                                              *agents.Keymap*
+An entry in setup's keys list:
+
+    [1]    string                     Left-hand key sequence.
+    [2]    agents.KeyAction or fun()  Named action or callback.
+    mode?  agents.KeyMode or agents.KeyMode[]
+                                      Default: { "n", "x", "t" }.
+
+Normal, Insert, Visual, and Select entries are global. Terminal entries apply
+only to session buffers. This type does not accept raw command strings or
+lazy.nvim's extra mapping fields. Use |vim.keymap.set()| or your manager's
+keys for those.
+See |agents-keymaps| for examples and repeated setup behavior.
+
+Context and composition ~
+
+                                                             *agents.Context*
+The source supplied to provider and item callbacks:
+
+    win      integer          Source window handle.
+    buf      integer          Source buffer handle.
+    cwd      string           Source window's effective working directory.
+    cursor   { row, column }  One-based row, zero-based byte column.
+    range?   agents.Range     Active selection or explicit Ex range.
+
+The context identifies the source; it is not a copy of its whole buffer.
+Built-in selection rendering preserves the selected text captured when send
+is invoked, or when actions is invoked with a range or active Visual or Select
+selection. See |agents-context| for source selection, picker timing, and
+provider availability.
+
+                                                               *agents.Range*
+An inclusive range:
+
+    kind    "char", "line", or "block"
+    start   { row, column }  First endpoint.
+    finish  { row, column }  Last endpoint.
+
+Rows start at 1. Columns are zero-based byte offsets, not character indexes
+or display cells. Captured endpoints are ordered; linewise columns are zero.
+Caller-supplied ranges may have reversed endpoints. Built-in location writers
+sort the rows; custom writers receive the supplied range. Exact block text,
+including partial tabs and virtual columns, is preserved separately during
+selection capture. These are not LSP ranges, whose ends are exclusive.
+
+                                                            *agents.Provider*
+A provider registered with |agents.provider()|:
+
+    desc    string
+            Explanation shown in Send Context.
+    render  fun(ctx: agents.Context): agents.Part[] or nil
+            Produce context parts, or nil when unavailable.
+
+Provider callbacks should inspect the supplied context, because the current
+window may show a session or a picker. An empty returned list also means no
+usable context. See |agents-context| for registration and error handling.
+
+                                                                *agents.Part*
+A table containing exactly one of these content forms:
+
+    { text = string }
+        Literal text.
+    { path = string, range = agents.Range? }
+        File reference with an optional range passed to the tool writer.
+    { code = string, ft = string? }
+        Copied text in a Markdown code fence; ft supplies the language name.
+
+A path must be nonempty; text and code may be empty strings. Path references
+are rendered for the target CLI; built-in writers include only row numbers.
+They do not copy the file's contents. See |agents-context| for path bases and
+tool location writers.
+
+                                                                *agents.Item*
+One item in a send or prompt list:
+
+- A string naming a provider. It is never literal message text.
+- An |agents.Part| table.
+- `{ any = items }`, where items is an agents.Item[] list. Use the first
+  candidate that yields usable parts.
+- `fun(ctx: agents.Context): agents.Part[] or nil`, an inline provider.
+
+Outer lists combine items in order. Named prompts expand in commands and
+the context picker; a string inside a Lua item list still names a provider.
+Use `{ text = "Explain this" }` for literal words. See |agents-context|.
+
+Picker contracts ~
+
+                                                              *agents.Picker*
+"snacks" or an |agents.PickerAdapter| function. Omit the setup picker field
+to use |vim.ui.select()|.
+
+                                                       *agents.PickerAdapter*
+    fun<T>(spec: agents.PickerSpec<T>)
+
+Open a picker for the supplied items. On selection, invoke an action with
+the original PickerItem. The return value is ignored; selection can happen
+later. Cancellation invokes no action. See |agents-picker-custom|.
+
+                                                          *agents.PickerSpec*
+A generic specification, where T is the item data type:
+
+    title    string                          Picker heading.
+    items    agents.PickerItem<T>[]           Available choices, in order.
+    actions  table<string, fun(item: agents.PickerItem<T>)>
+                                             Named operations on a choice.
+    default  string                          Action used for Enter.
+
+Action names depend on the menu. The default session action is called show
+even when the menu is choosing a destination for hide, close, or send; invoke
+the supplied callback instead of implementing behavior from its name.
+See |agents-pickers| for action names and origin-window handling.
+
+                                                          *agents.PickerItem*
+One generic picker choice:
+
+    text      string                Complete plain-text label.
+    preview?  string                Optional preview text.
+    data      T                     Original value used by the action.
+    hl?       string                Suggested highlight group for the row.
+    chunks?   agents.PickerChunk[]  Styled parts that concatenate to text.
+
+Data types are agents.CommandName for Actions, agents.Tool for New Session,
+agents.Session for Sessions, and agents.Part[] for Send Context. Display text
+is not an ID; pass the original item to the selected action.
+
+                                                         *agents.PickerChunk*
+One part of a picker label:
+
+    text   string
+    kind?  "directory", "visible", "hidden", "placeholder", "separator",
+           or "description"
+
+kind describes the part's role so adapters can choose highlights. When absent,
+use the normal row styling. Chunks are optional; text works for plain pickers.
+
+Event data ~
+
+*agents.EventName*
+"AgentsSessionStart", "AgentsSessionExit", "AgentsSessionShow",
+"AgentsSessionHide", "AgentsSessionTitle", "AgentsReady", or "AgentsSend".
+
+All event payloads are in `event.data` in a User autocmd callback. See
+|agents-events| for exactly when each event is emitted.
+
+                                                        *agents.SessionEvent*
+Payload for AgentsSessionStart, AgentsSessionShow, AgentsSessionHide,
+and AgentsSessionExit:
+
+    id          integer  Session ID.
+    win?        integer  Newly shown window; present for Show.
+    exit_code?  integer  Process exit code; present for Exit.
+
+                                                           *agents.SendEvent*
+Payload for AgentsSend:
+
+    id      integer  Destination session ID.
+    submit  boolean  Whether this send requested submission after pasting.
+
+                                                          *agents.TitleEvent*
+Payload for AgentsSessionTitle:
+
+    id      integer  Session ID.
+    title?  string   New title; absent when it becomes unnamed.
+
+                                                          *agents.ReadyEvent*
+Payload for AgentsReady, also returned by |agents.ready()|:
+
+    id       integer           Session ID.
+    label    string            Stable targeting label.
+    tool     string            Tool name.
+    buf      integer           Session buffer handle.
+    win?     integer           View in the current tab; focused one preferred.
+    visible  boolean           Has a view in the current tab.
+    focused  boolean           The current window shows this session.
+    source   "osc" or "hook"   Where the signal came from.
+
+A session shown only in another tab has visible = false, focused = false,
+and no win field. These values describe the editor when the event is emitted.
+
+==============================================================================
+11. EVENTS AND INTEGRATIONS                                    *agents-events*
+
+Agents emits |User| autocommands. Read each event's payload from `ev.data`:
+>lua
+    vim.api.nvim_create_autocmd("User", {
+      pattern = "AgentsReady",
+      callback = function(ev)
+        if not ev.data.focused then
+          vim.notify(ev.data.label .. " is waiting")
+        end
+      end,
+    })
+<
+Events run when the corresponding operation occurs. Picker callbacks,
+queued sends, and process exits can run after the public function returns.
+The payload describes that event; read |agents.status()| when you need a
+fresh status snapshot. Fields listed below are the full event payloads.
+
+                                                     *AgentsSessionStart*
+AgentsSessionStart
+    A terminal job has started successfully and the session's buffer,
+    mappings, and `agents_terminal` filetype are set up. Startup does not
+    mean the CLI is already ready to receive queued context.
+
+    Data: `{ id = integer }` (|agents.SessionEvent|).
+
+                                                     *AgentsSessionExit*
+AgentsSessionExit
+    The terminal job's exit callback has run. The session's state is
+    `"exited"` and its `exit_code` has been recorded. The code is the job's
+    actual exit code, including when a running session was explicitly
+    closed. If closed already, the ID can be absent from the registry.
+    With `on_exit = "close"`, successful-exit buffer removal is scheduled
+    after this event. See |agents-on-exit|.
+
+    Data: `{ id = integer, exit_code = integer }`
+    (|agents.SessionEvent|).
+
+                                                     *AgentsSessionShow*
+AgentsSessionShow
+    An Agents operation has added a view of the session. This includes the
+    initial launch, an explicit placement that adds another view, and a
+    send that needs to show the destination in the current tab. Focusing
+    an existing view does not emit it. On initial launch this follows
+    AgentsSessionStart if the initial view still displays the session.
+
+    Data: `{ id = integer, win = integer }` (|agents.SessionEvent|).
+
+                                                     *AgentsSessionHide*
+AgentsSessionHide
+    An Agents hide or close operation removed at least one view, leaving
+    no view of the session in any tab. Hiding only current-tab views while
+    another tab still shows the session does not emit it. Repeatedly
+    hiding an already hidden session does not emit it.
+
+    Data: `{ id = integer }` (|agents.SessionEvent|).
+
+                                                     *AgentsSessionTitle*
+AgentsSessionTitle
+    A terminal title update changed the session's normalized conversation
+    title. The buffer name has also been updated. An absent `title` field
+    means the title was cleared. Identical normalized titles do not emit
+    another event. Exited sessions retain their last title and ignore
+    later title updates. See |agents-tool-titles|.
+
+    Data: `{ id = integer, title = string? }` (|agents.TitleEvent|).
+
+                                                     *AgentsReady*
+AgentsReady
+    A session's terminal emitted a supported OSC notification, or
+    an integration called |agents.ready()|. The CLI's signal may indicate
+    a completed response, an idle transition, or a request for attention;
+    this event does not certify successful work or change startup state.
+
+    Data (|agents.ReadyEvent|):
+        id        integer: session ID.
+        label     string: targeting label, not the conversation title.
+        tool      string: configured tool name.
+        buf       integer: terminal buffer ID.
+        win       integer?: view in the current tab; focused view preferred.
+        visible   boolean: a view exists in the current tab.
+        focused   boolean: the current window contains this session.
+        source    `"osc"` or `"hook"`.
+
+    Sessions displayed only in another tab have `visible = false` and no
+    `win`. The event does not include the notification text. To notify only
+    for sessions hidden from the current tab, test `not ev.data.visible`;
+    the example above also notifies for visible, unfocused sessions.
+
+                                                     *AgentsSend*
+AgentsSend
+    One queued message has been pasted into the destination terminal.
+    It fires on delivery, after any startup wait, rather than at enqueue
+    time. It does not report manual typing or completed agent responses.
+    `submit` records whether the message requested Enter after its paste;
+    that Enter is a later queue action and emits no separate event.
+
+    Data: `{ id = integer, submit = boolean }` (|agents.SendEvent|).
+
+Show and hide events describe operations performed through Agents. Native
+window or buffer commands do not synthesize these events. For a cached
+statusline, also handle the native navigation events relevant to your UI,
+or read `agents.status()` when rendering. Its visibility is relative to the
+current tab. Display `status.title or status.label` for the session name.
+See |agents.Status| and |agents.status()|.
+
+Ready notifications                              *agents-ready-notifications*
+
+The `"starting"` to `"ready"` session-state transition governs when queued
+input can be sent after launch. It uses terminal output settling and a
+timeout; see |agents-context|. It emits no AgentsReady event. Conversely,
+OSC notifications and `agents.ready(id)` do not bypass that startup wait.
+
+To receive ready notifications, configure the CLI to emit a supported
+terminal notification or call `agents.ready(id)` from an appropriate CLI
+hook. The plugin does not install or enable tool-specific hooks. Use one
+notification mechanism per tool to avoid duplicate events; repeated signals
+emit repeated events.
+
+Supported terminal notifications:
+    OSC 9:   notification payloads, excluding progress (`9;4` and `9;4;...`).
+    OSC 777: payloads beginning with `notify;`.
+    OSC 99:  completed title/body notifications. Metadata `d=0` marks an
+             incomplete notification; `d=1`, or no `d`, marks completion.
+             Metadata `p=title`, `p=body`, or no `p` supplies text. Other
+             kinds, such as queries and control messages, are ignored.
+
+These are received through |TermRequest| on session buffers. Plain
+terminals are not observed. A supported terminal notification sets
+`source = "osc"`. Configure your CLI's notification settings to select the
+events and focus conditions that you want to receive.
+
+A CLI hook can call back into the parent Neovim using its inherited `NVIM`
+server address and `AGENTS_SESSION` ID. Start the CLI through Agents so
+those variables refer to its registered session. This POSIX shell body
+works where `nvim` is available on the hook's PATH: >sh
+    if [ -n "$NVIM" ] && [ -n "$AGENTS_SESSION" ]; then
+      expr="v:lua.require'agents'.ready($AGENTS_SESSION)"
+      nvim --server "$NVIM" --remote-expr "$expr" >/dev/null 2>&1
+    fi
+<
+Use an absolute path to Neovim if the hook cannot find `nvim`. Install the
+command in the CLI's response-finished or attention hook and preserve that
+hook's required stdin/stdout protocol. Calling |agents.ready()| sets
+`source = "hook"`. A missing or closed session ID raises an error; a
+retained exited session remains registered and can still receive a manual
+ready call.
+
+Practical tool-specific recipes are in `docs/recipes/ready.md`:
+https://github.com/amadeus/agents.nvim/tree/main/docs/recipes
+The signal's scope matters: an idle notification can also follow a
+cancellation, and an attention notification can request permission. Hook
+support varies by CLI and execution mode. OpenCode 2 uses its own plugin
+API and has no ready-hook recipe here; do not use the OpenCode 1 recipe
+with it.
+
+Conversation titles and status ~
+
+OSC 0 and OSC 2 terminal titles update the session's optional `title` and
+native `agents://` buffer name. Title parsing and opt-outs belong to the
+tool configuration; see |agents-tool-titles|. Conversation titles are
+display text and do not replace IDs or labels used for targeting. Empty
+title sequences may not reach the plugin; without a recognized reset
+signal, a prior title can remain visible. A CLI may also emit a project or
+status label rather than a conversation topic.
+
+Use |AgentsSessionTitle| to invalidate cached title text. Use
+|agents.status()| for fresh statusline snapshots; use |agents.sessions()|
+when you need session buffers or commands. The title recipe in
+`docs/recipes/titles.md` explains native names and tool-specific formats.
+
+==============================================================================
+12. HEALTH AND TROUBLESHOOTING                                 *agents-health*
+
+Run `:checkhealth agents` after installation or when a tool or picker fails.
+The report inspects the current configuration without starting sessions:
+
+    Tools   Checks each enabled tool's configured `cmd[1]` with
+            `executable()`. Missing executables produce a warning and an
+            installation URL, or PATH advice for tools without a URL.
+            Disabled/removed tools are omitted. No enabled tools is an
+            informational result.
+    Editor  Reports whether 'autoread' is enabled. If disabled, recommends
+            enabling it so changes made by agents can reload.
+    Picker  Reports `vim.ui.select`, a custom function, or Snacks. For
+            Snacks, checks whether `require("snacks")` succeeds and reports
+            an error with installation advice if unavailable.
+
+The supported baseline is Neovim 0.12+. CLI executables are installed
+separately. The health report checks executable availability, not login,
+CLI credentials, versions, or successful requests. Its Snacks check does
+not exercise opening a picker.
+
+Executable or tool problems ~
+
+If a tool shows `Not installed`, run `:echo executable('claude')`, replacing
+`claude` with its configured executable. Ensure Neovim's environment can
+find it, or configure `cmd` with its absolute path. A shell alias is not an
+executable. `cmd` is argv; shell quoting and expansion are not applied.
+See |agents-tools| and |agents-command-arguments|.
+
+You do not need every built-in CLI installed. Use `enabled = false` to
+hide a tool from New Session while keeping explicit launches available, or
+set its tool entry to `false` to remove it. See |agents-tools|.
+
+If a process exits immediately, inspect the terminal output and the session's
+`exit_code`. The default `on_exit = "keep"` keeps that output available.
+An exited session cannot receive more input; start a new session and use
+the CLI's own resume feature when needed. See |agents-on-exit|.
+
+Picker problems ~
+
+With `picker = "snacks"`, install and load folke/snacks.nvim. To use the
+default picker instead, omit `picker` or use
+`picker = nil` in your setup. See |agents-picker-snacks|. If a picker says
+the window that opened it no longer exists, reopen it from a valid window.
+
+Missing placement shortcuts in the default picker are expected: the
+`vim.ui.select` adapter exposes only the default action. Use Snacks, a
+custom adapter, or an explicit Lua layout. If Snacks footer hints are
+clipped, widen the editor or disable them with `picker_help = false`.
+
+Context and notification problems ~
+
+An unavailable context provider is omitted from the picker. For example,
+`selection` needs a captured range and `file` needs a suitable named buffer.
+Use the normal or visual mapping appropriate to the desired context.
+See |agents-context| and |agents-keymaps|.
+
+Queued input can wait during CLI startup. The session's `"ready"` state
+does not mean a response has completed, and AgentsReady does not release
+the queue. See |agents-ready-notifications| for that distinction.
+
+If notifications are missing, check the CLI's hook or OSC settings and
+their focus conditions. A shell hook needs the terminal's `NVIM` and
+`AGENTS_SESSION` values and access to the Neovim executable. Configure one
+mechanism if notifications are duplicated. The plugin does not display a
+popup until your configuration handles |AgentsReady|.
+
+If agent edits are not reloading, check 'autoread' and use |:checktime| to
+ask Neovim to check files now. Agents does not change 'autoread' for you.
+
+Terminal customization                         *agents-terminal-customization*
+
+Sessions are native terminal buffers with `filetype=agents_terminal` and
+the buffer-local integer marker `b:agents_session`. They support ordinary
+terminal navigation, copying output, local options, and terminal mappings.
+Use |TermOpen| for general terminal customization, or |FileType| to target
+only session buffers. For example: >lua
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = "agents_terminal",
+      callback = function(ev)
+        vim.opt_local.number = false
+        vim.opt_local.relativenumber = false
+        vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", {
+          buffer = ev.buf,
+          desc = "Leave session terminal input",
+        })
+      end,
+    })
+<
+New sessions enter terminal input. During ordinary navigation, returning
+to a running session restores input if you left while typing; deliberately
+leaving input in the session keeps Normal mode on return. Explicit Agents
+show actions enter input for running sessions. Exited sessions remain
+readable without starting input. See |agents-sessions| and |agents-keymaps|.
+
+Ordinary buffer lists                                  *agents-buffer-listing*
+
+Use the built-in Agents session picker for normal session navigation.
+Session buffers are unlisted by default. `buflisted = true` is an advanced
+escape hatch when you understand how your buffer tools handle live terminals.
+Use `:ls!` to include unlisted buffers, or enable listing for new sessions:
+>lua
+    require("agents").setup({ buflisted = true })
+<
+This provides an escape hatch through `:ls`, buffer cycling, or your usual
+buffer picker. Pickers that exclude terminal buffers can still omit them.
+The setting applies only to new buffers. For one existing session buffer,
+`:setlocal buflisted` changes its listing immediately.
+
+Returning through a native buffer picker continues the same live CLI and
+uses its ordinary terminal-input restoration. That picker controls its own
+labels and window placement. Agents' `layout` controls Agents operations.
+See |agents-layouts|.
+
+Listed session buffers participate in bulk buffer commands and cleanup tools.
+`:bdelete!` and `:bwipeout!` stop a running CLI and remove its session;
+they are not ways to hide it. Use |:Agents-hide| to keep the buffer and
+process available. Retained exited buffers remain listed until removed.
+See |agents-on-exit|.
+
+Native session files                              *agents-session-restoration*
+
+Plugin sessions cannot be restored by |:mksession|. We recommend excluding
+terminal buffers from native saved sessions: >lua
+    vim.opt.sessionoptions:remove("terminal")
+<
+This excludes all terminal buffers, including ordinary terminals. It does
+not change currently running sessions or their buffer listing. Conversation
+resumption across Neovim restarts belongs to the CLI's own resume support;
+listing or retaining a buffer does not persist its process.
 
 vim:tw=78:ts=8:noet:ft=help:norl:

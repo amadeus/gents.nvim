@@ -33,6 +33,8 @@ config["default modes are global normal and visual, and local terminal"] = funct
   local session = helpers.new()
   eq(type(assert(mapping("n", "<F6>")).callback), "function")
   eq(type(assert(mapping("x", "<F6>")).callback), "function")
+  eq(mapping("i", "<F6>"), nil)
+  eq(mapping("s", "<F6>"), nil)
   eq(mapping("t", "<F6>"), nil)
   eq(type(assert(mapping("t", "<F6>", session.buf)).callback), "function")
   eq(mapping("n", "<F6>", session.buf), nil)
@@ -48,7 +50,7 @@ config["mode overrides support a single mode and a mode list"] = function()
       function()
         invoked = invoked + 1
       end,
-      mode = { "n", "x" },
+      mode = { "n", "i", "x", "s" },
     },
   })
   local session = helpers.new()
@@ -57,8 +59,31 @@ config["mode overrides support a single mode and a mode list"] = function()
   eq(type(assert(mapping("t", "<F6>", session.buf)).callback), "function")
   eq(mapping("t", "<F7>", session.buf), nil)
   assert(assert(mapping("n", "<F7>")).callback)()
+  assert(assert(mapping("i", "<F7>")).callback)()
   assert(assert(mapping("x", "<F7>")).callback)()
-  eq(invoked, 2)
+  assert(assert(mapping("s", "<F7>")).callback)()
+  eq(invoked, 4)
+end
+
+config["visual-select mappings preserve replacements in either mode"] = function()
+  ---@type agents.KeyMode[]
+  local selection_modes = { "x", "s" }
+  test.finally(function()
+    for _, mode in ipairs(selection_modes) do
+      pcall(vim.keymap.del, mode, "<F6>")
+    end
+  end)
+  for _, mode in ipairs(selection_modes) do
+    setup({ { "<F6>", "toggle", mode = "v" } })
+    eq(type(assert(mapping("x", "<F6>")).callback), "function")
+    eq(type(assert(mapping("s", "<F6>")).callback), "function")
+    local replacement = function() end
+    vim.keymap.set(mode, "<F6>", replacement)
+    setup({})
+    eq(assert(mapping(mode, "<F6>")).callback, replacement)
+    eq(mapping(mode == "x" and "s" or "x", "<F6>"), nil)
+    vim.keymap.del(mode, "<F6>")
+  end
 end
 
 config["setup replaces mappings on existing sessions and removes old keys"] = function()
@@ -94,8 +119,8 @@ config["invalid keys leave configuration and installed mappings intact"] = funct
     { false },
     { { "", "toggle" } },
     { { "<F6>", "unknown" } },
-    { { "<F6>", "toggle", mode = "i" } },
-    { { "<F6>", "toggle", mode = { "n", "i" } } },
+    { { "<F6>", "toggle", mode = "invalid" } },
+    { { "<F6>", "toggle", mode = { "n", "invalid" } } },
     { { "<F6>", "toggle", mode = false } },
     { { "<F6>", "toggle", mode = { n = true } } },
   }
@@ -306,9 +331,22 @@ input_tests["send captures an active selection and does not reuse it on later in
   eq(lua([[return previews.file]]), "@key-context.lua")
   lua([[_G.previews = nil; require("agents").show(session.id)]])
   wait([[vim.api.nvim_get_mode().mode == "t"]])
+  lua([[
+    _G.notifications = {}
+    _G.session_win = vim.api.nvim_get_current_win()
+    vim.notify = function(message, level)
+      table.insert(notifications, { message, level })
+    end
+  ]])
   input("<F7>")
-  wait([[_G.previews ~= nil]])
-  eq(lua([[return previews.file]]), "@key-context.lua")
+  wait([[#notifications == 1]])
+  eq(lua([[return notifications]]), {
+    { "agents.nvim: send context from a non-session buffer", vim.log.levels.WARN },
+  })
+  eq(lua([[return previews]]), vim.NIL)
+  eq(lua([[return vim.api.nvim_get_current_win()]]), lua([[return session_win]]))
+  eq(lua([[return vim.api.nvim_get_current_buf()]]), lua([[return session.buf]]))
+  eq(lua([[return vim.api.nvim_get_mode().mode]]), "t")
 end
 
 input_tests["actions preserves the visual selection when choosing send after picker focus changes"] = function()

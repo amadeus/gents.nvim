@@ -2,12 +2,12 @@ local M = {}
 
 ---@type table<string, string>
 local chunk_highlights = {
-  directory = "SnacksPickerDir",
-  visible = "DiagnosticInfo",
-  hidden = "Comment",
-  placeholder = "Comment",
-  separator = "Comment",
-  description = "Comment",
+  directory = "AgentsPickerDirectory",
+  visible = "AgentsPickerVisible",
+  hidden = "AgentsPickerHidden",
+  placeholder = "AgentsPickerPlaceholder",
+  separator = "AgentsPickerSeparator",
+  description = "AgentsPickerDescription",
 }
 
 -- Only the Snacks surface used by this adapter is described here, so Snacks

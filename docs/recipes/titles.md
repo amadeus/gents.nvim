@@ -13,7 +13,7 @@ reopen the picker to see updated titles.
 
 ## Native buffer names
 
-Every agent buffer is named from its session label or conversation title, and
+Every session buffer is named from its label or conversation title, and
 the name follows later title updates.
 
 A titled session uses `agents://<id>/<tool name> · <title>`, for example

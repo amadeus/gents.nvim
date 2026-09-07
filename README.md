@@ -34,7 +34,7 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
   "amadeus/agents.nvim",
   cmd = "Agents",
   opts = {
-    -- By default, agents open in a full-height vertical split on the right.
+    -- By default, sessions open in a full-height vertical split on the right.
     -- If you'd prefer, you can use a floating window instead.
     -- layout = "float",
     -- Optional: a 60-column float near the top-right corner.
@@ -49,11 +49,11 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
   },
   keys = {
     -- Pick a CLI tool and start a new session.
-    { "<leader>an", "<cmd>Agents new<cr>", desc = "New agent session" },
+    { "<leader>an", "<cmd>Agents new<cr>", desc = "New session" },
     -- Choose a command, such as starting, hiding, or closing a session.
     { "<leader>ac", "<cmd>Agents actions<cr>", desc = "Agents actions" },
     -- Show or hide a session without stopping its CLI.
-    { "<leader>aa", "<cmd>Agents toggle<cr>", desc = "Toggle agent" },
+    { "<leader>aa", "<cmd>Agents toggle<cr>", desc = "Toggle session" },
     -- Choose context to send, including selected text in Visual mode.
     { "<leader>as", "<cmd>Agents send<cr>", mode = { "n", "x" }, desc = "Send context", },
   },
@@ -67,7 +67,7 @@ Add this to your `init.lua` using [vim.pack](https://neovim.io/doc/user/pack/):
 ```lua
 vim.pack.add({ "https://github.com/amadeus/agents.nvim" })
 require("agents").setup({
-  -- By default, agents open in a full-height vertical split on the right.
+  -- By default, sessions open in a full-height vertical split on the right.
   -- If you'd prefer, you can use a floating window instead.
   -- layout = "float",
   -- Optional: a 60-column float near the top-right corner.
@@ -108,7 +108,7 @@ Run `:PlugInstall`. After installation, add this after `plug#end()` in
 ```vim
 lua << EOF
 require("agents").setup({
-  -- By default, agents open in a full-height vertical split on the right.
+  -- By default, sessions open in a full-height vertical split on the right.
   -- If you'd prefer, you can use a floating window instead.
   -- layout = "float",
   -- Optional: a 60-column float near the top-right corner.
@@ -141,7 +141,7 @@ Run `:Agents` once to ensure the plugin is loaded and open its picker. Then use
 
 ## Configuration
 
-By default, agent sessions open in a full-height vertical split on the right
+By default, sessions open in a full-height vertical split on the right
 (`layout = "botright vsplit"`). Showing a session that already has a window
 focuses that window.
 
@@ -163,24 +163,24 @@ and float settings.
 | `:Agents actions`           | Open a menu to start or manage sessions, switch focus, or send context. |
 | `:Agents new`               | Pick a CLI tool and start a session.                                    |
 | `:Agents new claude`        | Start a Claude session directly.                                        |
-| `:Agents focus`             | Focus an agent, or return to the previous window when called from one.  |
+| `:Agents focus`             | Focus a session, or return to the previous window when called from one. |
 | `:Agents toggle`            | Show or hide the selected session in the current tab.                   |
 | `:Agents hide`              | Hide the selected session's windows and keep its CLI running.           |
 | `:Agents close`             | Stop the selected CLI and delete its buffer.                            |
 | `:Agents send`              | Choose file references or text to send to an agent.                     |
 
-Commands that need a session use the current agent, the only session, or a
-picker if there are multiple sessions running. Specify an ID or label to choose
-one directly. Commands also compose under `actions`:
+Commands that need a session use the session in the current buffer, the only
+session, or a picker if there are multiple sessions running. Specify an ID or
+label to choose one directly. Commands also compose under `actions`:
 
 ```vim
 :Agents actions hide claude #2
 :Agents send file diagnostics --target claude #2
 ```
 
-Sending context focuses the agent so you can continue typing. Add `--no-focus`
-to keep focus in your editor. See [commands](docs/commands.md) for target selection,
-ranges, and the Lua equivalents.
+Sending context focuses the selected session so you can continue typing. Add
+`--no-focus` to keep focus in your editor. See [commands](docs/commands.md) for
+target selection, ranges, and the Lua equivalents.
 
 Generally speaking we recommend setting up keybinds to map back into these
 actions or functions instead of calling them directly.

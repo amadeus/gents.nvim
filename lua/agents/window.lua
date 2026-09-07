@@ -6,7 +6,7 @@ function M.attach(session)
   local restoring_input = false
   vim.api.nvim_create_autocmd("TermEnter", {
     buffer = session.buf,
-    desc = "Remember agent terminal input mode",
+    desc = "Remember session terminal input mode",
     callback = function()
       terminal_input = true
       restoring_input = false
@@ -14,7 +14,7 @@ function M.attach(session)
   })
   vim.api.nvim_create_autocmd("TermLeave", {
     buffer = session.buf,
-    desc = "Remember deliberate exits from agent terminal input",
+    desc = "Remember deliberate exits from session terminal input",
     callback = function()
       local win = vim.api.nvim_get_current_win()
       -- Navigation mappings can leave terminal mode before switching windows.
@@ -29,7 +29,7 @@ function M.attach(session)
   })
   vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
     buffer = session.buf,
-    desc = "Restore agent terminal input on reentry",
+    desc = "Restore session terminal input on reentry",
     callback = function()
       ---@type string
       local mode = vim.fn.mode():sub(1, 1)
@@ -48,7 +48,7 @@ function M.attach(session)
   })
   vim.api.nvim_create_autocmd({ "WinLeave", "BufLeave" }, {
     buffer = session.buf,
-    desc = "Cancel agent input restoration when leaving before it starts",
+    desc = "Cancel session input restoration when leaving before it starts",
     callback = function()
       if restoring_input then
         -- Opening a hidden session for send can immediately return to the editor.
@@ -181,7 +181,7 @@ function M.hide(session, tab)
       local alternate = vim.api.nvim_win_call(win, function()
         return vim.fn.bufnr("#")
       end)
-      -- Do not reopen another agent or reload an old term:// name after a rename.
+      -- Do not reopen another session or reload an old term:// name after a rename.
       -- Closing sessions keep their buffer marker until their job exits.
       if
         alternate == session.buf

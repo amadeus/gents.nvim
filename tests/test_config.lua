@@ -9,17 +9,17 @@ local T = test.new_set({ hooks = {
 } })
 
 local builtin_names = {
+  "aider",
+  "amp",
   "claude",
   "codex",
-  "opencode",
-  "opencode2",
-  "amp",
-  "aider",
   "copilot",
   "crush",
   "cursor-agent",
   "gemini",
   "grok",
+  "opencode",
+  "opencode2",
   "pi",
   "q",
   "qwen",
@@ -52,8 +52,8 @@ T["built-in tools have names, commands, and install URLs"] = function()
   end
   expect(result.tools.copilot.cmd, { "copilot", "--banner" })
   expect(result.tools.codex.cmd, { "codex", "-c", 'tui.terminal_title=["thread"]' })
-  expect(result.tools.opencode.env, { OPENCODE_THEME = "system" })
-  expect(result.tools.opencode2.env, { OPENCODE_THEME = "system" })
+  expect(result.tools.opencode.env, nil)
+  expect(result.tools.opencode2.env, nil)
 end
 
 T["title parsers can be customized or disabled without changing commands"] = function()
@@ -137,7 +137,7 @@ T["icons accept emoji and multiple characters without a width restriction"] = fu
   expect(config.setup({ icons = icons }).icons, icons)
 end
 
-T["names retain built-in order and sort custom tools"] = function()
+T["names sort built-in and custom tools together"] = function()
   local result = config.setup({
     tools = {
       claude = false,
@@ -146,9 +146,23 @@ T["names retain built-in order and sort custom tools"] = function()
       grok = { enabled = false },
     },
   })
-  local expected = vim.list_slice(builtin_names, 2)
-  vim.list_extend(expected, { "alpha", "zebra" })
-  expect(tools.names(result.tools), expected)
+  expect(tools.names(result.tools), {
+    "aider",
+    "alpha",
+    "amp",
+    "codex",
+    "copilot",
+    "crush",
+    "cursor-agent",
+    "gemini",
+    "grok",
+    "opencode",
+    "opencode2",
+    "pi",
+    "q",
+    "qwen",
+    "zebra",
+  })
   expect(result.tools.grok.enabled, false)
 end
 

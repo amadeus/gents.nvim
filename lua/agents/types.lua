@@ -61,7 +61,7 @@
 ---@class agents.SetupOptions
 ---@field layout? agents.Layout
 ---@field float? agents.FloatOptions
----@field buflisted? boolean List newly created agent buffers in normal buffer lists; defaults to false.
+---@field buflisted? boolean List newly created session buffers in normal buffer lists; defaults to false.
 ---@field picker? agents.Picker
 ---@field picker_help? boolean Show binding hints in the built-in Snacks picker; defaults to true.
 ---@field icons? agents.IconsOptions
@@ -137,7 +137,7 @@
 ---@alias agents.Item string|agents.Part|{ any: agents.Item[] }|fun(ctx: agents.Context): agents.Part[]|nil
 ---@alias agents.CommandName "actions"|"close"|"focus"|"hide"|"new"|"pick"|"send"|"toggle"
 ---@alias agents.KeyAction agents.CommandName
----@alias agents.KeyMode "n"|"x"|"t"
+---@alias agents.KeyMode "n"|"i"|"x"|"s"|"v"|"t"
 
 ---@class agents.Keymap
 ---@field [1] string

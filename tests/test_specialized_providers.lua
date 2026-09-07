@@ -78,16 +78,9 @@ T["terminal limits vary per call without changing the registered default"] = fun
   eq(#vim.split(assert(assert(render("terminal", ctx))[1].code), "\n"), 1000)
 end
 
-T["terminal provider accepts session buffers supplied as source context"] = function()
-  local session = H.new({ cmd = { "sh", "-c", "printf 'session output\\n'; exec cat" } })
-  -- Ordinary send capture intentionally skips the focused agent terminal.
-  ---@type agents.Context
-  local ctx = {
-    win = vim.api.nvim_get_current_win(),
-    buf = session.buf,
-    cwd = session.cwd,
-    cursor = { 1, 0 },
-  }
+T["terminal helper reads session buffers"] = function()
+  H.new({ cmd = { "sh", "-c", "printf 'session output\\n'; exec cat" } })
+  local ctx = context.capture()
   H.wait(function()
     return providers.terminal(ctx, 1) ~= nil
   end)

@@ -141,13 +141,13 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
   local text = "○  cat · Investigate flaky tests · " .. directory
   test.expect.equality(item.text, text)
   test.expect.equality(picker.opts.format(item), {
-    { "○", "Comment" },
+    { "○", "AgentsPickerHidden" },
     { "  cat" },
-    { " · ", "Comment" },
+    { " · ", "AgentsPickerSeparator" },
     { "Investigate flaky tests" },
     { "" },
-    { " · ", "Comment" },
-    { directory, "SnacksPickerDir" },
+    { " · ", "AgentsPickerSeparator" },
+    { directory, "AgentsPickerDirectory" },
   })
   local buf = vim.api.nvim_win_get_buf(assert(picker.list.win.win))
   ---@type { [1]: integer, [2]: integer, [3]: integer, [4]: { hl_group?: string, end_col?: integer, end_row?: integer } }[]
@@ -156,7 +156,11 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
   local separators_highlighted = 0
   for _, mark in ipairs(marks) do
     local details = mark[4]
-    if details.hl_group == "SnacksPickerDir" or details.hl_group == "Comment" then
+    if
+      details.hl_group == "AgentsPickerDirectory"
+      or details.hl_group == "AgentsPickerHidden"
+      or details.hl_group == "AgentsPickerSeparator"
+    then
       local highlighted = vim.api.nvim_buf_get_text(
         buf,
         mark[2],
@@ -165,10 +169,10 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
         assert(details.end_col),
         {}
       )
-      if details.hl_group == "Comment" and highlighted[1] == "○" then
+      if details.hl_group == "AgentsPickerHidden" then
         test.expect.equality(highlighted, { "○" })
         marker_highlighted = true
-      elseif details.hl_group == "Comment" then
+      elseif details.hl_group == "AgentsPickerSeparator" then
         test.expect.equality(highlighted, { " · " })
         separators_highlighted = separators_highlighted + 1
       else
@@ -315,13 +319,13 @@ T["built-in session shortcuts"] = test.new_set({
       local picker = current_picker()
       if action == "hide" then
         test.expect.equality(picker.opts.format(picker.opts.items[1]), {
-          { "●", "DiagnosticInfo" },
+          { "●", "AgentsPickerVisible" },
           { "  " .. session.label },
-          { " · ", "Comment" },
-          { "Untitled", "Comment" },
+          { " · ", "AgentsPickerSeparator" },
+          { "Untitled", "AgentsPickerPlaceholder" },
           { "" },
-          { " · ", "Comment" },
-          { vim.fn.fnamemodify(session.cwd, ":~"), "SnacksPickerDir" },
+          { " · ", "AgentsPickerSeparator" },
+          { vim.fn.fnamemodify(session.cwd, ":~"), "AgentsPickerDirectory" },
         })
       end
       press(picker, key, from[2], from[1])
@@ -387,11 +391,11 @@ T["actions picker runs the chosen command in the invoking window"] = function()
   local picker = current_picker()
   test.expect.equality(picker.opts.title, "Agents: Actions")
   test.expect.equality(picker.opts.confirm, "agents_run")
-  test.expect.equality(picker.opts.items[1].text, "send   · Pick context to send to an agent")
+  test.expect.equality(picker.opts.items[1].text, "send   · Pick context to send to a session")
   test.expect.equality(picker.opts.format(picker.opts.items[1]), {
     { "send  " },
-    { " · ", "Comment" },
-    { "Pick context to send to an agent", "Comment" },
+    { " · ", "AgentsPickerSeparator" },
+    { "Pick context to send to a session", "AgentsPickerDescription" },
   })
   picker.input:set("and kill")
   picker:find({ refresh = false })
@@ -420,8 +424,8 @@ T["context picker preserves previews and closes before sending the selected part
   local item = picker.opts.items[1]
   local chunks = picker.opts.format(item)
   test.expect.equality(vim.trim(chunks[1][1]), "buffer")
-  test.expect.equality(chunks[2], { " · ", "Comment" })
-  test.expect.equality(chunks[3], { "Saved prompt", "Comment" })
+  test.expect.equality(chunks[2], { " · ", "AgentsPickerSeparator" })
+  test.expect.equality(chunks[3], { "Saved prompt", "AgentsPickerDescription" })
   test.expect.equality(item.text, chunks[1][1] .. " · Saved prompt")
   test.expect.equality(item.preview, { text = "Explain this" })
   picker.input:set("Copy entire buffer text")
@@ -472,9 +476,9 @@ T["chunk formatting preserves plain highlights and returns fresh arrays"] = func
   local picker = current_picker()
   local item = picker.opts.items[1]
   local expected = {
-    { "v", "DiagnosticInfo" },
+    { "v", "AgentsPickerVisible" },
     { "  Example  ", "Comment" },
-    { "/tmp/project", "SnacksPickerDir" },
+    { "/tmp/project", "AgentsPickerDirectory" },
     { "  custom args", "Comment" },
   }
   local formatted = picker.opts.format(item)

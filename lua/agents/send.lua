@@ -183,11 +183,26 @@ local function deliver(parts, ctx, opts)
   end)
 end
 
+---@param buf integer
+---@return boolean
+local function can_send_from(buf)
+  for _, session in ipairs(require("agents.session").list()) do
+    if session.buf == buf then
+      vim.notify("agents.nvim: send context from a non-session buffer", vim.log.levels.WARN)
+      return false
+    end
+  end
+  return true
+end
+
 ---@param ctx agents.Context
 ---@param items? agents.Item[]
 ---@param opts? agents.SendOptions
 ---@return agents.Session?
 function M.from_context(ctx, items, opts)
+  if not can_send_from(ctx.buf) then
+    return
+  end
   opts = vim.deepcopy(opts or {})
   if items == nil then
     require("agents.picker").context(ctx, function(parts)
@@ -208,9 +223,12 @@ end
 ---@param range? { line1: integer, line2: integer }
 ---@return agents.Session?
 function M.run(items, opts, range)
+  if not can_send_from(vim.api.nvim_get_current_buf()) then
+    return
+  end
   local ctx = require("agents.context").capture(range)
   local mode = vim.fn.mode()
-  if mode == "v" or mode == "V" or mode == "\22" then
+  if mode == "v" or mode == "V" or mode == "\22" or mode == "s" or mode == "S" or mode == "\19" then
     vim.cmd.normal({ args = { "\27" }, bang = true })
   end
   return M.from_context(ctx, items, opts)

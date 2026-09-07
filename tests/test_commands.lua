@@ -312,6 +312,7 @@ end
 T["send completes providers and prompts at every item position"] = function()
   config.setup({ prompts = { explain = { "file" }, file = { { text = "File prompt" } } } })
   expect(complete("Agents send fi"), { "file" })
+  expect(complete("Agents send loc"), { "locationlist" })
   expect(complete("Agents send pos"), {})
   expect(complete("Agents send che"), {})
   expect(complete("Agents send hel"), {})
@@ -331,6 +332,7 @@ T["send completes providers and prompts at every item position"] = function()
   expect(complete("Agents send file --no-focus --t"), { "--target" })
   expect(complete("'<,'>Agents actions send --no"), { "--no-focus" })
   expect(vim.fn.getcompletion("Agents actions send file di", "cmdline"), { "diagnostics" })
+  expect(vim.fn.getcompletion("Agents actions send file loc", "cmdline"), { "locationlist" })
 end
 
 T["tool completion uses configured tools only at the tool position"] = function()

@@ -65,7 +65,7 @@ end
 function M.attach(session)
   vim.api.nvim_create_autocmd("TermRequest", {
     buffer = session.buf,
-    desc = "Receive agent titles and ready notifications",
+    desc = "Receive session titles and ready notifications",
     callback = function(ev)
       ---@type vim.event.termrequest.data
       local data = ev.data

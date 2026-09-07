@@ -8,6 +8,7 @@ local builtin_order = {
   "messages",
   "diagnostics",
   "quickfix",
+  "locationlist",
   "terminal",
 }
 ---@type table<string, agents.Provider>
@@ -175,28 +176,40 @@ registry.diagnostics = {
   end,
 }
 
+---@param ctx agents.Context
+---@param entries vim.quickfix.entry[]
+---@return agents.Part[]?
+local function list_entries(ctx, entries)
+  ---@type string[]
+  local lines = {}
+  for _, entry in ipairs(entries) do
+    local path = entry.bufnr and entry.bufnr > 0 and vim.api.nvim_buf_get_name(entry.bufnr)
+      or entry.filename
+      or ""
+    ---@type string
+    local location = path ~= "" and display_path(ctx, path) or ""
+    if entry.lnum and entry.lnum > 0 then
+      location = location .. ":" .. entry.lnum
+      if entry.col and entry.col > 0 then
+        location = string.format("%s:%d", location, entry.col)
+      end
+    end
+    lines[#lines + 1] = (location ~= "" and location .. ": " or "") .. (entry.text or "")
+  end
+  return #lines > 0 and { { text = table.concat(lines, "\n") } } or nil
+end
+
 registry.quickfix = {
   desc = "Quickfix entries",
   render = function(ctx)
-    ---@type vim.quickfix.entry[]
-    local entries = vim.fn.getqflist()
-    ---@type string[]
-    local lines = {}
-    for _, entry in ipairs(entries) do
-      local path = entry.bufnr and entry.bufnr > 0 and vim.api.nvim_buf_get_name(entry.bufnr)
-        or entry.filename
-        or ""
-      ---@type string
-      local location = path ~= "" and display_path(ctx, path) or ""
-      if entry.lnum and entry.lnum > 0 then
-        location = location .. ":" .. entry.lnum
-        if entry.col and entry.col > 0 then
-          location = string.format("%s:%d", location, entry.col)
-        end
-      end
-      lines[#lines + 1] = (location ~= "" and location .. ": " or "") .. (entry.text or "")
-    end
-    return #lines > 0 and { { text = table.concat(lines, "\n") } } or nil
+    return list_entries(ctx, vim.fn.getqflist())
+  end,
+}
+
+registry.locationlist = {
+  desc = "Location list entries",
+  render = function(ctx)
+    return list_entries(ctx, vim.fn.getloclist(ctx.win))
   end,
 }
 

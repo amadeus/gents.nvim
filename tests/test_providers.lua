@@ -13,6 +13,7 @@ local T = test.new_set({
       vim.diagnostic.reset(namespace)
       vim.fn.setqflist({}, "r")
       H.reset()
+      vim.fn.setloclist(0, {}, "r")
     end,
   },
 })
@@ -37,7 +38,7 @@ T["registry keeps builtin order and sorts custom names"] = function()
   providers.register("__test_zulu", { desc = "Zulu", render = function() end })
   providers.register("__test_alpha", { desc = "Alpha", render = function() end })
   local names = providers.names()
-  eq(vim.list_slice(names, 1, 8), {
+  eq(vim.list_slice(names, 1, 9), {
     "line",
     "selection",
     "file",
@@ -45,9 +46,10 @@ T["registry keeps builtin order and sorts custom names"] = function()
     "messages",
     "diagnostics",
     "quickfix",
+    "locationlist",
     "terminal",
   })
-  local custom = vim.list_slice(names, 9)
+  local custom = vim.list_slice(names, 10)
   local sorted = vim.deepcopy(custom)
   table.sort(sorted)
   eq(custom, sorted)
@@ -234,6 +236,40 @@ T["quickfix preserves entry order and includes messages without locations"] = fu
     { text = "summary", valid = false },
   }, "r")
   eq(render("quickfix"), { { text = "providers-example.lua:2:3: fix this\nsummary" } })
+end
+
+T["locationlist uses the captured window and keeps all entries in list order"] = function()
+  named_buffer()
+  eq(render("locationlist"), nil)
+  vim.fn.setloclist(0, {
+    { bufnr = vim.api.nvim_get_current_buf(), lnum = 2, col = 3, text = "second line" },
+    { bufnr = vim.api.nvim_get_current_buf(), lnum = 1, col = 1, text = "first line" },
+    { text = "summary", valid = false },
+  }, "r")
+  local ctx = context.capture({ line1 = 1, line2 = 1 })
+  vim.cmd.split()
+  eq(vim.api.nvim_get_current_buf(), ctx.buf)
+  vim.fn.setloclist(0, { { text = "other window" } }, "r")
+  vim.fn.setqflist({ { text = "global quickfix" } }, "r")
+  eq(render("locationlist", ctx), {
+    {
+      text = "providers-example.lua:2:3: second line\nproviders-example.lua:1:1: first line\nsummary",
+    },
+  })
+  eq(render("locationlist"), { { text = "other window" } })
+  eq(render("quickfix", ctx), { { text = "global quickfix" } })
+  vim.fn.setloclist(ctx.win, {}, "r")
+  eq(render("locationlist", ctx), nil)
+end
+
+T["locationlist reads the displayed list when invoked in its window"] = function()
+  named_buffer()
+  vim.fn.setloclist(0, {
+    { bufnr = vim.api.nvim_get_current_buf(), lnum = 2, col = 3, text = "fix this" },
+  }, "r")
+  vim.cmd.lopen()
+  eq(vim.bo.buftype, "quickfix")
+  eq(render("locationlist"), { { text = "providers-example.lua:2:3: fix this" } })
 end
 
 T["diagnostic and quickfix paths preserve literal environment and tilde characters"] = function()

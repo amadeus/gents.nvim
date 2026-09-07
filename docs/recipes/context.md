@@ -13,6 +13,10 @@ Each provider inserts a file reference or text into the agent's input:
 Reference syntax is formatted for the selected tool. `selection` and `buffer`
 copy text directly from Neovim into the agent's input, including unsaved edits.
 
+If no agent session exists, choosing context opens the New Session picker.
+Select a tool to launch it and send the captured context once it is ready for
+input. The new session starts in the source window's captured working directory.
+
 You can also send providers directly, for example `:Agents send line` or
 `:Agents send buffer`.
 

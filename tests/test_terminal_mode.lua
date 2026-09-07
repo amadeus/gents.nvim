@@ -276,6 +276,35 @@ T["sending without focus preserves editor normal mode when reopening a session"]
   eq(get("require('agents.window').visible(session)"), true)
 end
 
+T["sending to a new session"] = test.new_set({ parametrize = { { true }, { false } } }, {
+  ---@param focus boolean
+  ["respects terminal input focus after choosing a tool"] = function(focus)
+    lua(
+      [[
+      _G.source_win = vim.api.nvim_get_current_win()
+      require("agents.config").get().picker = function(spec)
+        _G.picker = spec
+      end
+      require("agents").send({ { text = "test" } }, { focus = ... })
+    ]],
+      { focus }
+    )
+    eq(get("picker.title"), "Agents: New Session")
+    lua([[
+      for _, item in ipairs(picker.items) do
+        if item.data.name == "cat" then
+          picker.actions[picker.default](item)
+          break
+        end
+      end
+      _G.session = assert(require("agents").sessions()[1])
+    ]])
+    mode(focus and "t" or "n")
+    eq(get("vim.api.nvim_get_current_win() == source_win"), not focus)
+    eq(get("require('agents.window').visible(session)"), true)
+  end,
+})
+
 T["sending without focus preserves editor insert mode when reopening a session"] = function()
   lua([[
     _G.source_win = vim.api.nvim_get_current_win()

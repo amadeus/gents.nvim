@@ -122,8 +122,9 @@ end
 
 ---@param tool agents.Tool
 ---@param opts? agents.NewOptions
+---@param cwd? string Working directory captured before a deferred launch.
 ---@return agents.Session
-function M.new(tool, opts)
+function M.new(tool, opts, cwd)
   opts = opts or {}
   assert(opts.cmd == nil or opts.args == nil, "agents: cmd and args are mutually exclusive")
   local cmd = vim.deepcopy(tool.cmd)
@@ -146,7 +147,7 @@ function M.new(tool, opts)
     end
   end
   local label = label_for(tool, opts.label)
-  local cwd = vim.fn.getcwd(0)
+  cwd = cwd or vim.fn.getcwd(0)
   local on_exit = require("agents.config").get().on_exit
   -- Allocate in the destination so Neovim associates its window options there.
   local win = require("agents.window").open(nil, opts.layout)

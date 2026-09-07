@@ -74,8 +74,9 @@ error.
 
 Untargeted `pick` always opens the session picker, even from an agent or when
 only one session exists. With no sessions, `pick`, `focus`, and `toggle` open
-the tool picker; `hide` and `close` do nothing, and `send` reports that a session
-must be started first.
+the tool picker; `hide` and `close` do nothing. After choosing context, `send`
+opens the tool picker, starts the selected CLI, and queues the context for it.
+Named providers skip the context picker.
 
 Session rows start with `●` for visible in the current tab and `○` for hidden.
 Markers, tool names or labels, conversation titles, and directories align in

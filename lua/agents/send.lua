@@ -154,10 +154,18 @@ end
 ---@return agents.Session?
 local function deliver(parts, ctx, opts)
   if opts.target == nil and #require("agents.session").list() == 0 then
-    vim.notify(
-      "agents.nvim: no sessions available; start one with :Agents new",
-      vim.log.levels.WARN
-    )
+    local origin = vim.api.nvim_get_current_win()
+    require("agents.picker").tools(function(tool, launch_opts)
+      local text = require("agents.render").text(parts, ctx, tool)
+      local session = require("agents.session").new(tool, launch_opts, ctx.cwd)
+      if opts.focus == false then
+        vim.cmd.stopinsert()
+        if vim.api.nvim_win_is_valid(origin) then
+          vim.api.nvim_set_current_win(origin)
+        end
+      end
+      M.enqueue(session, text, opts.submit == true)
+    end)
     return
   end
   return require("agents.target").with(opts.target, function(session)

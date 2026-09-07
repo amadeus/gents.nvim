@@ -3,9 +3,14 @@ local H = require("tests.helpers")
 local agents = require("agents")
 local eq = test.expect.equality
 local original_notify = vim.notify
+local original_select = vim.ui.select
 ---@param callback fun(message: string, level?: integer, opts?: table)
 local function set_notify(callback)
   vim.notify = callback
+end
+---@param callback fun<T>(items: T[], opts: vim.ui.select.Opts, on_choice: fun(item: T?, idx?: integer))
+local function set_select(callback)
+  vim.ui.select = callback
 end
 ---@type agents.PickerSpec<unknown>[]
 local pickers
@@ -47,6 +52,7 @@ local T = test.new_set({
     end,
     post_case = function()
       set_notify(original_notify)
+      set_select(original_select)
       H.reset()
       vim.fn.delete(temp_dir, "d")
     end,
@@ -230,10 +236,152 @@ T["ranged command sends selected lines directly and named prompts expand"] = fun
   end)
 end
 
-T["no sessions gives actionable feedback"] = function()
-  agents.send({ "file" })
+T["context send without sessions"] = test.new_set({ parametrize = { { true }, { false } } }, {
+  ---@param focus boolean
+  ["launches the selected tool and preserves captured parts across both pickers"] = function(focus)
+    local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+    require("agents.config").get().prompts.snapshot = { "file", "buffer" }
+    agents.send(nil, focus and {} or { focus = false })
+    local context_picker = assert(pickers[1])
+    eq(context_picker.title, "Agents: Send Context")
+    eq(agents.sessions(), {})
+    local preview = assert(find(context_picker, "snapshot")).preview
+    vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
+    vim.api.nvim_buf_set_name(source, vim.fs.joinpath(vim.fn.getcwd(), "renamed.lua"))
+    vim.cmd.new()
+    choose(context_picker, "snapshot")
+    local tool_picker = assert(pickers[2])
+    eq(tool_picker.title, "Agents: New Session")
+    eq(vim.api.nvim_get_current_win(), origin)
+    eq(agents.sessions(), {})
+    vim.cmd.new()
+    choose(tool_picker, "cat")
+    local session = assert(agents.sessions()[1])
+    eq(#agents.sessions(), 1)
+    eq(session.tool.name, "cat")
+    eq(vim.api.nvim_get_current_buf() == session.buf, focus)
+    eq(vim.api.nvim_get_current_win() == origin, not focus)
+    eq(vim.api.nvim_win_get_buf(origin), source)
+    H.wait(function()
+      return output(session):find("local second = 2", 1, true) ~= nil
+    end)
+    eq(output(session):find("@context.lua", 1, true) ~= nil, true)
+    eq(output(session):find("changed after capture", 1, true), nil)
+    eq(output(session):find("renamed.lua", 1, true), nil)
+    eq(assert(find(context_picker, "snapshot")).preview, preview)
+    eq(#pickers, 2)
+    eq(notifications, {})
+  end,
+})
+
+T["direct send without sessions uses the selected tool formatter and captured location"] = function()
+  local cwd = vim.fn.getcwd(0)
+  require("agents.config").get().tools.cat.location = function(path, range)
+    return "CUSTOM:" .. path .. ":" .. assert(range).start[1]
+  end
+  agents.send({ "line" })
+  local spec = assert(pickers[1])
+  eq(spec.title, "Agents: New Session")
+  vim.api.nvim_buf_set_name(0, vim.fs.joinpath(vim.fn.getcwd(), "renamed.lua"))
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  vim.cmd.lcd(temp_dir)
+  choose(spec, "cat")
+  local session = assert(agents.sessions()[1])
+  eq(session.cwd, cwd)
+  eq(vim.api.nvim_get_current_buf(), session.buf)
+  H.wait(function()
+    return output(session):find("CUSTOM:context.lua:2", 1, true) ~= nil
+  end)
+  eq(output(session):find("renamed.lua", 1, true), nil)
+  eq(#pickers, 1)
+  eq(notifications, {})
+end
+
+T["send without focus can launch in a new tab without another view in the source tab"] = function()
+  local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+  local tab = vim.api.nvim_get_current_tabpage()
+  agents.send({ "file" }, { focus = false })
+  local spec = assert(pickers[1])
+  eq(spec.title, "Agents: New Session")
+  spec.actions.tabnew(assert(find(spec, "cat")))
+  local session = assert(agents.sessions()[1])
+  H.wait(function()
+    return output(session):find("@context.lua", 1, true) ~= nil
+  end)
+  eq(vim.api.nvim_get_current_win(), origin)
+  eq(vim.api.nvim_get_current_buf(), source)
+  eq(vim.api.nvim_tabpage_list_wins(tab), { origin })
+  eq(#vim.api.nvim_list_tabpages(), 2)
+  local wins = vim.fn.win_findbuf(session.buf)
+  eq(#wins, 1)
+  eq(vim.api.nvim_win_get_tabpage(assert(wins[1])) == tab, false)
+  eq(notifications, {})
+end
+
+T["ranged send without sessions supports current-window launch and preserves selected text"] = function()
+  local origin = vim.api.nvim_get_current_win()
+  vim.cmd("2Agents send")
+  local spec = assert(pickers[1])
+  eq(spec.title, "Agents: New Session")
+  vim.api.nvim_buf_set_lines(0, 0, -1, false, { "changed after capture" })
+  spec.actions.current(assert(find(spec, "cat")))
+  local session = assert(agents.sessions()[1])
+  eq(vim.api.nvim_get_current_win(), origin)
+  eq(vim.api.nvim_win_get_buf(origin), session.buf)
+  eq(vim.api.nvim_tabpage_list_wins(0), { origin })
+  H.wait(function()
+    return output(session):find("local second = 2", 1, true) ~= nil
+  end)
+  eq(output(session):find("local first = 1", 1, true), nil)
+  eq(output(session):find("changed after capture", 1, true), nil)
+  eq(#pickers, 1)
+  eq(notifications, {})
+end
+
+T["send without sessions can be cancelled"] = test.new_set({
+  parametrize = { { "context" }, { "tool" } },
+}, {
+  ---@param stage string
+  ["without creating a session or sending"] = function(stage)
+    require("agents.config").get().picker = nil
+    ---@type string[]
+    local titles = {}
+    ---@param items agents.PickerItem<unknown>[]
+    ---@param opts vim.ui.select.Opts
+    ---@param callback fun(item: agents.PickerItem<unknown>?, idx?: integer)
+    set_select(function(items, opts, callback)
+      titles[#titles + 1] = assert(opts.prompt)
+      if stage == "tool" and opts.prompt == "Agents: Send Context" then
+        for _, item in ipairs(items) do
+          if item.text:match("^%S+") == "file" then
+            callback(item)
+            return
+          end
+        end
+        error("Expected file context")
+      end
+      callback(nil)
+    end)
+    agents.send()
+    eq(
+      titles,
+      stage == "tool" and { "Agents: Send Context", "Agents: New Session" }
+        or { "Agents: Send Context" }
+    )
+    eq(agents.sessions(), {})
+    eq(notifications, {})
+  end,
+})
+
+T["unavailable context and explicit missing targets do not offer a new session"] = function()
+  eq(agents.send({ "selection" }), nil)
   eq(#notifications, 1)
-  eq(notifications[1]:find(":Agents new", 1, true) ~= nil, true)
+  eq(notifications[1]:find("requested context is not available", 1, true) ~= nil, true)
+  test.expect.error(function()
+    agents.send({ "file" }, { target = "missing session" })
+  end, "no session matches target missing session")
+  eq(#pickers, 0)
+  eq(agents.sessions(), {})
 end
 
 T["composed ranged send with an explicit multiword target"] = test.new_set({

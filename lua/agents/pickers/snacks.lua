@@ -30,6 +30,8 @@ local chunk_highlights = {
 ---@class agents.pickers.SnacksWindowOptions
 ---@field keys table<string, agents.pickers.SnacksKey>
 ---@field border? agents.pickers.SnacksBorder
+---@field min_width? number
+---@field max_width? number
 ---@field footer? agents.pickers.SnacksHighlight[]
 ---@field footer_pos? "left"|"center"|"right"
 ---@field footer_keys? boolean
@@ -37,10 +39,23 @@ local chunk_highlights = {
 ---@class agents.pickers.SnacksLayoutNode
 ---@field win? string
 ---@field border? agents.pickers.SnacksBorder
+---@field box? "horizontal"|"vertical"
+---@field width? number|fun(win: agents.pickers.SnacksMeasure): number?
+---@field min_width? number
+---@field max_width? number
+---@field position? string
 ---@field [integer] agents.pickers.SnacksLayoutNode
+
+---@class agents.pickers.SnacksMeasure
+---@field opts agents.pickers.SnacksLayoutNode
+---@field dim fun(self: agents.pickers.SnacksMeasure, parent: { width: number, height: number }): { width: number, height: number }
+---@field border_size fun(self: agents.pickers.SnacksMeasure): { left: number, right: number }
+---@field parent_size fun(self: agents.pickers.SnacksMeasure): { width: number, height: number }
 
 ---@class agents.pickers.SnacksLayout
 ---@field layout? agents.pickers.SnacksLayoutNode
+---@field hidden? string[]
+---@field preview? string
 ---@field config? fun(layout: agents.pickers.SnacksLayout): agents.pickers.SnacksLayout?
 
 ---@alias agents.pickers.SnacksLayoutResolver fun(source?: string): agents.pickers.SnacksLayout|string
@@ -124,6 +139,149 @@ local function list_border(node, inherited)
   end
 end
 
+---@param layout agents.pickers.SnacksLayout
+---@param cells integer
+---@param defaults table<string, agents.pickers.SnacksWindowOptions>
+local function help_width(layout, cells, defaults)
+  local root = layout.layout
+  if not root then
+    return
+  end
+  ---@type agents.pickers.SnacksMeasure
+  local native = require("snacks.win")
+  local available = vim.o.columns
+  ---@type table<agents.pickers.SnacksLayoutNode, agents.pickers.SnacksMeasure>
+  local windows = {}
+  ---@type table<agents.pickers.SnacksLayoutNode, number>
+  local minimums = {}
+
+  ---@param node agents.pickers.SnacksLayoutNode
+  ---@return agents.pickers.SnacksMeasure
+  local function measure(node)
+    if not windows[node] then
+      local opts = vim.deepcopy(node)
+      local inherited = node.win and defaults[node.win] or nil
+      if inherited then
+        opts.min_width = opts.min_width or inherited.min_width
+        opts.max_width = opts.max_width or inherited.max_width
+        if opts.border == nil then
+          opts.border = inherited.border
+        end
+      end
+      -- Snacks uses the same options-only measurement for its layout boxes.
+      local win = setmetatable({ opts = opts }, native)
+      ---@cast win agents.pickers.SnacksMeasure
+      windows[node] = win
+    end
+    return windows[node]
+  end
+
+  ---@param node agents.pickers.SnacksLayoutNode
+  ---@return boolean
+  local function included(node)
+    return not node.win
+      or not (
+        vim.list_contains(layout.hidden or {}, node.win)
+        or (node.win == "preview" and layout.preview == "main")
+      )
+  end
+
+  ---@param node agents.pickers.SnacksLayoutNode
+  ---@return number? Required outer width, only for the path containing the list.
+  local function required(node)
+    if not included(node) then
+      return
+    end
+    ---@type number?
+    local needed = node.win == "list" and cells or nil
+    ---@type agents.pickers.SnacksLayoutNode?
+    local target
+    for _, child in ipairs(node) do
+      local width = required(child)
+      if width then
+        target, needed = child, width
+      end
+    end
+    if not needed then
+      return
+    end
+    if target and node.box == "horizontal" then
+      local width = needed
+      while width <= available do
+        local fixed, flex, share = 0, 0, 1
+        for _, child in ipairs(node) do
+          if included(child) then
+            local win = measure(child)
+            local option = win.opts.width
+            local size = 0
+            if type(option) == "function" then
+              size = option(win) or 0
+            elseif type(option) == "number" then
+              size = option
+            end
+            local border = win:border_size()
+            local edges = border.left + border.right
+            if size > 0 then
+              fixed = fixed + win:dim({ width = width, height = vim.o.lines }).width + edges
+            else
+              flex = flex + 1
+              share =
+                math.max(share, child == target and needed or (win.opts.min_width or 1) + edges)
+            end
+          end
+        end
+        local next_width = math.ceil(fixed + flex * share)
+        if next_width <= width then
+          break
+        end
+        width = next_width
+      end
+      needed = width
+    end
+    local win = measure(node)
+    needed = math.max(needed, win.opts.min_width or 0)
+    minimums[node] = needed
+    win.opts.min_width = needed
+    if win.opts.max_width then
+      win.opts.max_width = math.max(win.opts.max_width, needed)
+    end
+    local border = win:border_size()
+    return needed + border.left + border.right
+  end
+
+  local total = required(root)
+  if not total then
+    return
+  end
+  -- Oversized descendant minima can overflow their allocated share after borders.
+  -- On small screens enlarge only the root and let Snacks clip the footer.
+  if total <= available then
+    for node, minimum in pairs(minimums) do
+      node.min_width = minimum
+      node.max_width = measure(node).opts.max_width
+    end
+  end
+  local border = measure(root):border_size()
+  local limit = math.max(1, available - border.left - border.right)
+  root.min_width = math.min(limit, math.max(root.min_width or 0, assert(minimums[root])))
+  root.max_width = math.min(limit, math.max(root.max_width or limit, root.min_width))
+  if root.position and root.position ~= "float" then
+    -- Snacks wraps split roots and carries width, but not their minimum/maximum.
+    local original = root.width
+    root.width = function(win)
+      local width = 0
+      if type(original) == "function" then
+        width = original(win) or 0
+      elseif type(original) == "number" then
+        width = original
+      end
+      local parent = win:parent_size().width
+      width = width == 0 and parent or (width < 1 and math.floor(parent * width) or width)
+      return math.min(parent, math.max(width, total))
+    end
+  end
+end
+
 ---@generic T
 ---@param spec agents.PickerSpec<T>
 function M.open(spec)
@@ -195,6 +353,12 @@ function M.open(spec)
     table.insert(footer, 1, { " ", "SnacksFooter" })
     footer[#footer + 1] = { " ", "SnacksFooter" }
   end
+  ---@type string[]
+  local hints = {}
+  for _, chunk in ipairs(footer) do
+    hints[#hints + 1] = chunk[1]
+  end
+  local footer_width = vim.fn.strdisplaywidth(table.concat(hints)) + 2
   snacks.picker({
     title = spec.title,
     items = items,
@@ -225,6 +389,7 @@ function M.open(spec)
         local layout = vim.deepcopy(config.layout(original))
         if #footer > 0 then
           list_border(layout.layout, opts.win.list.border)
+          help_width(layout, footer_width, opts.win)
         end
         -- The original layout callback has already run during resolution.
         layout.config = nil

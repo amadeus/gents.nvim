@@ -103,7 +103,12 @@ Ctrl-X, and Ctrl-T likewise honor the requested split or tab placement.
 Existing views stay open. Normal Enter focuses an existing view when one is
 available. Custom adapters have the same named layout actions.
 
-To hide the Snacks binding hints while keeping the shortcuts active:
+Snacks pickers widen as needed to fit their binding hints, accounting for
+borders and side-by-side previews. Wider configured layouts are preserved;
+on small screens, hints may still be clipped. Sizing updates when the editor
+is resized.
+
+To hide the binding hints and keep your configured sizing and shortcuts:
 
 ```lua
 require("agents").setup({

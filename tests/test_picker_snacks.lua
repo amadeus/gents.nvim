@@ -19,6 +19,7 @@ end
 ---@field closed boolean
 ---@field input agents.test.SnacksInput
 ---@field list agents.test.SnacksList
+---@field preview agents.test.SnacksWindow
 ---@field opts agents.pickers.SnacksOptions
 ---@field close fun(self: agents.test.SnacksPicker)
 ---@field find fun(self: agents.test.SnacksPicker, opts: { refresh: boolean })
@@ -34,12 +35,12 @@ end
 
 ---@class agents.test.SnacksLayout
 ---@field preset? string
----@field layout agents.test.SnacksLayoutNode
+---@field layout? agents.test.SnacksLayoutNode
 ---@field config? fun(opts: agents.test.SnacksLayout)
 
 ---@class agents.test.SnacksPickerConfig
 ---@field layout? agents.test.SnacksLayout|fun(): agents.test.SnacksLayout
----@field win? { list: { footer_keys?: boolean } }
+---@field win? { list: { footer_keys?: boolean, min_width?: integer, max_width?: integer } }
 
 vim.opt.runtimepath:append(vim.env.SNACKS_DIR)
 ---@type { setup: fun(opts: { picker: { enabled: boolean, ui_select: boolean } }), picker: { get: fun(): agents.test.SnacksPicker[] }, config: { picker: agents.test.SnacksPickerConfig } }
@@ -432,7 +433,7 @@ T["binding footer"] = test.new_set({
       snacks.config.picker.layout = {
         layout = {
           box = "vertical",
-          width = 70,
+          width = 30,
           height = 10,
           border = "none",
           { win = "input", height = 1, border = "bottom" },
@@ -490,11 +491,14 @@ T["binding footer"] = test.new_set({
         config.border,
         bordered and { "", "", "", "", "", "─", "", "" } or "none"
       )
+      if bordered then
+        test.expect.equality(config.width, 30)
+      end
     end
   end,
 })
 
-T["binding footer preserves dropdown sizing and borders across resizing"] = function()
+T["binding footer preserves wider dropdown sizing and borders across resizing"] = function()
   vim.o.columns = 200
   local input_border = { "┌", "─", "┐", "│", "┤", "─", "├", "│" }
   local list_border = { "", "", "", "│", "┘", "─", "└", "│" }
@@ -502,7 +506,7 @@ T["binding footer preserves dropdown sizing and borders across resizing"] = func
     preset = "dropdown",
     layout = {
       backdrop = false,
-      width = 0.4,
+      width = 0.5,
       min_width = 80,
       height = 10,
       border = "none",
@@ -517,20 +521,153 @@ T["binding footer preserves dropdown sizing and borders across resizing"] = func
   local list_win, input_win = assert(picker.list.win.win), assert(picker.input.win.win)
   local footer = footer_text(picker)
   local width = vim.api.nvim_win_get_width(list_win)
-  test.expect.equality(width <= 80, true)
+  test.expect.equality(width, 98)
+  test.expect.equality(width >= vim.fn.strdisplaywidth(footer) + 2, true)
   test.expect.equality(vim.api.nvim_win_get_config(list_win).border, list_border)
   test.expect.equality(vim.api.nvim_win_get_config(input_win).border, input_border)
 
   vim.o.columns = 240
   vim.api.nvim_exec_autocmds("VimResized", {})
   H.wait(function()
-    return vim.api.nvim_win_get_width(list_win) > width
+    return vim.api.nvim_win_get_width(assert(picker.list.win.win)) > width
+  end)
+  test.expect.equality(vim.api.nvim_win_get_width(assert(picker.list.win.win)), 118)
+  test.expect.equality(footer_text(picker), footer)
+  test.expect.equality(vim.api.nvim_win_get_config(assert(picker.list.win.win)).border, list_border)
+end
+
+T["binding footer widens a narrow dropdown and remains bounded across screen resizing"] = function()
+  vim.o.columns = 200
+  local border = { "", "", "", "│", "┘", "─", "└", "│" }
+  snacks.config.picker.layout = {
+    preset = "dropdown",
+    layout = {
+      box = "vertical",
+      width = 0.2,
+      min_width = 30,
+      height = 10,
+      border = "none",
+      { win = "input", height = 1, border = "bottom" },
+      { win = "list", border = border },
+    },
+  }
+  H.new()
+  require("agents").pick()
+  local picker = current_picker()
+  local footer = footer_text(picker)
+  local required = vim.fn.strdisplaywidth(footer) + 2
+  test.expect.equality(vim.api.nvim_win_get_width(assert(picker.list.win.win)) >= required, true)
+
+  vim.o.columns = 40
+  vim.api.nvim_exec_autocmds("VimResized", {})
+  H.wait(function()
+    return vim.api.nvim_win_get_width(assert(picker.list.win.win)) <= 38
   end)
   test.expect.equality(footer_text(picker), footer)
-  test.expect.equality(vim.api.nvim_win_get_config(list_win).border, list_border)
+  test.expect.equality(vim.api.nvim_win_get_config(assert(picker.list.win.win)).border, border)
+
+  vim.o.columns = 200
+  vim.api.nvim_exec_autocmds("VimResized", {})
+  H.wait(function()
+    return vim.api.nvim_win_get_width(assert(picker.list.win.win)) >= required
+  end)
+  test.expect.equality(footer_text(picker), footer)
+  test.expect.equality(vim.api.nvim_win_get_config(assert(picker.list.win.win)).border, border)
+end
+
+T["binding footer with a horizontal preview"] = test.new_set({
+  parametrize = { { 0.5 }, { 60 }, { 0 } },
+}, {
+  ---@param preview_width number
+  ["fits when possible and keeps both panes inside a smaller screen"] = function(preview_width)
+    vim.o.columns = 240
+    snacks.config.picker.layout = {
+      layout = {
+        box = "horizontal",
+        width = 0.5,
+        height = 10,
+        border = "none",
+        {
+          box = "vertical",
+          border = "rounded",
+          { win = "input", height = 1, border = "bottom" },
+          { win = "list", border = "none" },
+        },
+        { win = "preview", width = preview_width, border = "rounded" },
+      },
+    }
+    H.new()
+    require("agents").pick()
+    local picker = current_picker()
+    local required = vim.fn.strdisplaywidth(footer_text(picker)) + 2
+
+    ---@return boolean
+    local function inside_screen()
+      -- Floating-window screen positions refresh on redraw after replacing the layout root.
+      vim.cmd.redraw()
+      local list_win, preview_win = assert(picker.list.win.win), assert(picker.preview.win.win)
+      local list_col = vim.api.nvim_win_get_position(list_win)[2]
+      local preview_col = vim.api.nvim_win_get_position(preview_win)[2]
+      return list_col >= 0
+        and preview_col > list_col + vim.api.nvim_win_get_width(list_win)
+        and preview_col + vim.api.nvim_win_get_width(preview_win) + 2 <= vim.o.columns
+    end
+
+    test.expect.equality(vim.api.nvim_win_get_width(assert(picker.list.win.win)) >= required, true)
+    test.expect.equality(inside_screen(), true)
+    vim.o.columns = 80
+    vim.api.nvim_exec_autocmds("VimResized", {})
+    H.wait(inside_screen)
+    test.expect.equality(vim.api.nvim_win_get_width(assert(picker.preview.win.win)) > 0, true)
+    vim.o.columns = 240
+    vim.api.nvim_exec_autocmds("VimResized", {})
+    H.wait(function()
+      return vim.api.nvim_win_get_width(assert(picker.list.win.win)) >= required
+    end)
+    test.expect.equality(inside_screen(), true)
+  end,
+})
+
+T["binding footer widens the sidebar preset while keeping the source editor"] = function()
+  vim.o.columns = 200
+  local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
+  snacks.config.picker.layout = { preset = "sidebar" }
+  require("agents").new()
+  local picker = current_picker()
+  test.expect.equality(
+    vim.api.nvim_win_get_width(assert(picker.list.win.win))
+      >= vim.fn.strdisplaywidth(footer_text(picker)) + 2,
+    true
+  )
+  test.expect.equality(vim.api.nvim_win_is_valid(origin), true)
+  test.expect.equality(vim.api.nvim_win_get_buf(origin), source)
+  test.expect.equality(vim.api.nvim_win_get_width(origin) > 0, true)
+end
+
+T["binding footer lifts a conflicting list window width limit"] = function()
+  vim.o.columns = 200
+  snacks.config.picker.win = { list = { min_width = 30, max_width = 40 } }
+  snacks.config.picker.layout = {
+    layout = {
+      box = "vertical",
+      width = 100,
+      height = 10,
+      border = "none",
+      { win = "input", height = 1, border = "bottom" },
+      { win = "list", border = "none" },
+    },
+  }
+  require("agents").new()
+  local picker = current_picker()
+  test.expect.equality(
+    vim.api.nvim_win_get_width(assert(picker.list.win.win))
+      >= vim.fn.strdisplaywidth(footer_text(picker)) + 2,
+    true
+  )
 end
 
 T["binding footer preserves a dynamic layout and runs its configuration hook once"] = function()
+  vim.o.columns = 200
   local resolved, configured = 0, 0
   local layout = {
     box = "vertical",
@@ -547,14 +684,18 @@ T["binding footer preserves a dynamic layout and runs its configuration hook onc
       ---@param opts agents.test.SnacksLayout
       config = function(opts)
         configured = configured + 1
-        opts.layout.width = 70
+        assert(opts.layout).width = 30
       end,
     }
   end
   require("agents").new()
   local picker = current_picker()
   test.expect.equality({ resolved, configured }, { 1, 1 })
-  test.expect.equality(vim.api.nvim_win_get_width(assert(picker.list.win.win)), 70)
+  test.expect.equality(
+    vim.api.nvim_win_get_width(assert(picker.list.win.win))
+      >= vim.fn.strdisplaywidth(footer_text(picker)) + 2,
+    true
+  )
   test.expect.equality(
     footer_text(picker),
     "  C-v  vsplit   C-x  split   C-t  tab   C-Ent  here   C-e  args  "

@@ -1,7 +1,31 @@
-# agents.nvim
+# Agents.nvim
 
-Run agent CLI sessions in native Neovim terminals. Keep multiple sessions open,
-hide them while you edit, and send file references, selected text, or diagnostics.
+Agents.nvim brings CLI agents into your existing Neovim workflow, running the
+tools you're already familiar with in native terminal buffers.
+
+- Run multiple agent sessions, including multiple instances of the same tool.
+  Show them in splits, floating windows, tabs, or your current window, and hide
+  them while they keep working.
+- Share context directly from Neovim: file and line references, selected text,
+  diagnostics, buffer contents, and terminal buffer scrollback.
+- React to agent lifecycle events with autocmds, including custom notifications
+  when an agent is ready for input.
+- Fit agents into your own workflow with composable commands and Lua APIs for
+  your keymaps, scripts, and pickers.
+
+Our goal was not to re-invent the agentic workflow, just make it feel like a
+first class citizen inside of neovim.
+
+## Installation
+
+Use Neovim 0.12+ and install the agent CLIs you want to use separately. Their
+commands must be available on your `PATH`. Git is needed to install the plugin.
+
+Choose one installation method. Each example includes a minimal configuration
+and keymaps you can customize. The mappings use Normal mode; sending context
+also works with a Visual selection. Agents installs no mappings by default.
+
+### lazy.nvim
 
 Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
 
@@ -10,51 +34,168 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
   "amadeus/agents.nvim",
   cmd = "Agents",
   opts = {
-    layout = "botright vsplit", -- "split", "tabnew", "current", or "float"
-    on_exit = "keep", -- "close" removes sessions that exit successfully
+    -- By default, agents open in a full-height vertical split on the right.
+    -- If you'd prefer, you can use a floating window instead.
+    -- layout = "float",
+    -- Optional: a 60-column float near the top-right corner.
+    -- float = {
+    --   width = 60,
+    --   height = vim.o.lines - 4,
+    --   row = 0,
+    --   border = "rounded",
+    --   anchor = "NE",
+    --   col = vim.o.columns - 2,
+    -- },
   },
   keys = {
-    { "<leader>ac", "<cmd>Agents actions<cr>", desc = "Agents actions" },
-    { "<leader>aa", "<cmd>Agents toggle<cr>", desc = "Toggle agents" },
+    -- Pick a CLI tool and start a new session.
     { "<leader>an", "<cmd>Agents new<cr>", desc = "New agent session" },
-    { "<leader>as", function() require("agents").send() end, mode = { "n", "x" }, desc = "Send context" },
+    -- Choose a command, such as starting, hiding, or closing a session.
+    { "<leader>ac", "<cmd>Agents actions<cr>", desc = "Agents actions" },
+    -- Show or hide a session without stopping its CLI.
+    { "<leader>aa", "<cmd>Agents toggle<cr>", desc = "Toggle agent" },
+    -- Choose context to send, including selected text in Visual mode.
+    { "<leader>as", "<cmd>Agents send<cr>", mode = { "n", "x" }, desc = "Send context", },
   },
 }
 ```
 
-Install the agent CLIs you want to use separately, and choose your own mappings.
+### Neovim's built-in package manager
 
-Set `layout = "float"` in `opts` for floating windows by default. The `float`
-option customizes their size and border; see [layout defaults and picker behavior](docs/commands.md).
+Add this to your `init.lua` using [vim.pack](https://neovim.io/doc/user/pack/):
 
-- `:Agents new` — pick a tool and start a session.
-- `:Agents new claude` — start Claude directly.
-- `:Agents actions` — choose a top-level command.
-- `:Agents toggle` — show or hide a selected session in the current tab.
-- `:Agents pick` — choose an agent session.
-- `:Agents focus` — focus an agent session or return to the previous window, keeping it open.
-- `:Agents send` — choose context to send to a session.
-- `:Agents send file diagnostics` — send a file reference and its diagnostics.
-- `:Agents close` — stop and remove a session.
+```lua
+vim.pack.add({ "https://github.com/amadeus/agents.nvim" })
+require("agents").setup({
+  -- By default, agents open in a full-height vertical split on the right.
+  -- If you'd prefer, you can use a floating window instead.
+  -- layout = "float",
+  -- Optional: a 60-column float near the top-right corner.
+  -- float = {
+  --   width = 60,
+  --   height = vim.o.lines - 4,
+  --   row = 0,
+  --   border = "rounded",
+  --   anchor = "NE",
+  --   col = vim.o.columns - 2,
+  -- },
+  keys = {
+    -- Pick a CLI tool and start a new session.
+    { "<leader>an", "new", mode = "n" },
+    -- Choose a command, such as starting, hiding, or closing a session.
+    { "<leader>ac", "actions", mode = "n" },
+    -- Show or hide a session without stopping its CLI.
+    { "<leader>aa", "toggle", mode = "n" },
+    -- Choose context to send, including selected text in Visual mode.
+    { "<leader>as", "send", mode = { "n", "x" } },
+  },
+})
+```
 
-Supply choices to skip pickers: `:Agents actions hide codex #2` or
-`:Agents send file --target codex #2`. See [commands](docs/commands.md) for
-target selection, completion, and ranges.
+<details>
+<summary>vim-plug</summary>
 
-Sending context focuses the selected agent by default.
-Use `:Agents send file --no-focus` to keep focus in the originating window.
+Add this inside your existing [vim-plug](https://github.com/junegunn/vim-plug)
+`plug#begin()` / `plug#end()` block:
 
-Hidden sessions keep running. Use `:checkhealth agents` to check your setup.
-Set `picker = "snacks"` in `opts` to use the built-in Snacks picker
-and its shortcuts (requires snacks.nvim).
-See [sending context](docs/recipes/context.md) for file references, copied text,
-and specialized providers. To react when a tool finishes, see
-[agent ready notifications](docs/recipes/ready.md).
-Tools that emit terminal titles show them in buffer names, session pickers, and status data;
-see [conversation titles](docs/recipes/titles.md) for setup and limitations.
-For saved Neovim sessions, see [terminal session restoration](docs/commands.md#session-restoration).
+```vim
+Plug 'amadeus/agents.nvim'
+```
 
-For development, run these from the repository root:
+Run `:PlugInstall`. After installation, add this after `plug#end()` in
+`init.vim`, then restart Neovim:
+
+```vim
+lua << EOF
+require("agents").setup({
+  -- By default, agents open in a full-height vertical split on the right.
+  -- If you'd prefer, you can use a floating window instead.
+  -- layout = "float",
+  -- Optional: a 60-column float near the top-right corner.
+  -- float = {
+  --   width = 60,
+  --   height = vim.o.lines - 4,
+  --   row = 0,
+  --   border = "rounded",
+  --   anchor = "NE",
+  --   col = vim.o.columns - 2,
+  -- },
+  keys = {
+    -- Pick a CLI tool and start a new session.
+    { "<leader>an", "new", mode = "n" },
+    -- Choose a command, such as starting, hiding, or closing a session.
+    { "<leader>ac", "actions", mode = "n" },
+    -- Show or hide a session without stopping its CLI.
+    { "<leader>aa", "toggle", mode = "n" },
+    -- Choose context to send, including selected text in Visual mode.
+    { "<leader>as", "send", mode = { "n", "x" } },
+  },
+})
+EOF
+```
+
+</details>
+
+Run `:Agents` once to ensure the plugin is loaded and open its picker. Then use
+`:checkhealth agents` to check your setup.
+
+## Configuration
+
+By default, agent sessions open in a full-height vertical split on the right
+(`layout = "botright vsplit"`). Showing a session that already has a window
+focuses that window.
+
+For floating windows by default, uncomment `layout = "float"` in your
+configuration above. The optional `float` example sets the window's size and
+position. With lazy.nvim, these settings live inside `opts`.
+
+Agents uses Neovim's `vim.ui.select` picker by default. If you have
+[snacks.nvim](https://github.com/folke/snacks.nvim) installed, add
+`picker = "snacks"` to the same options table for its menus and extra shortcuts.
+See [layouts and picker shortcuts](docs/commands.md) for split, tab, current-window,
+and float settings.
+
+## Commands
+
+| Command                     | What it does                                                            |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `:Agents` or `:Agents pick` | Choose an existing session, or start one if none exist.                 |
+| `:Agents actions`           | Open a menu to start or manage sessions, switch focus, or send context. |
+| `:Agents new`               | Pick a CLI tool and start a session.                                    |
+| `:Agents new claude`        | Start a Claude session directly.                                        |
+| `:Agents focus`             | Focus an agent, or return to the previous window when called from one.  |
+| `:Agents toggle`            | Show or hide the selected session in the current tab.                   |
+| `:Agents hide`              | Hide the selected session's windows and keep its CLI running.           |
+| `:Agents close`             | Stop the selected CLI and delete its buffer.                            |
+| `:Agents send`              | Choose file references or text to send to an agent.                     |
+
+Commands that need a session use the current agent, the only session, or a
+picker if there are multiple sessions running. Specify an ID or label to choose
+one directly. Commands also compose under `actions`:
+
+```vim
+:Agents actions hide claude #2
+:Agents send file diagnostics --target claude #2
+```
+
+Sending context focuses the agent so you can continue typing. Add `--no-focus`
+to keep focus in your editor. See [commands](docs/commands.md) for target selection,
+ranges, and the Lua equivalents.
+
+Generally speaking we recommend setting up keybinds to map back into these
+actions or functions instead of calling them directly.
+
+## Documentation
+
+- [Commands and configuration](docs/commands.md)
+- [Sending context](docs/recipes/context.md)
+- [Agent ready notifications](docs/recipes/ready.md)
+- [Conversation titles](docs/recipes/titles.md)
+
+## Development
+
+You'll need Neovim, Make, curl, tar, StyLua 2.5.2, and LuaLS 3.19.1.
+From the repository root:
 
 ```sh
 make test
@@ -62,6 +203,7 @@ make lint
 make typecheck
 ```
 
-You'll need Neovim, Make, curl, tar, StyLua 2.5.2, and LuaLS 3.19.1. The first
-test run downloads mini.test into `.deps/`; test and typecheck output stays in
-`.test/`. To use another Neovim version, pass `NVIM=/path/to/nvim` to Make.
+The first test run downloads mini.test into `.deps/`; generated test and
+checker output stays in `.test/`. Pass `NVIM=/path/to/nvim` to use another
+Neovim build. To include the Snacks integration tests, set `SNACKS_DIR` to
+your snacks.nvim checkout when running `make test`.

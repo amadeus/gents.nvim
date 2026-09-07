@@ -10,6 +10,17 @@ local function output(session)
   return table.concat(vim.api.nvim_buf_get_lines(session.buf, 0, -1, false), "\n")
 end
 
+---@param buf integer
+---@return boolean
+local function listed(buf)
+  for _, info in ipairs(vim.fn.getbufinfo({ buflisted = 1 })) do
+    if info.bufnr == buf then
+      return true
+    end
+  end
+  return false
+end
+
 T["several real jobs have independent ids, labels, buffers and channels"] = function()
   local first, second = H.new(), H.new()
   eq(second.id > first.id, true)
@@ -33,6 +44,30 @@ T["several real jobs have independent ids, labels, buffers and channels"] = func
     return output(first):find("first-session", 1, true) ~= nil
   end)
   eq(output(second):find("first-session", 1, true), nil)
+end
+
+T["listed sessions survive hiding and native buffer navigation"] = function()
+  agents.setup({ buflisted = true, tools = { cat = { cmd = { "cat" } } } })
+  local session = H.new()
+  local buf, job = session.buf, session.job
+  eq(listed(buf), true)
+  agents.hide(session.id)
+  eq(listed(buf), true)
+  eq(vim.fn.win_findbuf(buf), {})
+  eq(vim.fn.jobwait({ job }, 0), { -1 })
+
+  vim.cmd.buffer(tostring(buf))
+  eq(vim.api.nvim_get_current_buf(), buf)
+  eq(agents.current(), session)
+  eq(agents.sessions(), { session })
+  eq({ session.buf, session.job }, { buf, job })
+  eq(vim.bo[buf].filetype, "agents_terminal")
+  eq(listed(buf), true)
+  vim.fn.chansend(job, "native-buffer-reopened\n")
+  H.wait(function()
+    return output(session):find("native-buffer-reopened", 1, true) ~= nil
+  end)
+  eq(vim.fn.jobwait({ job }, 0), { -1 })
 end
 
 T["labels stay unique after close and support explicit labels"] = function()
@@ -102,18 +137,24 @@ T["cwd and environment come from the invoking window and tool"] = function()
   eq(assert(require("agents.config").get().tools.probe.env).AGENTS_SESSION, "wrong")
 end
 
-T["natural exit keeps the transcript and exit code"] = function()
-  agents.setup({ tools = { done = { cmd = { "sh", "-c", "printf finished; exit 7" } } } })
-  local session = assert(agents.new("done"))
-  H.wait(function()
-    return session.state == "exited"
-  end)
-  eq(session.exit_code, 7)
-  eq(vim.api.nvim_buf_is_valid(session.buf), true)
-  eq(vim.bo[session.buf].buflisted, false)
-  eq(output(session):find("finished", 1, true) ~= nil, true)
-  eq(agents.sessions(), { session })
-end
+T["natural exit"] = test.new_set({ parametrize = { { false }, { true } } }, {
+  ---@param buflisted boolean
+  ["keeps the transcript, listing preference, and exit code"] = function(buflisted)
+    agents.setup({
+      buflisted = buflisted,
+      tools = { done = { cmd = { "sh", "-c", "printf finished; exit 7" } } },
+    })
+    local session = assert(agents.new("done"))
+    H.wait(function()
+      return session.state == "exited"
+    end)
+    eq(session.exit_code, 7)
+    eq(vim.api.nvim_buf_is_valid(session.buf), true)
+    eq(listed(session.buf), buflisted)
+    eq(output(session):find("finished", 1, true) ~= nil, true)
+    eq(agents.sessions(), { session })
+  end,
+})
 
 T["close-on-exit removes successful jobs and keeps failed jobs"] = function()
   agents.setup({
@@ -132,27 +173,43 @@ T["close-on-exit removes successful jobs and keeps failed jobs"] = function()
   eq(agents.sessions(), { failed })
 end
 
-T["close stops a real job and removes the buffer and registry entry"] = function()
-  local session = H.new()
-  agents.close(session.id)
-  eq(agents.sessions(), {})
-  eq(vim.fn.win_findbuf(session.buf), {})
-  H.wait(function()
-    return session.state == "exited" and not vim.api.nvim_buf_is_valid(session.buf)
-  end)
-  eq(vim.fn.jobwait({ session.job }, 0)[1] ~= -1, true)
-  eq(vim.api.nvim_buf_is_valid(session.buf), false)
-  eq(agents.sessions(), {})
-end
-
-T["native buffer wipe stops the job and removes the session"] = function()
-  local session = H.new()
-  vim.api.nvim_buf_delete(session.buf, { force = true })
-  H.wait(function()
-    return session.state == "exited"
-  end)
-  eq(agents.sessions(), {})
-end
+T["session removal"] = test.new_set({
+  parametrize = {
+    { false, "close" },
+    { true, "close" },
+    { false, "delete" },
+    { true, "delete" },
+    { false, "wipe" },
+    { true, "wipe" },
+  },
+}, {
+  ---@param buflisted boolean
+  ---@param action string
+  ["stops the job and removes the buffer, native list entry, and registry entry"] = function(
+    buflisted,
+    action
+  )
+    agents.setup({ buflisted = buflisted, tools = { cat = { cmd = { "cat" } } } })
+    local session = H.new()
+    eq(listed(session.buf), buflisted)
+    if action == "close" then
+      agents.close(session.id)
+    elseif action == "delete" then
+      vim.cmd.bdelete({ args = { tostring(session.buf) }, bang = true })
+    else
+      vim.cmd.bwipeout({ args = { tostring(session.buf) }, bang = true })
+    end
+    eq(agents.sessions(), {})
+    eq(vim.fn.win_findbuf(session.buf), {})
+    H.wait(function()
+      return session.state == "exited" and not vim.api.nvim_buf_is_valid(session.buf)
+    end)
+    eq(vim.fn.jobwait({ session.job }, 0)[1] ~= -1, true)
+    eq(vim.api.nvim_buf_is_valid(session.buf), false)
+    eq(listed(session.buf), false)
+    eq(agents.sessions(), {})
+  end,
+})
 
 T["launch failures leave no session or scratch buffer behind"] = function()
   local before = vim.api.nvim_list_bufs()

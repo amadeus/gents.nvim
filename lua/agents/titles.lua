@@ -103,6 +103,7 @@ function M.update(session, raw)
   end
   if title ~= session.title then
     session.title = title
+    require("agents.buffer_names").update(session)
     require("agents.events").emit("AgentsSessionTitle", { id = session.id, title = title })
   end
 end

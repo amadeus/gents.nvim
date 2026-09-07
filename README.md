@@ -50,8 +50,9 @@ and its shortcuts (requires snacks.nvim).
 See [sending context](docs/recipes/context.md) for file references, copied text,
 and specialized providers. To react when a tool finishes, see
 [agent ready notifications](docs/recipes/ready.md).
-Tools that emit terminal titles show them in session pickers and status data;
+Tools that emit terminal titles show them in buffer names, session pickers, and status data;
 see [conversation titles](docs/recipes/titles.md) for setup and limitations.
+For saved Neovim sessions, see [terminal session restoration](docs/commands.md#session-restoration).
 
 For development, run these from the repository root:
 

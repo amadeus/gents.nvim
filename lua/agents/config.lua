@@ -5,6 +5,7 @@ local tools = require("agents.tools")
 local defaults = {
   layout = "botright vsplit",
   float = { width = 0.8, height = 0.8, border = "rounded" },
+  buflisted = false,
   picker = nil,
   picker_help = true,
   icons = { visible = "●", hidden = "○" },
@@ -37,6 +38,7 @@ local function validate(config)
     'agents: picker must be nil, "snacks", or a function'
   )
   assert(type(config.picker_help) == "boolean", "agents: picker_help must be a boolean")
+  assert(type(config.buflisted) == "boolean", "agents: buflisted must be a boolean")
   assert(type(config.icons) == "table", "agents: icons must be a table")
   for name, icon in pairs({ visible = config.icons.visible, hidden = config.icons.hidden }) do
     assert(

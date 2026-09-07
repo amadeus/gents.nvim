@@ -78,6 +78,41 @@ the tool picker; `hide` and `close` do nothing. After choosing context, `send`
 opens the tool picker, starts the selected CLI, and queues the context for it.
 Named providers skip the context picker.
 
+Use the built-in Agents session picker (`:Agents pick` or
+`require("agents").pick()`) to switch sessions. This is the recommended way to
+browse agents and choose their window placement.
+
+`buflisted = true` is an advanced escape hatch for integrating agent terminals
+with ordinary buffer lists and pickers. Enable it only if you understand how
+your buffer navigation and cleanup tools handle live terminals: bulk deletion
+can stop their CLI processes.
+
+```lua
+require("agents").setup({
+  buflisted = true,
+})
+```
+
+`buflisted` defaults to `false` and applies to newly created agent buffers.
+Pickers that explicitly filter out terminals may still omit them. Changing
+this setting does not change the listed state of existing buffers.
+
+Hiding a listed agent keeps its buffer in the list and its CLI running.
+Selecting that buffer again continues the same live session; it stays managed
+by Agents, including its normal terminal-input restoration. Ordinary buffer
+pickers control their own labels and window placement. The Agents `layout`
+setting and picker shortcuts apply when opening through Agents.
+
+Listed agents also participate in `:ls`, buffer cycling, and commands that
+operate on listed buffers. Buffer cleanup tools may select them as a
+replacement buffer or include them in bulk deletion. Native `:bdelete!` and
+`:bwipeout!` stop the CLI and remove the session; use `:Agents hide` to keep
+it running. With `on_exit = "keep"`, exited transcripts remain listed until
+closed. Listing buffers does not restore an exited process or persist a
+session across Neovim restarts; conversation resumption is handled by the CLI.
+See [session restoration](#session-restoration) to exclude terminals from
+Neovim's saved sessions.
+
 Session rows start with `●` for visible in the current tab and `○` for hidden.
 Markers, tool names or labels, conversation titles, and directories align in
 columns, with muted dots between the name, title, and directory in Snacks.
@@ -206,4 +241,13 @@ are treated as literal text. Use the Lua API for an argument containing spaces:
 
 ```lua
 require("agents").new("claude", { args = { "--name", "Review this feature" } })
+```
+
+## Session restoration
+
+Agents sessions cannot be currently restored by `:mksession`. If you use it, we recommend
+excluding all terminal buffers from saved sessions:
+
+```lua
+vim.opt.sessionoptions:remove("terminal")
 ```

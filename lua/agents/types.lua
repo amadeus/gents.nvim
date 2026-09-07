@@ -61,6 +61,7 @@
 ---@class agents.SetupOptions
 ---@field layout? agents.Layout
 ---@field float? agents.FloatOptions
+---@field buflisted? boolean List newly created agent buffers in normal buffer lists; defaults to false.
 ---@field picker? agents.Picker
 ---@field picker_help? boolean Show binding hints in the built-in Snacks picker; defaults to true.
 ---@field icons? agents.IconsOptions
@@ -72,6 +73,7 @@
 ---@class agents.Config
 ---@field layout agents.Layout
 ---@field float agents.FloatConfig
+---@field buflisted boolean
 ---@field picker? agents.Picker
 ---@field picker_help boolean
 ---@field icons agents.Icons

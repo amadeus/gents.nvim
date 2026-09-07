@@ -148,7 +148,8 @@ function M.new(tool, opts, cwd)
   end
   local label = label_for(tool, opts.label)
   cwd = cwd or vim.fn.getcwd(0)
-  local on_exit = require("agents.config").get().on_exit
+  local config = require("agents.config").get()
+  local on_exit = config.on_exit
   -- Allocate in the destination so Neovim associates its window options there.
   local win = require("agents.window").open(nil, opts.layout)
   next_id = next_id + 1
@@ -219,7 +220,8 @@ function M.new(tool, opts, cwd)
     })
     assert(session.job > 0, "agents: could not start " .. tool.name)
     require("agents.send").attach(session)
-    vim.bo[session.buf].buflisted = false
+    vim.bo[session.buf].buflisted = config.buflisted
+    require("agents.buffer_names").update(session)
     require("agents.keys").attach(session.buf)
     vim.bo[session.buf].filetype = "agents_terminal"
     vim.cmd.startinsert()

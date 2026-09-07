@@ -11,6 +11,20 @@ Commands and mappings target the session ID or label, such as `claude`,
 `claude #2`, or your custom label. Titles appear in every picker adapter;
 reopen the picker to see updated titles.
 
+## Native buffer names
+
+Every agent buffer is named from its session label or conversation title, and
+the name follows later title updates.
+
+A titled session uses `agents://<id>/<tool name> · <title>`, for example
+`agents://2/claude · Fix terminal navigation`. Without a title, it uses
+`agents://<id>/<session label>`, such as `agents://2/claude #2`. The session ID
+distinguishes sessions with the same title. Path separators and control characters
+are sanitized in buffer names. Session data retains the complete title.
+
+Agents sessions cannot be restored by `:mksession`. If you use it, we recommend
+[excluding terminal buffers from saved sessions](../commands.md#session-restoration).
+
 ## Tool support
 
 | Tool                    | Title source and behavior                                                                                                                           |

@@ -12,9 +12,8 @@ local ready_count = 0
 local group
 
 ---@param title string
----@param _session agents.Session
 ---@return string?
-local function parse(title, _session)
+local function parse(title)
   if title ~= "reset" then
     return title
   end
@@ -102,16 +101,19 @@ T["OSC title transport"] = test.new_set({
 }, {
   ---@param code integer
   ---@param terminator string
-  ["updates metadata without renaming the buffer or signaling ready"] = function(code, terminator)
+  ["updates metadata and the buffer name without signaling ready"] = function(code, terminator)
     local session = new_stream(nil, code, terminator)
-    local name, label = vim.api.nvim_buf_get_name(session.buf), session.label
+    local label = session.label
     local before = agents.status()[1]
     send(session, { "Investigate flaky tests" })
     eq(session.title, "Investigate flaky tests")
     eq(agents.status()[1].title, session.title)
     eq(before.title, nil)
     eq(session.label, label)
-    eq(vim.api.nvim_buf_get_name(session.buf), name)
+    eq(
+      vim.api.nvim_buf_get_name(session.buf),
+      "agents://" .. session.id .. "/cat · Investigate flaky tests"
+    )
     eq(observed, { { id = session.id, title = session.title } })
     eq(ready_count, 0)
   end,

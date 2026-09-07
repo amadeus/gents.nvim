@@ -35,6 +35,7 @@ T["defaults work without setup"] = function()
   expect(result.picker_help, true)
   expect(result.icons, { visible = "●", hidden = "○" })
   expect(result.on_exit, "keep")
+  expect(result.buflisted, false)
   expect(result.prompts, {})
   expect(result.keys, {})
   expect(tools.names(result.tools), builtin_names)
@@ -96,15 +97,20 @@ T["tool overrides replace individual fields and remove names"] = function()
 end
 
 T["setup resets defaults and does not retain caller tables"] = function()
-  local opts = { tools = { claude = { cmd = { "custom-claude" } }, grok = false } }
+  local opts = {
+    buflisted = true,
+    tools = { claude = { cmd = { "custom-claude" } }, grok = false },
+  }
   local original = vim.deepcopy(opts)
   local result = config.setup(opts)
+  expect(result.buflisted, true)
   expect(opts, original)
   opts.tools.claude.cmd[1] = "changed-by-caller"
   expect(result.tools.claude.cmd, { "custom-claude" })
   result.tools.claude.cmd[1] = "changed-config"
   expect(tools.defaults.claude.cmd, { "claude" })
   result = config.setup()
+  expect(result.buflisted, false)
   expect(result.tools.claude.cmd, { "claude" })
   expect(result.tools.grok.name, "grok")
 end
@@ -172,6 +178,8 @@ T["invalid configuration fails before replacing current config"] = function()
     { { layout = false }, "layout must be" },
     { { layout = 1 }, "layout must be" },
     { { on_exit = "discard" }, "on_exit must be" },
+    { { buflisted = "true" }, "buflisted must be a boolean" },
+    { { buflisted = 1 }, "buflisted must be a boolean" },
     { { picker = false }, "picker must be" },
     { { picker = "unknown" }, "picker must be" },
     { { picker = {} }, "picker must be" },

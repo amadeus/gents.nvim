@@ -55,11 +55,20 @@ function M.check()
         'Install nvim-mini/mini.nvim or mini.pick and call require("mini.pick").setup(), or set picker to nil to use vim.ui.select.'
       )
     end
+  elseif config.picker == "telescope" then
+    if require("agents.pickers.telescope").instance() then
+      vim.health.ok("Using Telescope picker")
+    else
+      vim.health.error(
+        "Telescope picker is configured but telescope.nvim or plenary.nvim is unavailable",
+        "Install nvim-telescope/telescope.nvim with nvim-lua/plenary.nvim, or set picker to nil to use vim.ui.select."
+      )
+    end
   elseif type(config.picker) == "function" then
     vim.health.ok("Using a custom picker function")
   else
     vim.health.warn(
-      'picker must be nil, "snacks", "mini", or a function',
+      'picker must be nil, "snacks", "mini", "telescope", or a function',
       "Set picker to nil to use vim.ui.select."
     )
   end

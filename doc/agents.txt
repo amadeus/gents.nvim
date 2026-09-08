@@ -42,9 +42,10 @@ Requirements ~
   must resolve on Neovim's PATH, or use absolute paths in tool overrides.
   See |agents-tools| for the built-in tool definitions.
 - Git for the installation examples below.
-- Optional: snacks.nvim for |agents-picker-snacks| or mini.pick for
-  |agents-picker-mini|. Otherwise agents.nvim uses |vim.ui.select()| and has
-  no required plugin dependency.
+- Optional: snacks.nvim for |agents-picker-snacks|, mini.pick for
+  |agents-picker-mini|, or telescope.nvim for |agents-picker-telescope|.
+  Otherwise agents.nvim uses |vim.ui.select()| and has no required plugin
+  dependency.
 
 Choose one installation method. Calling |agents.setup()| is optional if you
 want the defaults; loading the plugin registers |:Agents|. Put custom options
@@ -423,19 +424,21 @@ buflisted                                           *agents-config.buflisted*
     finding unlisted buffers.
 
 picker                                                 *agents-config.picker*
-    Type: nil, "snacks", "mini", or agents.PickerAdapter. Default: nil.
+    Type: nil, "snacks", "mini", "telescope", or agents.PickerAdapter.
+    Default: nil.
     Selects the adapter for new menus. Nil uses |vim.ui.select()|. "snacks"
     uses the built-in adapter and requires the optional snacks.nvim plugin.
     "mini" uses the built-in mini.pick adapter and requires mini.pick to be
-    set up. A function receives an |agents.PickerSpec|.
+    set up. "telescope" uses the built-in Telescope adapter and requires
+    telescope.nvim. A function receives an |agents.PickerSpec|.
     See |agents-pickers| for shortcuts, previews, and custom adapters.
 
 picker_help                                       *agents-config.picker_help*
     Type: boolean. Default: true.
     Shows shortcut hints in newly opened built-in Snacks picker menus. False
     hides the hints but shortcuts still work. It has no effect on
-    vim.ui.select, the mini.pick adapter's native info view, or custom
-    picker adapters.
+    vim.ui.select, the native help of the mini.pick and Telescope adapters,
+    or custom picker adapters.
 
 icons                                                   *agents-config.icons*
     Type: agents.IconsOptions.
@@ -908,9 +911,10 @@ runs that menu's default action. Cancelling does nothing. An existing
 `vim.ui.select` replacement also handles these menus.
 
 The default adapter exposes only the default action. For placement shortcuts
-and argument editing, use |agents-picker-snacks| or |agents-picker-mini|, or
-supply a custom adapter as described in |agents-picker-custom|. The Snacks
-adapter also previews context items; the mini.pick adapter does not.
+and argument editing, use |agents-picker-snacks|, |agents-picker-mini|, or
+|agents-picker-telescope|, or supply a custom adapter as described in
+|agents-picker-custom|. The Snacks adapter also previews context items; the
+mini.pick and Telescope adapters do not.
 
 Menus and ordering ~
 
@@ -1127,6 +1131,48 @@ Menus have no preview, so the `toggle_preview` mapping is disabled.
 `picker_help` has no effect on this adapter. Row chunks use the highlight
 groups listed under |agents-picker-snacks|, and mini.pick's match
 highlighting is kept.
+
+Telescope adapter                                    *agents-picker-telescope*
+
+Install nvim-telescope/telescope.nvim with its nvim-lua/plenary.nvim
+dependency, then select the adapter: >lua
+    require("agents").setup({ picker = "telescope" })
+<
+A `telescope.setup()` call is optional. Selecting `"telescope"` without the
+plugin or its plenary.nvim dependency reports an error when opening a menu
+and does not switch to `vim.ui.select`.
+
+Menus use your Telescope layout, sorting strategy, prompt, and mappings,
+without a preview pane. Press <C-/> in Insert mode or `?` in Normal mode
+for Telescope's key hint window, which lists the agents.nvim actions by
+these names next to Telescope's own:
+
+    Key         Action       Help name                 Available in
+    <CR>        default      select_default            Every menu
+    <C-v>       vsplit       agents_open_in_vsplit     New Session, Sessions
+    <C-x>       split        agents_open_in_split      New Session, Sessions
+    <C-t>       tabnew       agents_open_in_tab        New Session, Sessions
+    <C-f>       float        agents_open_in_float      New Session, Sessions
+    <C-CR>      current      agents_open_here          New Session, Sessions
+    <C-e>       edit_args    agents_edit_command       New Session
+    <M-h>       hide         agents_hide_session       Sessions
+    <C-d>       close        agents_close_session      Sessions
+
+Telescope's select actions run agents.nvim actions in every menu:
+`select_default` runs the menu's default action, and `select_horizontal`,
+`select_vertical`, and `select_tab` run split, vsplit, and tabnew where the
+menu offers them, so keys you have bound to those actions keep working and
+rows are never opened as files. The keys above are mapped in Insert and
+Normal mode only when your `defaults.mappings` and `defaults.default_mappings`
+leave that key unset in that mode; your Telescope configuration wins, and
+the key hints show the actual bindings. <C-f> and <C-d> scroll a preview in
+other pickers, which these menus do not have.
+
+`picker_help` has no effect on this adapter. Row chunks use the highlight
+groups listed under |agents-picker-snacks|, and Telescope's match
+highlighting is kept. A menu requested from a Telescope mapping opens after
+Telescope closes that picker and returns to its original window before
+running an action.
 
 Custom adapters                                         *agents-picker-custom*
 

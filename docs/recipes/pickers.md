@@ -9,7 +9,7 @@ That is enough to choose an item and run the menu's default action: execute an
 action, start a tool, choose a session, or send context. Cancelling does
 nothing. For the built-in Snacks adapter and its additional shortcuts, see
 [pickers and shortcuts](../usage.md#pickers-and-shortcuts). The built-in
-mini.pick adapter is described below.
+mini.pick and Telescope adapters are described below.
 
 The examples below assume the chosen picker plugin is installed and configured.
 Choose one integration and merge its agents.nvim options into your existing
@@ -64,68 +64,36 @@ for the complete behavior.
 and leave `picker` unset, agents.nvim menus still open in mini.pick with each
 menu's default action only.
 
-## Telescope with placement actions
+## Telescope with agents.nvim actions
 
-A custom Telescope adapter lets you search agents.nvim rows and choose a split
-or tab when opening a session. This example retains each original item in
-`entry.value`, then closes Telescope before running the agents.nvim action:
+agents.nvim includes a Telescope adapter. Install telescope.nvim with its
+plenary.nvim dependency, then select the adapter:
 
 ```lua
-require("agents").setup({
-  picker = function(spec)
-    local actions = require("telescope.actions")
-    local action_set = require("telescope.actions.set")
-    local state = require("telescope.actions.state")
-    local opts = {}
-
-    require("telescope.pickers").new(opts, {
-      prompt_title = spec.title,
-      finder = require("telescope.finders").new_table({
-        results = spec.items,
-        entry_maker = function(item)
-          return { value = item, display = item.text, ordinal = item.text }
-        end,
-      }),
-      sorter = require("telescope.config").values.generic_sorter(opts),
-      previewer = false,
-      attach_mappings = function(prompt_bufnr)
-        local names = {
-          default = spec.default,
-          horizontal = "split",
-          vertical = "vsplit",
-          tab = "tabnew",
-        }
-        action_set.select:replace(function(_, kind)
-          local action = spec.actions[names[kind]]
-          local entry = state.get_selected_entry()
-          if not action or not entry then
-            return
-          end
-          local item = entry.value
-          actions.close(prompt_bufnr)
-          vim.schedule(function()
-            action(item)
-          end)
-        end)
-        return true
-      end,
-    }):find()
-  end,
-})
+require("agents").setup({ picker = "telescope" })
 ```
 
-Enter runs `spec.default`. Telescope's horizontal, vertical, and tab selection
-actions run agents.nvim's `split`, `vsplit`, and `tabnew` actions where available:
-the New Session and Sessions menus. In other menus those actions do nothing. The
-adapter replaces the whole selection action set so those bindings route through
-agents.nvim instead of trying to open a row as a file.
+Menus open with your Telescope layout, sorting, and mappings, without a preview
+pane. Enter runs the menu's default action. Press Ctrl-/ in Insert mode or `?`
+in Normal mode for Telescope's key hints, which list the additional agents.nvim
+actions by name:
 
-This example has no context preview, float/current placement, hide, close, or
-argument-editing bindings. Telescope's regular cancellation still closes the
-picker without choosing. Its [developer guide](https://github.com/nvim-telescope/telescope.nvim/blob/master/developers.md)
-explains entry makers and replacing actions; the
-[selection action set](https://github.com/nvim-telescope/telescope.nvim/blob/master/lua/telescope/actions/set.lua)
-groups the default, split, and tab selections.
+| Key        | Help name             | Menus                 |
+| ---------- | --------------------- | --------------------- |
+| Ctrl-V     | agents_open_in_vsplit | New Session, Sessions |
+| Ctrl-X     | agents_open_in_split  | New Session, Sessions |
+| Ctrl-T     | agents_open_in_tab    | New Session, Sessions |
+| Ctrl-F     | agents_open_in_float  | New Session, Sessions |
+| Ctrl-Enter | agents_open_here      | New Session, Sessions |
+| Ctrl-E     | agents_edit_command   | New Session           |
+| Alt-H      | agents_hide_session   | Sessions              |
+| Ctrl-D     | agents_close_session  | Sessions              |
+
+Keys you have bound to Telescope's `select_horizontal`, `select_vertical`, and
+`select_tab` actions run the same split, vsplit, and tab actions. The keys above
+are bound only where your Telescope `defaults.mappings` leave them free, and the
+key hints always show the actual bindings. See `:help agents-picker-telescope`
+for the complete behavior.
 
 ## Extend an adapter
 

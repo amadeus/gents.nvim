@@ -180,6 +180,46 @@ T["mini.pick must be set up and reports a missing dependency"] = function()
   test.expect.equality(assert(notification):find("requires mini.pick", 1, true) ~= nil, true)
 end
 
+T["Telescope is loaded on demand and reports a missing dependency"] = function()
+  ---@type table?
+  local loaded = rawget(package.loaded, "telescope.pickers")
+  ---@type (fun(name: string): unknown)?
+  local preload = rawget(package.preload, "telescope.pickers")
+  test.finally(function()
+    rawset(package.loaded, "telescope.pickers", loaded)
+    rawset(package.preload, "telescope.pickers", preload)
+  end)
+  local attempted = false
+  rawset(package.loaded, "telescope.pickers", nil)
+  rawset(package.preload, "telescope.pickers", function()
+    attempted = true
+    error("module 'plenary.async' not found")
+  end)
+  require("agents").setup({ picker = "telescope" })
+  test.expect.equality(attempted, false)
+  set_select(function()
+    error("The configured picker must not silently fall back")
+  end)
+  ---@type string?
+  local notification
+  set_notify(function(message, level)
+    notification = message
+    test.expect.equality(level, vim.log.levels.ERROR)
+  end)
+  picker.open({
+    title = "Test picker",
+    items = { { text = "Item", data = 1 } },
+    default = "choose",
+    actions = {
+      choose = function()
+        error("Missing picker must not choose an item")
+      end,
+    },
+  })
+  test.expect.equality(attempted, true)
+  test.expect.equality(assert(notification):find("requires telescope.nvim", 1, true) ~= nil, true)
+end
+
 T["actions context"] = test.new_set({
   parametrize = {
     { "none", { "new", "send" } },

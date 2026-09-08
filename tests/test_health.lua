@@ -154,6 +154,46 @@ T["report checks the configured mini.pick setup"] = test.new_set({
   end,
 })
 
+T["report checks the configured Telescope dependency"] = test.new_set({
+  parametrize = { { true }, { false } },
+}, {
+  ---@param available boolean
+  ["reports availability without opening a picker"] = function(available)
+    -- Opening a menu needs these modules, which in turn need plenary.nvim.
+    local modules = {
+      "telescope.pickers",
+      "telescope.finders",
+      "telescope.config",
+      "telescope.actions",
+      "telescope.actions.set",
+      "telescope.actions.state",
+    }
+    for _, name in ipairs(modules) do
+      ---@type table?
+      local loaded = rawget(package.loaded, name)
+      ---@type (fun(name: string): unknown)?
+      local preload = rawget(package.preload, name)
+      test.finally(function()
+        rawset(package.loaded, name, loaded)
+        rawset(package.preload, name, preload)
+      end)
+      rawset(package.loaded, name, nil)
+      rawset(package.preload, name, function()
+        -- Plenary is the usual missing piece: only the last module fails.
+        assert(available or name ~= "telescope.actions.state", "plenary.async is unavailable")
+        return {}
+      end)
+    end
+    only_tools().picker = "telescope"
+    local output = report()
+    expect(contains(output, "Using Telescope picker"), available)
+    expect(contains(output, "telescope.nvim or plenary.nvim is unavailable"), not available)
+    if not available then
+      expect(contains(output, "Install nvim-telescope/telescope.nvim"), true)
+    end
+  end,
+})
+
 T["report warns about invalid picker values"] = function()
   local configured = only_tools()
   for _, picker in ipairs({ false, "unknown", {} }) do
@@ -161,7 +201,10 @@ T["report warns about invalid picker values"] = function()
     ---@diagnostic disable-next-line: assign-type-mismatch
     configured.picker = picker
     local output = report()
-    expect(contains(output, 'picker must be nil, "snacks", "mini", or a function'), true)
+    expect(
+      contains(output, 'picker must be nil, "snacks", "mini", "telescope", or a function'),
+      true
+    )
     expect(contains(output, "Set picker to nil to use vim.ui.select."), true)
   end
 end

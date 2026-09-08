@@ -18,7 +18,11 @@ local M = {}
 ---@field default string Action name used for Enter.
 
 ---@alias agents.PickerAdapter fun<T>(spec: agents.PickerSpec<T>)
----@alias agents.Picker "snacks"|"mini"|agents.PickerAdapter
+---@alias agents.Picker "snacks"|"mini"|"telescope"|agents.PickerAdapter
+
+---Built-in adapters, loaded from `agents.pickers.<name>` when a menu opens.
+---@type table<string, boolean>
+local builtin = { snacks = true, mini = true, telescope = true }
 
 ---Highlight groups for styled chunk kinds, shared by the built-in adapters.
 ---@type table<string, string>
@@ -52,12 +56,15 @@ function M.define_highlights()
   })
 end
 
----The window a menu returns to before running an action. While a mini.pick
----picker is active, its target window is the origin rather than the picker.
+---The window a menu returns to before running an action. While a mini.pick or
+---Telescope picker is active, the window it was opened from is the origin
+---rather than the picker window.
 ---@return integer
 function M.origin()
-  if require("agents.config").get().picker == "mini" then
-    local origin = require("agents.pickers.mini").origin()
+  local adapter = require("agents.config").get().picker
+  if adapter == "mini" or adapter == "telescope" then
+    ---@type integer?
+    local origin = require("agents.pickers." .. adapter).origin()
     if origin then
       return origin
     end
@@ -84,7 +91,7 @@ end
 ---@param spec agents.PickerSpec<T>
 function M.open(spec)
   local adapter = require("agents.config").get().picker
-  if adapter == "snacks" or adapter == "mini" then
+  if type(adapter) == "string" and builtin[adapter] then
     M.define_highlights()
     require("agents.pickers." .. adapter).open(spec)
     return

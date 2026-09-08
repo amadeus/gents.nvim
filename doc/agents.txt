@@ -42,7 +42,7 @@ Requirements ~
   must resolve on Neovim's PATH, or use absolute paths in tool overrides.
   See |agents-tools| for the built-in tool definitions.
 - Git for the installation examples below.
-- Optional: snacks.nvim for |agents-picker-snacks|. Otherwise Agents uses
+- Optional: snacks.nvim for |agents-picker-snacks|. Otherwise agents.nvim uses
   |vim.ui.select()| and has no required plugin dependency.
 
 Choose one installation method. Calling |agents.setup()| is optional if you
@@ -71,14 +71,14 @@ Add this spec to your lazy.nvim configuration: >lua
 lazy.nvim installs the plugin and loads it when you run `:Agents` or press one
 of the keymaps. Its `opts` table is passed to `require("agents").setup()`; you do
 not need a second setup call. Here `keys` is lazy.nvim's mapping API. See
-|agents-keymaps| for the separate mapping helper inside Agents setup.
+|agents-keymaps| for the separate mapping helper inside agents.nvim setup.
 
 To use the Snacks adapter, add this dependency and option to that spec: >lua
     dependencies = { "folke/snacks.nvim" },
     opts = { picker = "snacks" },
 <
 If you already configure Snacks in another spec, keep that configuration;
-the dependency ensures it is available when Agents opens a picker.
+the dependency ensures it is available when agents.nvim opens a picker.
 
 Manager instructions: https://lazy.folke.io/spec
 
@@ -98,8 +98,8 @@ setup(), alongside keys: >lua
     })
 <
 For Snacks, include `"https://github.com/folke/snacks.nvim"` in the add list,
-then set `picker = "snacks"` in Agents setup. A call to `setup()` on Snacks is
-not required just to use its picker through Agents.
+then set `picker = "snacks"` in agents.nvim setup. A call to `setup()` on
+Snacks is not required just to use its picker through agents.nvim.
 
 Manager instructions: |vim.pack| and https://neovim.io/doc/user/pack/
 
@@ -122,8 +122,9 @@ restart Neovim: >vim
     EOF
 <
 For Snacks, also declare `Plug 'folke/snacks.nvim'` and set
-`picker = "snacks"` in Agents setup. This installation uses Neovim, including
-its Lua support, even when the surrounding configuration is Vimscript.
+`picker = "snacks"` in agents.nvim setup. This installation uses Neovim,
+including its Lua support, even when the surrounding configuration is
+Vimscript.
 
 Manager instructions: https://github.com/junegunn/vim-plug
 
@@ -137,7 +138,7 @@ that directory in place of {data}: >
 <
 The clone must contain plugin/agents.lua and doc/agents.txt directly inside
 agents.nvim. Neovim loads packages under `pack/*/start/*` during startup.
-Restart Neovim, then configure Agents in init.lua with |agents.setup()|.
+Restart Neovim, then configure agents.nvim in init.lua with |agents.setup()|.
 
 To keep the plugin unloaded until requested, clone into
 `{data}/site/pack/agents/opt/agents.nvim` instead. Load it before calling its
@@ -169,7 +170,7 @@ picker lets you start one for that context.
 For terminal mappings and ordinary window navigation, see |agents-keymaps|
 and |agents-sessions|. For floating windows, see |agents-layouts|.
 
-After loading Agents, run `:checkhealth agents` to check your setup.
+After loading agents.nvim, run `:checkhealth agents` to check your setup.
 
 ==============================================================================
 2. COMMANDS AND TARGETING                                    *agents-commands*
@@ -256,8 +257,8 @@ Lua functions; see |agents-api|. Names and examples are case-sensitive.
     selected tool, and queue the context for it. Canceling a picker cancels
     that send.
 
-    Invoke from a non-session buffer. Sending from an Agents session buffer
-    warns and sends nothing, including with names, ranges, or a target.
+    Invoke from a non-session buffer. Sending from an agents.nvim session
+    buffer warns and sends nothing, including with names, ranges, or a target.
 
     Sending focuses the destination and enters terminal input by default.
     `--no-focus` returns focus to your originating window. The destination
@@ -479,8 +480,8 @@ keys                                                     *agents-config.keys*
 ==============================================================================
 4. TOOLS                                                        *agents-tools*
 
-Install the CLI programs separately. A tool definition tells Agents how to
-start a program and format its file references and terminal titles; it does
+Install the CLI programs separately. A tool definition tells agents.nvim how
+to start a program and format its file references and terminal titles; it does
 not install or authenticate the program. Built-in tools:
 
     Name          Default command and installation documentation ~
@@ -570,7 +571,7 @@ writer, and title parser. The session's cmd records the final argv; its
 tool.cmd retains the configured command. See |agents.NewOptions|.
 
 env values are strings, or false to remove a variable from the child's
-inherited environment. The parent Neovim environment is unchanged. Agents
+inherited environment. The parent Neovim environment is unchanged. agents.nvim
 starts from Neovim's environment and removes these inherited values:
 NVIM, NVIM_LISTEN_ADDRESS, NVIM_LOG_FILE, VIM, VIMRUNTIME, TERM, COLORTERM,
 COLUMNS, LINES, TERMCAP, and COLORFGBG. It supplies COLORTERM=truecolor when
@@ -664,9 +665,10 @@ command, for example:
     })
 <
 Title support depends on the CLI emitting a usable signal. Disabled title
-settings produce no updates; empty signals may not reach Agents, and a reset
-without a recognized signal can leave the previous title visible. Generic
-titles may describe a project, status, or screen instead of a conversation.
+settings produce no updates; empty signals may not reach agents.nvim, and a
+reset without a recognized signal can leave the previous title visible.
+Generic titles may describe a project, status, or screen instead of a
+conversation.
 OpenCode can shorten a title before sending it. Changing Codex's title format
 inside the running CLI cannot be detected by inspecting its launch arguments.
 Exit retains the last title and ignores later updates. See |agents-events|
@@ -759,9 +761,9 @@ layout accepts these |agents.Layout| forms:
     function()            Create or choose a window and return its valid ID.
 
 An Ex layout command must leave the desired window current. A callback takes
-no arguments and returns a window ID; Agents focuses that window and assigns
-the session buffer. For a new session, the callback runs before its terminal
-buffer exists. Callbacks may return an existing window.
+no arguments and returns a window ID; agents.nvim focuses that window and
+assigns the session buffer. For a new session, the callback runs before its
+terminal buffer exists. Callbacks may return an existing window.
 >lua
     require("agents").setup({
       layout = function()
@@ -821,7 +823,7 @@ can type into the CLI. Use |CTRL-\_CTRL-N| to leave terminal input and move
 through or copy its output with ordinary Normal-mode commands.
 
 When you navigate away from a session window while using terminal input,
-Agents remembers that state and restores it when native window or buffer
+agents.nvim remembers that state and restores it when native window or buffer
 navigation brings you back. Navigation mappings that leave Terminal-mode
 and immediately switch windows also preserve that intention. If you
 deliberately leave terminal input and stay in the session buffer to inspect
@@ -836,14 +838,14 @@ See |agents-api| for targeting and return values.
 ==============================================================================
 6. KEYMAPS                                                    *agents-keymaps*
 
-Agents installs no mappings by default. Add |agents.Keymap| entries to keys
-inside setup. Each entry contains a key and a named action or zero-argument
-callback, with an optional mode:
+agents.nvim installs no mappings by default. Add |agents.Keymap| entries to
+keys inside setup. Each entry contains a key and a named action or
+zero-argument callback, with an optional mode:
 >lua
     require("agents").setup({
       keys = {
         { "<leader>an", "new", mode = "n" }, -- Start a CLI session.
-        { "<leader>ac", "actions" },         -- Choose an Agents action.
+        { "<leader>ac", "actions" },         -- Open the actions menu.
         { "<leader>aa", "toggle" },          -- Show or hide a session.
         { "<leader>as", "send" },            -- Choose context to send.
         {
@@ -872,10 +874,10 @@ buffer, including existing buffers after setup.
 Unrelated terminal buffers do not receive these Terminal-mode mappings.
 
 Mappings are silent and get an "Agents <action>" description, or "Agents
-callback" for functions. Repeating setup removes previous Agents-installed
-mappings before installing the new list; mappings you have replaced yourself
-are not removed as old Agents mappings. A FileType agents_terminal autocmd
-can override configured terminal keys for newly created buffers.
+callback" for functions. Repeating setup removes previous agents.nvim mappings
+before installing the new list; mappings you have replaced yourself are not
+removed as old agents.nvim mappings. A FileType agents_terminal autocmd can
+override configured terminal keys for newly created buffers.
 
 Calling send or actions directly from a Visual or Select mapping preserves the
 active selection for choosing context, even if a picker changes focus. Use
@@ -943,7 +945,7 @@ Sessions (`Agents: Sessions`):
     each group:
     1. Visible in the current tab.
     2. Hidden everywhere, with the current tab as their last tab recorded
-       by Agents.
+       by agents.nvim.
     3. All remaining sessions, including those shown only in another tab.
 
     Retained exited sessions can appear. The default action is named
@@ -976,7 +978,7 @@ preserving the same buffer, job, and other views. `current` uses the window
 that opened the picker. `float` uses the configured float settings.
 See |agents-layouts| and |agents-float|.
 
-Session rows ~
+Session rows ~                                   *agents-picker-session-rows*
 
 Rows show a visibility marker, a name, a conversation title, and the working
 directory, with aligned columns and ` · ` separators. The default markers
@@ -1130,7 +1132,7 @@ is optional.
 Source and capture ~
 
 The source is the current window. Invoke send from a file, help buffer,
-ordinary terminal, or another non-session buffer. Sending from an Agents
+ordinary terminal, or another non-session buffer. Sending from an agents.nvim
 session buffer, including a retained exited session, stops with a warning:
     agents.nvim: send context from a non-session buffer
 This applies to every send form: named providers, saved prompts, literal Lua
@@ -1365,15 +1367,15 @@ copied. Errors in provider functions propagate to the caller.
 
 How context is formatted ~
 
-Agents converts your context into the message pasted into the CLI. It keeps
-instructions as plain text, wraps copied code in Markdown code blocks, and
-formats file references for the destination tool. This lets you reuse the
+agents.nvim converts your context into the message pasted into the CLI. It
+keeps instructions as plain text, wraps copied code in Markdown code blocks,
+and formats file references for the destination tool. This lets you reuse the
 same providers and saved prompts with different tools.
 
 For example, sending `line` from line 12 of `src/main.lua` produces
 `@src/main.lua:12` with the default format, or `@src/main.lua#L12` for Claude.
-The provider supplies the path and line; Agents chooses the reference syntax
-when you select the destination session.
+The provider supplies the path and line; agents.nvim chooses the reference
+syntax when you select the destination session.
 
 The default reference format is `@path`, `@path:12`, or `@path:12-15`.
 Built-in Claude uses `@path#L12` or `@path#L12-15` for ranges. Gemini and Qwen
@@ -1439,10 +1441,10 @@ To submit the message after pasting, set `submit = true` in a Lua send:
 This sends one Enter (carriage return) after the paste, on the next queue
 tick. The default is `submit = false`; there is no Ex `--submit` flag.
 
-When a CLI has just launched, Agents briefly queues messages while it starts.
-This lets you choose a new tool and send context in the same flow. New
-sessions start in the "starting" state. Every 100 ms, the startup check looks
-for more than five terminal buffer lines after empty trailing lines are
+When a CLI has just launched, agents.nvim briefly queues messages while it
+starts. This lets you choose a new tool and send context in the same flow.
+New sessions start in the "starting" state. Every 100 ms, the startup check
+looks for more than five terminal buffer lines after empty trailing lines are
 removed, with output unchanged for at least 500 ms. After five seconds it
 proceeds regardless of output. The session then becomes "ready" and queued
 messages are delivered in order. This startup check is separate from
@@ -1649,6 +1651,8 @@ pick({target}?) -> agents.Session?
     Return nil on those picker paths. An explicit target behaves like
     `show(target)` and returns an immediately resolved session, otherwise nil.
     Explicit missing targets raise an error and do not create sessions.
+    See |agents-picker-session-rows| for labels, visibility markers, and
+    display options.
 >lua
     require("agents").pick()
 <
@@ -1798,7 +1802,7 @@ snapshots. A session's buffer is shared by all of its views.
     job?        integer              Terminal job ID, assigned on startup.
     state       agents.SessionState  Startup/exit state, defined below.
     exit_code?  integer              Process exit code after it exits.
-    tab?        integer              Last tab used by an Agents operation.
+    tab?        integer              Last tab used by agents.nvim.
 
 tab is a hint for picker ordering, not proof of where the buffer is visible.
 Native window changes can leave it unchanged. Closed sessions are removed
@@ -1874,12 +1878,12 @@ One of:
 - An inline |agents.FloatConfig| table.
 - A function taking no arguments and returning a valid window handle.
 
-Agents assigns the session buffer to the chosen window. Inline float tables
-do not inherit setup's float table. See |agents-layouts|.
+agents.nvim assigns the session buffer to the chosen window. Inline float
+tables do not inherit setup's float table. See |agents-layouts|.
 
                                                         *agents.FloatOptions*
 Partial floating-window defaults for setup. Accepts the floating-window
-configuration fields supported by |nvim_open_win()|. Agents handles these
+configuration fields supported by |nvim_open_win()|. agents.nvim handles these
 dimensions before opening the window:
 
     width?   number  In (0, 1]: fraction of editor columns; otherwise cells.
@@ -2100,12 +2104,13 @@ and no win field. These values describe the editor when the event is emitted.
 ==============================================================================
 11. EVENTS AND INTEGRATIONS                                    *agents-events*
 
-Agents emits |User| autocommands. Read each event's payload from `ev.data`:
+agents.nvim emits |User| autocommands.
+Read each event's payload from `ev.data`:
 >lua
     vim.api.nvim_create_autocmd("User", {
       pattern = "AgentsReady",
       callback = function(ev)
-        if not ev.data.focused then
+        if not ev.data.visible then
           vim.notify(ev.data.label .. " is waiting")
         end
       end,
@@ -2138,8 +2143,8 @@ AgentsSessionExit
 
                                                      *AgentsSessionShow*
 AgentsSessionShow
-    An Agents operation has added a view of the session. This includes the
-    initial launch, an explicit placement that adds another view, and a
+    An agents.nvim operation has added a view of the session. This includes
+    the initial launch, an explicit placement that adds another view, and a
     send that needs to show the destination in the current tab. Focusing
     an existing view does not emit it. On initial launch this follows
     AgentsSessionStart if the initial view still displays the session.
@@ -2148,9 +2153,9 @@ AgentsSessionShow
 
                                                      *AgentsSessionHide*
 AgentsSessionHide
-    An Agents hide or close operation removed at least one view, leaving
-    no view of the session in any tab. Hiding only current-tab views while
-    another tab still shows the session does not emit it. Repeatedly
+    An agents.nvim hide or close operation removed at least one view,
+    leaving no view of the session in any tab. Hiding only current-tab views
+    while another tab still shows the session does not emit it. Repeatedly
     hiding an already hidden session does not emit it.
 
     Data: `{ id = integer }` (|agents.SessionEvent|).
@@ -2197,7 +2202,7 @@ AgentsSend
 
     Data: `{ id = integer, submit = boolean }` (|agents.SendEvent|).
 
-Show and hide events describe operations performed through Agents. Native
+Show and hide events describe operations performed through agents.nvim. Native
 window or buffer commands do not synthesize these events. For a cached
 statusline, also handle the native navigation events relevant to your UI,
 or read `agents.status()` when rendering. Its visibility is relative to the
@@ -2211,11 +2216,13 @@ input can be sent after launch. It uses terminal output settling and a
 timeout; see |agents-context|. It emits no AgentsReady event. Conversely,
 OSC notifications and `agents.ready(id)` do not bypass that startup wait.
 
-To receive ready notifications, configure the CLI to emit a supported
-terminal notification or call `agents.ready(id)` from an appropriate CLI
-hook. The plugin does not install or enable tool-specific hooks. Use one
-notification mechanism per tool to avoid duplicate events; repeated signals
-emit repeated events.
+agents.nvim receives supported terminal notifications automatically. If
+your CLI already emits them, no additional notification settings or hooks
+are needed. Use the CLI's settings to enable notifications if needed, or to
+change which events and focus conditions trigger them. A CLI hook that
+calls `agents.ready(id)` is an alternative. The plugin does not install or
+enable tool-specific hooks. Use one notification mechanism per tool to avoid
+duplicate events; repeated signals emit repeated events.
 
 Supported terminal notifications:
     OSC 9:   notification payloads, excluding progress (`9;4` and `9;4;...`).
@@ -2227,11 +2234,10 @@ Supported terminal notifications:
 
 These are received through |TermRequest| on session buffers. Plain
 terminals are not observed. A supported terminal notification sets
-`source = "osc"`. Configure your CLI's notification settings to select the
-events and focus conditions that you want to receive.
+`source = "osc"`.
 
 A CLI hook can call back into the parent Neovim using its inherited `NVIM`
-server address and `AGENTS_SESSION` ID. Start the CLI through Agents so
+server address and `AGENTS_SESSION` ID. Start the CLI through agents.nvim so
 those variables refer to its registered session. This POSIX shell body
 works where `nvim` is available on the hook's PATH: >sh
     if [ -n "$NVIM" ] && [ -n "$AGENTS_SESSION" ]; then
@@ -2338,7 +2344,7 @@ mechanism if notifications are duplicated. The plugin does not display a
 popup until your configuration handles |AgentsReady|.
 
 If agent edits are not reloading, check 'autoread' and use |:checktime| to
-ask Neovim to check files now. Agents does not change 'autoread' for you.
+ask Neovim to check files now. agents.nvim does not change 'autoread' for you.
 
 Terminal customization                         *agents-terminal-customization*
 
@@ -2361,13 +2367,13 @@ only session buffers. For example: >lua
 <
 New sessions enter terminal input. During ordinary navigation, returning
 to a running session restores input if you left while typing; deliberately
-leaving input in the session keeps Normal mode on return. Explicit Agents
+leaving input in the session keeps Normal mode on return. Explicit agents.nvim
 show actions enter input for running sessions. Exited sessions remain
 readable without starting input. See |agents-sessions| and |agents-keymaps|.
 
 Ordinary buffer lists                                  *agents-buffer-listing*
 
-Use the built-in Agents session picker for normal session navigation.
+Use the built-in agents.nvim session picker for normal session navigation.
 Session buffers are unlisted by default. `buflisted = true` is an advanced
 escape hatch when you understand how your buffer tools handle live terminals.
 Use `:ls!` to include unlisted buffers, or enable listing for new sessions:
@@ -2381,7 +2387,8 @@ The setting applies only to new buffers. For one existing session buffer,
 
 Returning through a native buffer picker continues the same live CLI and
 uses its ordinary terminal-input restoration. That picker controls its own
-labels and window placement. Agents' `layout` controls Agents operations.
+labels and window placement. agents.nvim's `layout` controls agents.nvim
+operations.
 See |agents-layouts|.
 
 Listed session buffers participate in bulk buffer commands and cleanup tools.

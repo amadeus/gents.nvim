@@ -23,7 +23,7 @@ commands must be available on your `PATH`. Git is needed to install the plugin.
 
 Choose one installation method. Each example includes a minimal configuration
 and keymaps you can customize. The mappings use Normal mode; sending context
-also works with a Visual selection. Agents installs no mappings by default.
+also works with a Visual selection. agents.nvim installs no mappings by default.
 
 ### lazy.nvim
 
@@ -149,11 +149,11 @@ For floating windows by default, uncomment `layout = "float"` in your
 configuration above. The optional `float` example sets the window's size and
 position. With lazy.nvim, these settings live inside `opts`.
 
-Agents uses Neovim's `vim.ui.select` picker by default. If you have
+agents.nvim uses Neovim's `vim.ui.select` picker by default. If you have
 [snacks.nvim](https://github.com/folke/snacks.nvim) installed, add
 `picker = "snacks"` to the same options table for its menus and extra shortcuts.
-See [layouts and picker shortcuts](docs/commands.md) for split, tab, current-window,
-and float settings.
+See [layouts and picker shortcuts](docs/usage.md#choose-where-sessions-open)
+for split, tab, current-window, and float settings.
 
 ## Commands
 
@@ -179,18 +179,23 @@ label to choose one directly. Commands also compose under `actions`:
 ```
 
 Sending context focuses the selected session so you can continue typing. Add
-`--no-focus` to keep focus in your editor. See [commands](docs/commands.md) for
-target selection, ranges, and the Lua equivalents.
+`--no-focus` to keep focus in your editor. See
+[calling commands directly](docs/usage.md#call-commands-directly) for target
+selection, ranges, and the Lua equivalents.
 
 Generally speaking we recommend setting up keybinds to map back into these
 actions or functions instead of calling them directly.
 
 ## Documentation
 
-- [Commands and configuration](docs/commands.md)
+Use `:help agents.nvim` for the complete reference, or start with these guides:
+
+- [Usage guide](docs/usage.md)
 - [Sending context](docs/recipes/context.md)
 - [Agent ready notifications](docs/recipes/ready.md)
 - [Conversation titles](docs/recipes/titles.md)
+- [Custom pickers](docs/recipes/pickers.md)
+- [Statusline integration](docs/recipes/statusline.md)
 
 ## Development
 

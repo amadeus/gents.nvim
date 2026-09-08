@@ -1,61 +1,106 @@
 # Agent ready notifications
 
-`AgentsReady` lets your configuration react when an agent finishes a response
-or sends a terminal notification. For example:
+Ready notifications let you keep editing while a CLI works and return when it
+needs your attention. agents.nvim emits an `AgentsReady` event when the CLI
+sends a supported terminal notification or a hook calls `agents.ready(id)`.
+Your Neovim configuration decides how to present that event: a popup, a sound,
+or a statusline update.
+
+Depending on the CLI, a notification can mean a response finished or it needs
+your input, such as permission to run a command.
+
+## Show a notification in Neovim
+
+Notify when a session needs attention and is not visible in your current tab:
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
   pattern = "AgentsReady",
   callback = function(ev)
-    if not ev.data.focused then
+    if not ev.data.visible then
       vim.notify(ev.data.label .. " is waiting")
     end
   end,
 })
 ```
 
-The event includes `id`, `label`, `tool`, `buf`, optional `win`, `visible`,
-`focused`, and `source` (`"hook"` or `"osc"`). Each event reflects the configured
-signal, which may indicate a completed response or a request for attention.
+Sessions shown only in another tab count as hidden. See `:help AgentsReady`
+in the [help reference](../../doc/agents.txt) for the full event details.
 
-`visible` means the session is shown in the current tab. Sessions shown only
-in other tabs are hidden, as they are in picker labels and status snapshots.
-`win` identifies a view in the current tab and is absent when hidden;
-`focused` means the current window contains the session.
+## CLI setup
 
-Choose one notification mechanism per tool to avoid duplicate events.
-Hooks use the `NVIM` server address inherited from Neovim and the plugin's
-`AGENTS_SESSION` ID. Start the CLI through agents.nvim so both are present.
-The examples assume a POSIX shell and `nvim` on `PATH`; an absolute path to
-the Neovim executable also works. Merge settings with your existing config.
+Some CLIs, including Codex, can notify agents.nvim without any additional CLI
+configuration. Start with the Neovim callback above. If it already receives
+notifications, no further setup is needed.
 
-## Tool support
+If it does not, or you want to change when it notifies, use the recipes below.
+Some adjust built-in terminal notifications; others add a hook that tells
+Neovim when the CLI needs attention.
 
-Checked on 2026-09-05. **Live** means the actual CLI completed a response
-inside an agents.nvim terminal on Neovim 0.12.4 and its configured signal
-produced an `AgentsReady` event. It does not imply that every error,
-cancellation, subagent, or UI mode was tested.
+| Tool                                      | Example setup                       | When it notifies                                  |
+| ----------------------------------------- | ----------------------------------- | ------------------------------------------------- |
+| [Codex](#codex)                           | Optional notification settings      | Completed turns with the filter shown below       |
+| [Claude Code](#claude-code)               | `Stop` hook                         | Main response finished                            |
+| [OpenCode](#opencode)                     | `session.idle` handler              | Session became idle, including cancellation       |
+| [Amp](#amp)                               | `agent.end` handler                 | Turn finished without error or cancellation       |
+| [Gemini CLI](#gemini-cli)                 | `AfterAgent` hook                   | Final response generated                          |
+| [Pi](#pi)                                 | Extension                           | Automatic work settled after a completed response |
+| [Qwen Code](#qwen-code)                   | `Stop` hook                         | Main response finished                            |
+| [GitHub Copilot CLI](#github-copilot-cli) | `agentStop` hook                    | Main agent finished a turn                        |
+| [Grok CLI](#grok-cli)                     | `Stop` hook                         | Response finished                                 |
+| [Amazon Q CLI](#amazon-q-cli)             | `stop` hook                         | Assistant response finished                       |
+| [Cursor Agent](#cursor-agent)             | `afterAgentResponse` hook           | Assistant message finished                        |
+| [Aider](#aider)                           | Notification command                | Input requested after work starts                 |
+| [Crush](#crush)                           | Enable terminal notifications       | Turn finished or attention needed                 |
 
-| Built-in tool  | Signal                                         | Verification                                           |
-| -------------- | ---------------------------------------------- | ------------------------------------------------------ |
-| `claude`       | `Stop` hook                                    | Live: 2.1.261, print mode                              |
-| `codex`        | OSC 9, filtered to `agent-turn-complete`       | Live: 0.153.4, TUI                                     |
-| `opencode`     | `session.idle` plugin event                    | Live: 1.18.23, default TUI; broader idle signal        |
-| `opencode2`    | V2 `session.execution.succeeded` event         | Unverified; no recipe available                        |
-| `amp`          | `agent.end`, status `done`                     | Live: 0.0.1785660266-g6a1789, execute mode             |
-| `aider`        | Notification command                           | Broader attention signal; not live-tested              |
-| `copilot`      | `agentStop` hook                               | Documented; not live-tested                            |
-| `crush`        | OSC notifications                              | Broader attention signal; not live-tested              |
-| `cursor-agent` | `afterAgentResponse` hook                      | Documented assistant-message boundary; not live-tested |
-| `gemini`       | `AfterAgent` hook                              | Live: 0.58.0, print mode                               |
-| `grok`         | `Stop` hook                                    | Source-confirmed; not live-tested                      |
-| `pi`           | `agent_settled`, final assistant reason `stop` | Live: 0.85.1, print mode; error case also checked      |
-| `q`            | Agent `stop` hook                              | Documented; not live-tested                            |
-| `qwen`         | `Stop` hook                                    | Live: 0.23.0, print mode                               |
+## Codex
+
+Codex's interactive CLI enables terminal notifications by default, so no hook
+is needed. By default, it notifies only when it considers the terminal
+unfocused and chooses the notification method automatically. If those
+notifications already reach your Neovim callback, you can leave your Codex
+configuration as it is.
+
+### Optional settings
+
+To receive only completed-turn notifications and let your Neovim callback
+decide whether to show them, merge these settings into `~/.codex/config.toml`:
+
+```toml
+[tui]
+# Notify only when a turn finishes.
+notifications = ["agent-turn-complete"]
+# Use a terminal notification format that agents.nvim receives.
+notification_method = "osc9"
+# Let the Neovim callback handle the visibility check.
+notification_condition = "always"
+```
+
+Codex's automatic method can fall back to a terminal bell, which does not
+trigger `AgentsReady`. Setting `notification_method = "osc9"` makes the
+notification format explicit. These settings apply to the interactive CLI.
+See the [Codex defaults](https://learn.chatgpt.com/docs/config-file/config-sample)
+and [notification settings](https://learn.chatgpt.com/docs/config-file/config-advanced#notifications).
+
+## Using a hook recipe
+
+Use a hook if your CLI does not send supported terminal notifications, or you
+want to notify on a specific event. A hook runs a command that calls
+`agents.ready(id)` in Neovim. Avoid adding one for an event you already receive
+through terminal notifications, or you may get duplicate notifications.
+
+Start the CLI through agents.nvim so the hook can identify its session. The
+examples use the `NVIM` server address and `AGENTS_SESSION` ID provided to that
+process; you do not need to set them yourself. Shell examples assume a POSIX
+shell and `nvim` on `PATH`. Merge the hook settings with your existing CLI
+configuration; agents.nvim does not install them for you.
 
 ## Claude Code
 
-Add a `Stop` command to `.claude/settings.json` (or your user settings):
+Use Claude's `Stop` hook to notify when the main agent finishes responding.
+Subagents use a separate `SubagentStop` hook; user interruptions and API failures
+do not trigger this recipe. Add a `Stop` command to `.claude/settings.json`
+(or your user settings):
 
 ```json
 {
@@ -74,27 +119,15 @@ Add a `Stop` command to `.claude/settings.json` (or your user settings):
 }
 ```
 
-`Stop` is the main response hook; `SubagentStop` is separate. It does not
-cover user interruption or API failures. See the
+See the
 [Claude hooks reference](https://code.claude.com/docs/en/hooks#stop).
 
-## Codex
-
-Add to `~/.codex/config.toml`:
-
-```toml
-[tui]
-notifications = ["agent-turn-complete"]
-notification_method = "osc9"
-notification_condition = "always"
-```
-
-This enables the terminal notification that agents.nvim already receives.
-`always` lets your Neovim callback decide whether focus should suppress a
-notification. This setting is for the TUI, not `codex exec`. See the
-[Codex advanced configuration](https://learn.chatgpt.com/docs/config-file/config-advanced).
-
 ## OpenCode
+
+OpenCode's `session.idle` event lets you know the session has stopped working.
+It can also fire after cancellation or another idle transition, and this
+handler does not filter child sessions. Use this recipe with the default TUI;
+OpenCode 2 has a separate plugin API and cannot use this recipe.
 
 Create `.opencode/plugins/agents-ready.js`:
 
@@ -116,16 +149,15 @@ export const AgentsReady = async () => ({
 });
 ```
 
-Use the default TUI. In 1.18.23, `opencode run` and `run --interactive`
-completed a response but did not deliver this callback to the loaded plugin.
-`session.idle` can also report cancellation and other idle transitions; this
-minimal handler does not filter child sessions. See the
+See the
 [plugin documentation](https://opencode.ai/docs/plugins/) and
 [idle lifecycle implementation](https://github.com/anomalyco/opencode/blob/v1.18.23/packages/opencode/src/session/run-state.ts#L70).
 
 ## Amp
 
-Create `.amp/plugins/agents-ready.js`:
+Amp reports the outcome of each turn through `agent.end`. This handler notifies
+only for status `done`, excluding errors and cancellation. It does not filter
+side threads hosted by the same client. Create `.amp/plugins/agents-ready.js`:
 
 ```js
 import { execFileSync } from "node:child_process";
@@ -146,12 +178,15 @@ export default function (amp) {
 ```
 
 In execute mode, use `--plugin-ready-timeout 10` to let the first turn wait
-for plugin initialization. See the
+for plugin initialization. See
+[execute mode](https://ampcode.com/docs/cli/execute-mode), the
 [Amp plugin API](https://ampcode.com/docs/plugin-api) and
 [plugin loading instructions](https://ampcode.com/docs/customize/plugins).
 
 ## Gemini CLI
 
+Gemini's `AfterAgent` hook runs after it generates a final response. This recipe
+notifies Neovim while returning an empty JSON object to leave the response alone.
 Save this as an absolute path such as `/path/to/agents-ready.sh`:
 
 ```sh
@@ -188,7 +223,10 @@ See the [Gemini hooks reference](https://geminicli.com/docs/hooks/reference/).
 
 ## Pi
 
-Create `.pi/extensions/agents-ready.ts`:
+Pi can continue automatically after a model run through retries, compaction,
+or queued follow-ups. `agent_settled` waits until that work settles; checking the
+last assistant's stop reason excludes failed or aborted responses. Create
+`.pi/extensions/agents-ready.ts`:
 
 ```ts
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -220,13 +258,13 @@ export default function (pi: ExtensionAPI) {
 Restart Pi or use `/reload` in a trusted project. You can also load the file
 explicitly with `pi -e /absolute/path/agents-ready.ts`.
 
-`agent_settled` follows retries and auto-compaction. The last assistant's
-stop reason filters failed or aborted responses. See the
+See the
 [Pi extension lifecycle](https://github.com/earendil-works/pi/blob/v0.85.1/packages/coding-agent/docs/extensions.md#agent_start--agent_end--agent_settled).
 
 ## Qwen Code
 
-Add to `.qwen/settings.json`:
+Qwen's `Stop` hook notifies after the main response finishes. Failures use the
+separate `StopFailure` hook. Add to `.qwen/settings.json`:
 
 ```json
 {
@@ -245,32 +283,14 @@ Add to `.qwen/settings.json`:
 }
 ```
 
-`StopFailure` is a separate hook for failures. See the
+See the
 [Qwen hooks guide](https://qwenlm.github.io/qwen-code-docs/en/users/features/hooks/).
 
-## Additional integrations
+## GitHub Copilot CLI
 
-These recipes follow upstream documentation or source and are unverified.
-Merge them into existing configuration.
-Use an absolute Neovim executable path if `nvim` is unavailable to hook commands.
-
-### OpenCode 2
-
-**Unverified; no working recipe yet.** V2 has a separate plugin API. Its
-`session.execution.succeeded` event is distinct from failed and interrupted
-executions; a subscriber must also filter its location and child sessions.
-Do not copy the OpenCode 1 plugin into V2. See the
-[V2 plugin guide](https://opencode.ai/v2/docs/build/plugins) and
-[event API](https://opencode.ai/v2/docs/api).
-
-The server needs the terminal's `NVIM` and `AGENTS_SESSION` environment variables.
-Use `--standalone` so it inherits them from the terminal.
-
-### GitHub Copilot CLI
-
-**Documented; unverified.** Create `.github/hooks/agents-ready.json`, then restart
-Copilot. `agentStop` reports the main agent finishing a turn; avoid `sessionEnd`
-and background-agent notification events. The hook's `stopReason` is `end_turn`.
+`agentStop` reports the main agent finishing a turn with `stopReason: "end_turn"`.
+Use it to notify after a response; `sessionEnd` reports the session closing.
+Create `.github/hooks/agents-ready.json`, then restart Copilot. See the
 [Copilot hooks reference](https://docs.github.com/en/copilot/reference/hooks-reference)
 and [configuration locations](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks).
 
@@ -289,12 +309,12 @@ and [configuration locations](https://docs.github.com/en/copilot/how-tos/copilot
 }
 ```
 
-### Grok CLI
+## Grok CLI
 
-**Documented; unverified.** This refers to `superagent-ai/grok-cli`, not other
-executables named `grok`. Add the following to `~/.grok/user-settings.json`.
-Its `Stop` dispatch is separate from API-error `StopFailure`.
-[Lifecycle source](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/agent/agent.ts#L2152).
+The built-in `grok` tool targets `superagent-ai/grok-cli`. Its `Stop` hook reports
+the agent finishing a response; API errors use `StopFailure`. Add the following
+to `~/.grok/user-settings.json`, as described in its
+[hook configuration](https://github.com/superagent-ai/grok-cli#hooks).
 
 ```json
 {
@@ -314,18 +334,14 @@ Its `Stop` dispatch is separate from API-error `StopFailure`.
 }
 ```
 
-This version only loads hooks from user settings in the home directory.
-[Hook loader](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/hooks/config.ts#L5)
-and [settings path](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/utils/settings.ts#L185).
+## Amazon Q CLI
 
-### Amazon Q CLI
-
-**Documented; unverified.** Add this `hooks` field to the agent JSON you use under
-`.amazonq/cli-agents/` or `~/.aws/amazonq/cli-agents/`; select that agent with
-`q chat --agent <name>`. The lowercase `stop` hook runs after each assistant
-response. This recipe targets the legacy `q` executable.
+Amazon Q's lowercase `stop` hook runs after each assistant response. This recipe
+targets the legacy `q` executable. Add this `hooks` field to the agent JSON you
+use under `.amazonq/cli-agents/` or `~/.aws/amazonq/cli-agents/`, and select that
+agent with `q chat --agent <name>`. See the
 [Hook reference](https://github.com/aws/amazon-q-developer-cli/blob/15cc8f3cd18c4272925ce1c7053268eedff1ea0a/docs/hooks.md)
-and [agent selection](https://github.com/aws/amazon-q-developer-cli/blob/15cc8f3cd18c4272925ce1c7053268eedff1ea0a/docs/default-agent-behavior.md).
+and [agent selection](https://github.com/aws/amazon-q-developer-cli/blob/main/docs/default-agent-behavior.md).
 
 ```json
 {
@@ -340,12 +356,11 @@ and [agent selection](https://github.com/aws/amazon-q-developer-cli/blob/15cc8f3
 }
 ```
 
-### Cursor Agent
+## Cursor Agent
 
-**Documented assistant-response event; unverified.** Add this to
-`.cursor/hooks.json`. Cursor's CLI changelog confirms `afterAgentResponse` support;
-the event reports a completed assistant message. Whole-turn completion and error
-behavior have not been verified here, so do not use it as a strict success flag.
+Cursor's `afterAgentResponse` reports a completed assistant message. Use it to
+notice new output, rather than as a strict whole-turn success signal. Add this
+to `.cursor/hooks.json`. See the
 [CLI changelog](https://cursor.com/docs/cli/changelog) and
 [hook reference](https://cursor.com/docs/hooks#afteragentresponse).
 
@@ -364,8 +379,8 @@ behavior have not been verified here, so do not use it as a strict success flag.
 
 ## Broader attention notifications
 
-These options signal when a tool needs attention, including events other than
-completed turns. **Live behavior is unverified.**
+These options are useful when you want to return for questions and permission
+requests as well as completed responses.
 
 ### Aider
 
@@ -386,16 +401,13 @@ the remote-expression command above communicates through Neovim's socket.
 
 ### Crush
 
-Crush can emit OSC notifications with this option in `.crushrc`:
+Crush can send terminal notifications after a turn and when it needs attention,
+such as a permission decision. Enable OSC notifications in `.crushrc`:
 
 ```text
 option notifications osc
 ```
 
-The same stream includes completed turns, permission requests, and questions.
 Notifications require terminal focus reporting and are suppressed while focused.
-Crush's `PreToolUse` command hook runs before tool calls. Use OSC notifications
-for turn completion and requests for attention.
-[Notification behavior](https://github.com/charmbracelet/crush/blob/v0.92.0/internal/ui/model/ui.go#L577),
-[configuration](https://github.com/charmbracelet/crush#notifications), and
-[hook support](https://github.com/charmbracelet/crush/blob/35a7bcab084a6022717d31b110c538a68d6fadf7/docs/hooks/README.md).
+See [desktop notifications](https://github.com/charmbracelet/crush#desktop-notifications)
+and [configuration](https://github.com/charmbracelet/crush#configuration).

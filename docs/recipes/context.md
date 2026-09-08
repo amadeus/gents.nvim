@@ -1,57 +1,164 @@
 # Sending context
 
-`:Agents send` offers providers that apply to the captured source window and buffer.
-Each provider inserts a file reference or text into the selected session's input:
+Send the code, errors, or output you are working with to a CLI session without
+copying it by hand. Run `:Agents send` from your source buffer, choose the context
+you want to share, and agents.nvim pastes it into the destination session.
 
-| Provider    | What it sends                                                                                 |
-| ----------- | --------------------------------------------------------------------------------------------- |
-| `line`      | A file reference with the current line or selected line range, such as `@src/main.lua:12-15`. |
-| `selection` | The selected text as a code block, with common leading indentation removed.                   |
-| `file`      | A reference to the current file, such as `@src/main.lua`.                                     |
-| `buffer`    | The entire buffer's current text as a code block, including unsaved edits.                    |
+For a common request, skip the context picker and name a provider directly:
 
-Reference syntax is formatted for the selected tool. `selection` and `buffer`
-copy text directly from Neovim into the session's input, including unsaved edits.
+```vim
+:Agents send buffer
+```
 
-Send from the buffer whose context you want to share. Sending from an Agents
-session buffer displays a warning and sends nothing.
+This copies the whole buffer, including unsaved edits, and focuses the
+destination so you can continue your message.
 
-If no session exists, choosing context opens the New Session picker.
-Select a tool to start a session and send the captured context once the CLI is
-ready for input. The session starts in the source window's captured working
-directory.
+**NOTE:** it is generally recommended not to type out these commands manually,
+but attach them to keymaps.
 
-You can also send providers directly, for example `:Agents send line` or
-`:Agents send buffer`.
+## Choose what to send
 
-- In an ordinary terminal: `:Agents send terminal` sends the last 1,000 lines,
-  after trimming trailing blank lines.
-- With message history: `:Agents send messages` sends `:messages`.
-- With a quickfix list: `:Agents send quickfix` sends the global list.
-- With a location list: `:Agents send locationlist` sends the source window's list.
+Providers let you share just the information the agent needs. Use a file reference
+to point at code on disk, or copy text when the exact current content matters.
 
-The built-in order is `line`, `selection`, `file`, `buffer`, `messages`,
-`diagnostics`, `quickfix`, `locationlist`, and `terminal`. Unavailable entries
-are omitted, so `selection` appears between `line` and `file` only when text
-is selected, and `locationlist` appears only when its list is nonempty.
+| Provider       | What it sends                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| `line`         | A file reference to the current line or selected line range.                                |
+| `selection`    | Selected text as a code block, with common leading indentation removed.                     |
+| `file`         | A reference to the current file.                                                            |
+| `buffer`       | The whole buffer's current text as a code block, including unsaved edits.                   |
+| `messages`     | Neovim's `:messages` history.                                                               |
+| `diagnostics`  | Source buffer diagnostics, limited to those intersecting a captured selection when present. |
+| `quickfix`     | All entries in the global quickfix list, in list order.                                     |
+| `locationlist` | All entries in the source window's location list, in list order.                            |
+| `terminal`     | The last 1,000 lines of an ordinary terminal, after trimming trailing blank lines.          |
 
-Register custom providers with `require("agents").provider(name, spec)`.
-The spec supplies a `desc` and a `render(ctx)` function that returns a list
-of text, file-reference, or code-block parts, or `nil` when it does not apply.
+The picker uses this order and omits unavailable entries. For example, `selection`
+needs an active Visual or Select selection or an Ex range, and `locationlist`
+needs a nonempty list. The quickfix and location lists are not filtered by the
+source buffer or selection.
 
-To choose a terminal scrollback limit for one send, use an inline provider:
+`line` and `file` need a buffer with a file path and send references rather than
+unsaved content. Reference syntax follows the destination tool: the same line
+can appear as `@src/main.lua:12` or, for Claude, `@src/main.lua#L12`. Paths use the
+captured source working directory, even when the destination session has a
+different directory. `selection` and `buffer` copy Neovim's current text.
+
+To share a particular range without making a selection, use an Ex range:
+
+```vim
+:3,8Agents send
+:3,8Agents send line
+```
+
+The first command copies lines 3 through 8; the second references those lines.
+Lua mappings can capture characterwise, linewise, and blockwise selections when
+they call `send()` while Visual or Select mode is still active. See
+`:help agents-keymaps` for examples.
+
+## Choose a session and keep working
+
+Send from the buffer you want to discuss. The chosen text or file references
+are sent to your CLI session.
+
+With one existing session, send uses that session; with several, it opens the
+session picker. If no session exists, choose a tool from the New Session
+picker to start one and receive the context.
+
+Name a destination when you already know which conversation needs the context,
+or use `--no-focus` to stay in the editor:
+
+```vim
+:Agents send buffer --target claude #2
+:Agents send diagnostics --no-focus
+```
+
+`--no-focus` still shows the destination if needed, then restores the invoking
+window. A layout that replaces that window's buffer cannot restore its previous
+buffer. In Lua, pass `{ focus = false }` as the second argument to `send()`.
+
+For a request you want to submit immediately, pass `{ submit = true }` to Lua
+`send()`. See `:help agents.send()` for submission and startup waiting behavior.
+
+## Combine context with instructions
+
+A single message can include several providers. For example, this sends a file
+reference alongside its diagnostics:
+
+```vim
+:Agents send file diagnostics
+```
+
+Add your own instructions with a Lua composition:
 
 ```lua
-local agents = require("agents")
-local providers = require("agents.providers")
+require("agents").send({
+  { text = "Explain this code:" },
+  { any = { "selection", "line" } },
+})
+```
 
-agents.send({
-  function(ctx)
-    return providers.terminal(ctx, 50)
+This asks about the selected text, falling back to a reference to the current
+line when nothing is selected. `any` chooses the first available alternative.
+Items are combined in order, and every outer item is required: if a requested
+provider is unavailable, the whole send stops with a warning.
+
+## Save requests you use often
+
+Saved prompts give a composition a name so you can reuse its instructions with
+the file or selection you are working on. Add them to your setup:
+
+```lua
+require("agents").setup({
+  prompts = {
+    explain = {
+      { text = "Explain this code:" },
+      { any = { "selection", "line" } },
+    },
+    review = { { text = "Review this code for bugs:" }, "buffer" },
+  },
+})
+```
+
+Run `:Agents send explain`, or choose `explain` from the context picker. Each use
+reads the source context at that time. `:Agents send review diagnostics` combines
+the review request with the current buffer's diagnostics.
+
+Saved prompts appear first in the picker, sorted by name, when their required
+context is available. In commands, a saved prompt takes precedence over a
+provider with the same name. Strings passed to Lua `send()` or used inside a
+prompt identify providers, not saved prompts. To reuse a composition in Lua,
+keep its item list in a variable and pass that list to both setup and `send()`.
+
+## Add your own context
+
+Custom providers make project information or another plugin's output available
+in the same picker and commands. For example, add a shorter terminal excerpt:
+
+```lua
+require("agents").provider("terminal_tail", {
+  desc = "Last 50 terminal lines",
+  render = function(ctx)
+    return require("agents.providers").terminal(ctx, 50)
   end,
 })
 ```
 
-`providers.terminal(ctx, limit)` reads `ctx.buf`, including when that buffer
-belongs to a session. The limit must be a positive integer. The registered
-provider keeps its 1,000-line default.
+From an ordinary terminal, run `:Agents send terminal_tail`. The built-in
+`terminal` provider keeps its 1,000-line limit. For a limit needed on just one
+send, pass the function as an item instead:
+
+```lua
+require("agents").send({
+  function(ctx)
+    return require("agents.providers").terminal(ctx, 50)
+  end,
+})
+```
+
+A provider returns a list of text, path, or code parts, or `nil` when it does not
+apply. Providers should read context without changing editor state: they run
+while the picker builds its choices, even if you choose something else.
+
+The complete provider, composition, and delivery contracts are in
+`:help agents-context` in the [full help file](../../doc/agents.txt).

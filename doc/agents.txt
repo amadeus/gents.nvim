@@ -42,9 +42,9 @@ Requirements ~
   must resolve on Neovim's PATH, or use absolute paths in tool overrides.
   See |agents-tools| for the built-in tool definitions.
 - Git for the installation examples below.
-- Optional: snacks.nvim for |agents-picker-snacks|, mini.pick for
-  |agents-picker-mini|, telescope.nvim for |agents-picker-telescope|, or
-  fzf-lua for |agents-picker-fzf|. Otherwise agents.nvim uses
+- Optional: a picker plugin for one of the built-in adapters:
+  folke/snacks.nvim, nvim-mini/mini.pick, nvim-telescope/telescope.nvim, or
+  ibhagwan/fzf-lua; see |agents-picker-adapters|. Otherwise agents.nvim uses
   |vim.ui.select()| and has no required plugin dependency.
 
 Choose one installation method. Calling |agents.setup()| is optional if you
@@ -80,7 +80,9 @@ To use the Snacks adapter, add this dependency and option to that spec: >lua
     opts = { picker = "snacks" },
 <
 If you already configure Snacks in another spec, keep that configuration;
-the dependency ensures it is available when agents.nvim opens a picker.
+the dependency ensures it is available when agents.nvim opens a picker. For
+another built-in adapter, declare that plugin instead and set the matching
+`picker` value; see |agents-picker-adapters|.
 
 Manager instructions: https://lazy.folke.io/spec
 
@@ -101,7 +103,9 @@ setup(), alongside keys: >lua
 <
 For Snacks, include `"https://github.com/folke/snacks.nvim"` in the add list,
 then set `picker = "snacks"` in agents.nvim setup. A call to `setup()` on
-Snacks is not required just to use its picker through agents.nvim.
+Snacks is not required just to use its picker through agents.nvim. Other
+built-in adapters work the same way with their plugin; see
+|agents-picker-adapters|.
 
 Manager instructions: |vim.pack| and https://neovim.io/doc/user/pack/
 
@@ -125,9 +129,10 @@ restart Neovim: >vim
     EOF
 <
 For Snacks, also declare `Plug 'folke/snacks.nvim'` and set
-`picker = "snacks"` in agents.nvim setup. This installation uses Neovim,
-including its Lua support, even when the surrounding configuration is
-Vimscript.
+`picker = "snacks"` in agents.nvim setup; other built-in adapters work the
+same way with their plugin (see |agents-picker-adapters|). This installation
+uses Neovim, including its Lua support, even when the surrounding
+configuration is Vimscript.
 
 Manager instructions: https://github.com/junegunn/vim-plug
 
@@ -207,8 +212,8 @@ Lua functions; see |agents-api|. Names and examples are case-sensitive.
     existing window, including one in another tab, or opens a new window
     using your layout if the session has no views. See |agents-layouts|.
 
-    When using the built in snacks picker you'll be able to perform a variety
-    of other actions on any of your existing sessions.
+    With a built-in picker adapter, the session picker also offers
+    placement, hide, and close shortcuts. See |agents-picker-adapters|.
 
                                                               *:Agents-focus*
 :Agents focus [target]
@@ -426,14 +431,11 @@ buflisted                                           *agents-config.buflisted*
 picker                                                 *agents-config.picker*
     Type: nil, "snacks", "mini", "telescope", "fzf-lua", or
     agents.PickerAdapter. Default: nil.
-    Selects the adapter for new menus. Nil uses |vim.ui.select()|. "snacks"
-    uses the built-in adapter and requires the optional snacks.nvim plugin.
-    "mini" uses the built-in mini.pick adapter and requires mini.pick to be
-    set up. "telescope" uses the built-in Telescope adapter and requires
-    telescope.nvim. "fzf-lua" uses the built-in fzf-lua adapter and requires
-    fzf-lua with the fzf executable. A function receives an
-    |agents.PickerSpec|. See |agents-pickers| for shortcuts, previews, and
-    custom adapters.
+    Selects the adapter for new menus. Nil uses |vim.ui.select()|. A string
+    selects the built-in adapter for that picker plugin, which must be
+    installed; see |agents-picker-adapters| for each plugin's requirements
+    and shortcuts. A function receives an |agents.PickerSpec|; see
+    |agents-picker-custom|.
 
 picker_help                                       *agents-config.picker_help*
     Type: boolean. Default: true.
@@ -912,11 +914,10 @@ these use |vim.ui.select()|. Each row displays its `text`; confirming a row
 runs that menu's default action. Cancelling does nothing. An existing
 `vim.ui.select` replacement also handles these menus.
 
-The default adapter exposes only the default action. For placement shortcuts
-and argument editing, use |agents-picker-snacks|, |agents-picker-mini|,
-|agents-picker-telescope|, or |agents-picker-fzf|, or supply a custom adapter
-as described in |agents-picker-custom|. The Snacks adapter also previews
-context items; the other built-in adapters do not.
+The default adapter exposes only the default action. To add placement,
+hide, close, and argument-editing shortcuts, select the built-in adapter for
+your picker plugin as described in |agents-picker-adapters|, or supply a
+custom adapter as described in |agents-picker-custom|.
 
 Menus and ordering ~
 
@@ -1014,6 +1015,67 @@ ignore sessions closed while the menu was open. Actions return to the
 originating window before running; if that window has closed, the plugin
 reports an error instead of continuing from the picker window.
 
+Built-in adapters ~                                    *agents-picker-adapters*
+
+Set `picker` to the value for the picker plugin you use. Install that plugin
+yourself; the adapter loads it when a menu opens and reports an error if it
+is unavailable rather than switching to `vim.ui.select`. |agents-health|
+checks the selected adapter.
+
+    Value        Requires
+    "snacks"     folke/snacks.nvim
+    "mini"       nvim-mini/mini.pick, or nvim-mini/mini.nvim
+    "telescope"  nvim-telescope/telescope.nvim with nvim-lua/plenary.nvim
+    "fzf-lua"    ibhagwan/fzf-lua with the fzf executable
+
+Every adapter offers the same actions in the menus that supply them, on keys
+chosen to fit that picker's own conventions. Each adapter's native help lists
+its actual bindings: `?` in Snacks, <S-Tab> in mini.pick, <C-/> or `?` in
+Telescope, and <F1> in fzf-lua. A key already used by your picker
+configuration stays yours (Snacks excepted). Only the Snacks adapter shows
+context previews and the `picker_help` hints.
+
+    Action      Snacks    mini.pick   Telescope   fzf-lua
+    default     <CR>      <CR>        <CR>        enter
+    vsplit      <C-v>     <C-v>       <C-v>       ctrl-v
+    split       <C-x>     <C-s>       <C-x>       ctrl-s
+    tabnew      <C-t>     <C-t>       <C-t>       ctrl-t
+    float       <C-f>     <M-f>       <C-f>       alt-f
+    current     <C-CR>    <C-CR>      <C-CR>      alt-enter
+    edit_args   <C-e>     <C-e>       <C-e>       alt-e
+    hide        <C-h>     <M-h>       <M-h>       alt-h
+    close       <C-d>     <C-d>       <C-d>       ctrl-x
+
+The sections below describe each adapter. Row highlights are shared; see
+|agents-picker-highlights|.
+
+Row highlights ~                                     *agents-picker-highlights*
+
+Every built-in adapter styles the parts of a row with these groups:
+
+    Row part        Highlight group             Default
+    directory       AgentsPickerDirectory       SnacksPickerDir, else NonText
+    visible         AgentsPickerVisible         DiagnosticInfo
+    hidden          AgentsPickerHidden          Comment
+    placeholder     AgentsPickerPlaceholder     Comment
+    separator       AgentsPickerSeparator       Comment
+    description     AgentsPickerDescription     Comment
+
+The defaults follow your colorscheme and are reapplied after colorscheme
+changes without replacing your own definitions. Define overrides in your
+colorscheme, or use a callback: >lua
+    local function picker_highlights()
+      vim.api.nvim_set_hl(0, "AgentsPickerVisible", { fg = "#a6e3a1" })
+    end
+
+    vim.api.nvim_create_autocmd("ColorScheme", {
+      callback = picker_highlights,
+    })
+    picker_highlights()
+<
+Each picker plugin adds its own match highlighting on top; fzf-lua receives
+the groups as ANSI colors.
+
 Snacks adapter                                          *agents-picker-snacks*
 
 Install folke/snacks.nvim, then select the adapter: >lua
@@ -1054,35 +1116,8 @@ shortcuts still work and your configured sizing remains in effect: >lua
       picker_help = false,
     })
 <
-Snacks renders context previews as text. The built-in adapters use these
-groups for row chunks:
-
-    Chunk kind      Highlight group             Default link
-    directory       AgentsPickerDirectory       AgentsPickerDirectoryDefault
-    visible         AgentsPickerVisible         DiagnosticInfo
-    hidden          AgentsPickerHidden          Comment
-    placeholder     AgentsPickerPlaceholder     Comment
-    separator       AgentsPickerSeparator       Comment
-    description     AgentsPickerDescription     Comment
-
-Chunks without a kind use the item's suggested `hl`, if present. Rows
-without chunks use that highlight for the whole text. The plugin manages
-`AgentsPickerDirectoryDefault`: it links to `SnacksPickerDir` once Snacks has
-defined that group and to `NonText` otherwise, so directories look alike with
-or without Snacks. Override `AgentsPickerDirectory` like the other groups.
-
-The default links follow your colorscheme. Defaults are reapplied after
-colorscheme changes without replacing existing definitions. Define overrides
-in your colorscheme, or use a callback: >lua
-    local function picker_highlights()
-      vim.api.nvim_set_hl(0, "AgentsPickerVisible", { fg = "#a6e3a1" })
-    end
-
-    vim.api.nvim_create_autocmd("ColorScheme", {
-      callback = picker_highlights,
-    })
-    picker_highlights()
-<
+Snacks renders context previews as text in its preview window. Row
+highlighting use the groups listed under |agents-picker-highlights|.
 
 mini.pick adapter                                         *agents-picker-mini*
 
@@ -1122,8 +1157,7 @@ before an action runs. Disabling one of those mappings in mini.pick also
 disables the corresponding agents.nvim action. The other keys are bound only
 when no mini.pick mapping, built-in or custom, already uses them; your
 mini.pick configuration wins, and the info view shows the resulting
-bindings. <C-f> and <C-h> keep their mini.pick scrolling meaning, so float
-and hide use the Alt variants.
+bindings. <C-f> and <C-h> keep their mini.pick scrolling meaning.
 
 A menu requested from a custom mini.pick mapping, for example a mapping that
 calls |agents.send()| for the current item, opens after that picker closes
@@ -1131,7 +1165,7 @@ and returns to that picker's target window before running an action.
 
 Menus have no preview, so the `toggle_preview` mapping is disabled.
 `picker_help` has no effect on this adapter. Row chunks use the highlight
-groups listed under |agents-picker-snacks|, and mini.pick's match
+groups listed under |agents-picker-highlights|, and mini.pick's match
 highlighting is kept.
 
 Telescope adapter                                    *agents-picker-telescope*
@@ -1171,7 +1205,7 @@ the key hints show the actual bindings. <C-f> and <C-d> scroll a preview in
 other pickers, which these menus do not have.
 
 `picker_help` has no effect on this adapter. Row chunks use the highlight
-groups listed under |agents-picker-snacks|, and Telescope's match
+groups listed under |agents-picker-highlights|, and Telescope's match
 highlighting is kept. A menu requested from a Telescope mapping opens after
 Telescope closes that picker and returns to its original window before
 running an action.
@@ -1204,15 +1238,14 @@ agents.nvim actions by these names next to fzf-lua's own keymaps:
 Enter always runs the menu's default action, as in fzf-lua's own pickers;
 its help name follows the menu: `agents-start`, `agents-show`, `agents-run`,
 or `agents-send`. The vsplit, split, and tabnew keys are the ones fzf-lua
-uses for files. fzf has no ctrl-enter key, and ctrl-e, ctrl-f, ctrl-h, and
-ctrl-d edit the query or scroll in fzf, so those actions use the keys above.
-The other keys are bound only when the menu supplies the action and your
-fzf-lua `keymap.fzf` and `keymap.builtin` leave the key unset, including
-keys you disabled; your fzf-lua configuration wins, and the help window
-shows the actual bindings.
+uses for files, and the remaining keys avoid fzf's own editing and scrolling
+bindings such as ctrl-e, ctrl-f, ctrl-h, and ctrl-d. The other keys are
+bound only when the menu supplies the action and your fzf-lua `keymap.fzf`
+and `keymap.builtin` leave the key unset, including keys you disabled; your
+fzf-lua configuration wins, and the help window shows the actual bindings.
 
 Rows are styled through fzf's ANSI colors using the highlight groups listed
-under |agents-picker-snacks|, and fzf's own match highlighting is kept.
+under |agents-picker-highlights|, and fzf's own match highlighting is kept.
 Matching uses the visible text only, and the fzf field and preview options
 these menus depend on override your global `fzf_opts`. `picker_help` has no
 effect on this adapter.
@@ -2158,8 +2191,9 @@ Use `{ text = "Explain this" }` for literal words. See |agents-context|.
 Picker contracts ~
 
                                                               *agents.Picker*
-"snacks" or an |agents.PickerAdapter| function. Omit the setup picker field
-to use |vim.ui.select()|.
+"snacks", "mini", "telescope", "fzf-lua", or an |agents.PickerAdapter|
+function. Omit the setup picker field to use |vim.ui.select()|. See
+|agents-picker-adapters|.
 
                                                        *agents.PickerAdapter*
     fun<T>(spec: agents.PickerSpec<T>)
@@ -2436,14 +2470,14 @@ The report inspects the current configuration without starting sessions:
             informational result.
     Editor  Reports whether 'autoread' is enabled. If disabled, recommends
             enabling it so changes made by agents can reload.
-    Picker  Reports `vim.ui.select`, a custom function, or Snacks. For
-            Snacks, checks whether `require("snacks")` succeeds and reports
-            an error with installation advice if unavailable.
+    Picker  Reports `vim.ui.select`, a custom function, or the selected
+            built-in adapter. For a built-in adapter, checks that its plugin
+            loads and reports an error with installation advice if not.
 
 The supported baseline is Neovim 0.12+. CLI executables are installed
 separately. The health report checks executable availability, not login,
-CLI credentials, versions, or successful requests. Its Snacks check does
-not exercise opening a picker.
+CLI credentials, versions, or successful requests. Its picker checks do
+not exercise opening a menu.
 
 Executable or tool problems ~
 
@@ -2464,15 +2498,20 @@ the CLI's own resume feature when needed. See |agents-on-exit|.
 
 Picker problems ~
 
-With `picker = "snacks"`, install and load folke/snacks.nvim. To use the
-default picker instead, omit `picker` or use
-`picker = nil` in your setup. See |agents-picker-snacks|. If a picker says
-the window that opened it no longer exists, reopen it from a valid window.
+A built-in adapter needs its plugin installed and loadable: snacks.nvim,
+mini.pick with its `setup()` called, telescope.nvim with plenary.nvim, or
+fzf-lua with an fzf executable. The menu reports which one is missing. To
+use the default picker instead, omit `picker` or use `picker = nil` in your
+setup. See |agents-picker-adapters|. If a picker says the window that
+opened it no longer exists, reopen it from a valid window.
 
 Missing placement shortcuts in the default picker are expected: the
-`vim.ui.select` adapter exposes only the default action. Use Snacks, a
-custom adapter, or an explicit Lua layout. If Snacks footer hints are
-clipped, widen the editor or disable them with `picker_help = false`.
+`vim.ui.select` adapter exposes only the default action. Use a built-in
+adapter, a custom adapter, or an explicit Lua layout. If a shortcut listed
+here does not work, open the picker's native help: a key that your picker
+configuration already uses is left alone and shows there. If Snacks footer
+hints are clipped, widen the editor or disable them with
+`picker_help = false`.
 
 Context and notification problems ~
 

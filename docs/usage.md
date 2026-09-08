@@ -17,8 +17,9 @@ After [installing the plugin](../README.md#installation), you can use the
 built-in behavior with just a few keymaps:
 
 - New sessions open in a full-height vertical split on the right.
-- Pickers use `vim.ui.select` by default, but we recommend using the built in
-  snacks variant since it provides a lot of extended functionality.
+- Pickers use `vim.ui.select` by default. We recommend the built-in Snacks
+  adapter for its extra shortcuts and hints; adapters for mini.pick, Telescope,
+  and fzf-lua offer the same actions.
 - Sending context focuses the session so you can continue your message.
 - Session buffers stay out of ordinary buffer lists. Use the session picker
   to find and manage them.
@@ -126,10 +127,10 @@ require("agents").setup({
 })
 ```
 
-`float` supplies the settings used by `layout = "float"` and the Snacks
-Ctrl-F shortcut. Setting `float` alone does not change the default split
-layout. Partial settings retain the other float defaults. In a lazy.nvim
-spec, put these settings in `opts`.
+`float` supplies the settings used by `layout = "float"` and the picker float
+shortcut. Setting `float` alone does not change the default split layout.
+Partial settings retain the other float defaults. In a lazy.nvim spec, put these
+settings in `opts`.
 
 When you press Enter in a picker:
 
@@ -178,9 +179,21 @@ See `:help agents-layouts` for placement rules and float options.
 
 ## Pickers and shortcuts
 
-The recommended Snacks picker displays shortcuts for placement and session
-management. These hints help you learn the available actions while choosing
-a session:
+agents.nvim opens its menus through `vim.ui.select` unless you choose a picker
+adapter. With an adapter, the New Session and Sessions menus gain shortcuts to
+place a session in a split, tab, or float, to open it in the current window, to
+edit the launch command, and to hide or close a session. The adapters share
+these actions; the keys follow each picker's conventions.
+
+| `picker`      | Plugin                                                                                                                                                   | Native help           |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `"snacks"`    | [folke/snacks.nvim](https://github.com/folke/snacks.nvim)                                                                                                | `?` and a hint footer |
+| `"mini"`      | [nvim-mini/mini.pick](https://github.com/nvim-mini/mini.pick)                                                                                            | Shift-Tab info view   |
+| `"telescope"` | [nvim-telescope/telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) with [nvim-lua/plenary.nvim](https://github.com/nvim-lua/plenary.nvim) | Ctrl-/ or `?`         |
+| `"fzf-lua"`   | [ibhagwan/fzf-lua](https://github.com/ibhagwan/fzf-lua) with the fzf executable                                                                          | F1                    |
+
+We recommend Snacks because its picker also shows the shortcuts while you
+choose, so you can discover the actions as you go:
 
 ```lua
 require("agents").setup({
@@ -188,7 +201,7 @@ require("agents").setup({
 })
 ```
 
-New Session and the session picker offer:
+New Session and the session picker then offer:
 
 | Key        | Placement                                               |
 | ---------- | ------------------------------------------------------- |
@@ -213,19 +226,16 @@ require("agents").setup({
 })
 ```
 
-See `:help agents.pick()` for session picker details and
-`:help agents-picker-snacks` for highlight customization.
-
-If you use mini.pick instead, set `picker = "mini"` after
-`require("mini.pick").setup()`. The same actions are available on mini.pick
-keys, and Shift-Tab opens its info view listing them. Telescope users set
-`picker = "telescope"` and press Ctrl-/ or `?` for its key hints, and fzf-lua
-users set `picker = "fzf-lua"` and press F1 for its help window. See
-[use your preferred picker](recipes/pickers.md) for the key tables.
+The other adapters bind the same actions to keys that fit their picker and list
+them in that picker's own help, leaving any key your picker configuration
+already uses untouched. See [use your preferred picker](recipes/pickers.md) for
+their setup and key tables, `:help agents-picker-adapters` for the complete
+comparison, and `:help agents-picker-highlights` for row highlight
+customization.
 
 Without a configured picker, agents.nvim uses `vim.ui.select`, including any
-replacement you have configured. To use another picker or build your own,
-see [custom pickers](recipes/pickers.md).
+replacement you have configured. To build your own adapter, see the [custom
+adapter notes](recipes/pickers.md#custom-adapters).
 
 ## Customize your keymaps
 

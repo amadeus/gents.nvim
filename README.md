@@ -153,12 +153,12 @@ position. With lazy.nvim, these settings live inside `opts`.
 agents.nvim uses Neovim's `vim.ui.select` picker by default. If you have
 [snacks.nvim](https://github.com/folke/snacks.nvim) installed, add
 `picker = "snacks"` to the same options table for its menus and extra shortcuts.
-With [mini.pick](https://github.com/nvim-mini/mini.pick) set up, use
-`picker = "mini"` instead, `picker = "telescope"` with
-[telescope.nvim](https://github.com/nvim-telescope/telescope.nvim), or
-`picker = "fzf-lua"` with [fzf-lua](https://github.com/ibhagwan/fzf-lua).
-See [layouts and picker shortcuts](docs/usage.md#choose-where-sessions-open)
-for split, tab, current-window, and float settings.
+Adapters for [mini.pick](https://github.com/nvim-mini/mini.pick),
+[telescope.nvim](https://github.com/nvim-telescope/telescope.nvim), and
+[fzf-lua](https://github.com/ibhagwan/fzf-lua) offer the same actions with
+`picker = "mini"`, `"telescope"`, or `"fzf-lua"`. See
+[pickers and shortcuts](docs/usage.md#pickers-and-shortcuts) and
+[layouts](docs/usage.md#choose-where-sessions-open) for the details.
 
 ## Commands
 
@@ -199,7 +199,7 @@ Use `:help agents.nvim` for the complete reference, or start with these guides:
 - [Sending context](docs/recipes/context.md)
 - [Agent ready notifications](docs/recipes/ready.md)
 - [Conversation titles](docs/recipes/titles.md)
-- [Custom pickers](docs/recipes/pickers.md)
+- [Use your preferred picker](docs/recipes/pickers.md)
 - [Statusline integration](docs/recipes/statusline.md)
 
 ## Development

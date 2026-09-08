@@ -9,25 +9,42 @@ That is enough to choose an item and run the menu's default action: execute an
 action, start a tool, choose a session, or send context. Cancelling does
 nothing. For the built-in Snacks adapter and its additional shortcuts, see
 [pickers and shortcuts](../usage.md#pickers-and-shortcuts). The built-in
-mini.pick and Telescope adapters are described below.
+mini.pick, Telescope, and fzf-lua adapters are described below.
 
 The examples below assume the chosen picker plugin is installed and configured.
 Choose one integration and merge its agents.nvim options into your existing
 setup.
 
-## fzf-lua through vim.ui.select
+## fzf-lua with agents.nvim actions
 
-Register fzf-lua once to use its search interface for agents.nvim and other
-plugins that call `vim.ui.select`:
+agents.nvim includes an fzf-lua adapter. Install fzf-lua and the fzf
+executable, then select the adapter:
 
 ```lua
-require("fzf-lua").register_ui_select()
+require("agents").setup({ picker = "fzf-lua" })
 ```
 
-Leave agents.nvim's `picker` unset, then run `:Agents pick`. This integration
-supports the default action for each menu. It does not add agents.nvim's
-placement, hide, close, or argument-editing shortcuts. Registration is a public
-[fzf-lua API](https://github.com/ibhagwan/fzf-lua#neovim-api).
+Menus open with your fzf-lua window and keymaps, without a preview. Enter runs
+the menu's default action. Press F1 for fzf-lua's help window, which lists the
+additional agents.nvim actions by name:
+
+| Key       | Help name             | Menus                 |
+| --------- | --------------------- | --------------------- |
+| Ctrl-V    | agents-open-in-vsplit | New Session, Sessions |
+| Ctrl-S    | agents-open-in-split  | New Session, Sessions |
+| Ctrl-T    | agents-open-in-tab    | New Session, Sessions |
+| Alt-F     | agents-open-in-float  | New Session, Sessions |
+| Alt-Enter | agents-open-here      | New Session, Sessions |
+| Alt-E     | agents-edit-command   | New Session           |
+| Alt-H     | agents-hide-session   | Sessions              |
+| Ctrl-X    | agents-close-session  | Sessions              |
+
+The keys above are bound only where your fzf-lua keymaps leave them free, and
+the help window always shows the actual bindings. See `:help agents-picker-fzf`
+for the complete behavior.
+
+If you prefer fzf-lua's `register_ui_select()` and leave `picker` unset,
+agents.nvim menus still open in fzf-lua with each menu's default action only.
 
 ## mini.pick with agents.nvim actions
 

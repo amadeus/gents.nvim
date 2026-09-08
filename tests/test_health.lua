@@ -194,6 +194,50 @@ T["report checks the configured Telescope dependency"] = test.new_set({
   end,
 })
 
+T["report checks the configured fzf-lua dependencies"] = test.new_set({
+  parametrize = { { "available" }, { "no module" }, { "no binary" } },
+}, {
+  ---@param state string
+  ["reports availability without opening a picker"] = function(state)
+    local binary = state == "no binary" and vim.fn.tempname() or vim.v.progpath
+    -- A missing configured binary falls back to fzf on PATH; keep PATH empty.
+    local path = assert(os.getenv("PATH"))
+    test.finally(function()
+      vim.fn.setenv("PATH", path)
+    end)
+    vim.fn.setenv("PATH", vim.fn.tempname())
+    local stubs = {
+      ["fzf-lua"] = { fzf_exec = function() end },
+      ["fzf-lua.config"] = { globals = { keymap = {}, fzf_bin = binary } },
+      ["fzf-lua.utils"] = {
+        ansi_from_hl = function(_, text)
+          return text
+        end,
+      },
+    }
+    for name, stub in pairs(stubs) do
+      ---@type table?
+      local loaded = rawget(package.loaded, name)
+      ---@type (fun(name: string): unknown)?
+      local preload = rawget(package.preload, name)
+      test.finally(function()
+        rawset(package.loaded, name, loaded)
+        rawset(package.preload, name, preload)
+      end)
+      rawset(package.loaded, name, nil)
+      rawset(package.preload, name, function()
+        assert(state ~= "no module", "fzf-lua is unavailable for this test")
+        return stub
+      end)
+    end
+    only_tools().picker = "fzf-lua"
+    local output = report()
+    expect(contains(output, "Using fzf-lua picker (" .. binary .. ")"), state == "available")
+    expect(contains(output, "fzf-lua is unavailable"), state == "no module")
+    expect(contains(output, "fzf executable was not found"), state == "no binary")
+  end,
+})
+
 T["report warns about invalid picker values"] = function()
   local configured = only_tools()
   for _, picker in ipairs({ false, "unknown", {} }) do
@@ -202,7 +246,10 @@ T["report warns about invalid picker values"] = function()
     configured.picker = picker
     local output = report()
     expect(
-      contains(output, 'picker must be nil, "snacks", "mini", "telescope", or a function'),
+      contains(
+        output,
+        'picker must be nil, "snacks", "mini", "telescope", "fzf-lua", or a function'
+      ),
       true
     )
     expect(contains(output, "Set picker to nil to use vim.ui.select."), true)

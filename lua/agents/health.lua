@@ -64,11 +64,30 @@ function M.check()
         "Install nvim-telescope/telescope.nvim with nvim-lua/plenary.nvim, or set picker to nil to use vim.ui.select."
       )
     end
+  elseif config.picker == "fzf-lua" then
+    local fzf = require("agents.pickers.fzf")
+    local modules = fzf.instance()
+    local binary = modules and fzf.binary(modules)
+    if not modules then
+      vim.health.error(
+        "fzf-lua picker is configured but fzf-lua is unavailable",
+        "Install ibhagwan/fzf-lua and the fzf executable, or set picker to nil to use vim.ui.select."
+      )
+    elseif not binary then
+      vim.health.error(
+        "fzf-lua picker is configured but the fzf executable was not found ("
+          .. (modules.fzf_bin or "fzf")
+          .. ")",
+        "Install fzf or set fzf_bin in fzf-lua's setup, or set picker to nil to use vim.ui.select."
+      )
+    else
+      vim.health.ok("Using fzf-lua picker (" .. binary .. ")")
+    end
   elseif type(config.picker) == "function" then
     vim.health.ok("Using a custom picker function")
   else
     vim.health.warn(
-      'picker must be nil, "snacks", "mini", "telescope", or a function',
+      'picker must be nil, "snacks", "mini", "telescope", "fzf-lua", or a function',
       "Set picker to nil to use vim.ui.select."
     )
   end

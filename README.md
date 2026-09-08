@@ -154,8 +154,9 @@ agents.nvim uses Neovim's `vim.ui.select` picker by default. If you have
 [snacks.nvim](https://github.com/folke/snacks.nvim) installed, add
 `picker = "snacks"` to the same options table for its menus and extra shortcuts.
 With [mini.pick](https://github.com/nvim-mini/mini.pick) set up, use
-`picker = "mini"` instead, or `picker = "telescope"` with
-[telescope.nvim](https://github.com/nvim-telescope/telescope.nvim).
+`picker = "mini"` instead, `picker = "telescope"` with
+[telescope.nvim](https://github.com/nvim-telescope/telescope.nvim), or
+`picker = "fzf-lua"` with [fzf-lua](https://github.com/ibhagwan/fzf-lua).
 See [layouts and picker shortcuts](docs/usage.md#choose-where-sessions-open)
 for split, tab, current-window, and float settings.
 
@@ -216,8 +217,10 @@ The first test run downloads mini.test into `.deps/`; generated test and
 checker output stays in `.test/`. Pass `NVIM=/path/to/nvim` to use another
 Neovim build. To include the picker integration tests, set `SNACKS_DIR` to
 your snacks.nvim checkout, `MINI_PICK_DIR` to your mini.nvim or mini.pick
-checkout, or both `TELESCOPE_DIR` and `PLENARY_DIR` to your telescope.nvim
-and plenary.nvim checkouts when running `make test`.
+checkout, both `TELESCOPE_DIR` and `PLENARY_DIR` to your telescope.nvim and
+plenary.nvim checkouts, or `FZF_LUA_DIR` to your fzf-lua checkout (with
+`FZF_BIN` pointing at fzf when it is not on your PATH) when running
+`make test`.
 
 ## Inspiration
 

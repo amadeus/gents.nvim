@@ -73,8 +73,9 @@ the README; versions used by CI are in `.github/workflows/ci.yml`.
 Use `make test NVIM=/path/to/nvim` to select a Neovim executable; the same
 override works for `make typecheck`. Run
 `SNACKS_DIR=/path/to/snacks.nvim make test` to include Snacks integration
-coverage, `MINI_PICK_DIR=/path/to/mini.pick make test` for mini.pick, and
-`TELESCOPE_DIR=... PLENARY_DIR=... make test` for Telescope. The first test run
+coverage, `MINI_PICK_DIR=/path/to/mini.pick make test` for mini.pick,
+`TELESCOPE_DIR=... PLENARY_DIR=... make test` for Telescope, and
+`FZF_LUA_DIR=... FZF_BIN=... make test` for fzf-lua. The first test run
 downloads mini.test into `.deps/`; generated test and checker output belongs in
 `.test/`.
 

@@ -18,11 +18,16 @@ local M = {}
 ---@field default string Action name used for Enter.
 
 ---@alias agents.PickerAdapter fun<T>(spec: agents.PickerSpec<T>)
----@alias agents.Picker "snacks"|"mini"|"telescope"|agents.PickerAdapter
+---@alias agents.Picker "snacks"|"mini"|"telescope"|"fzf-lua"|agents.PickerAdapter
 
----Built-in adapters, loaded from `agents.pickers.<name>` when a menu opens.
----@type table<string, boolean>
-local builtin = { snacks = true, mini = true, telescope = true }
+---Built-in adapter modules by configuration value, loaded when a menu opens.
+---@type table<string, string>
+local builtin = {
+  snacks = "agents.pickers.snacks",
+  mini = "agents.pickers.mini",
+  telescope = "agents.pickers.telescope",
+  ["fzf-lua"] = "agents.pickers.fzf",
+}
 
 ---Highlight groups for styled chunk kinds, shared by the built-in adapters.
 ---@type table<string, string>
@@ -64,7 +69,7 @@ function M.origin()
   local adapter = require("agents.config").get().picker
   if adapter == "mini" or adapter == "telescope" then
     ---@type integer?
-    local origin = require("agents.pickers." .. adapter).origin()
+    local origin = require(builtin[adapter]).origin()
     if origin then
       return origin
     end
@@ -91,9 +96,10 @@ end
 ---@param spec agents.PickerSpec<T>
 function M.open(spec)
   local adapter = require("agents.config").get().picker
-  if type(adapter) == "string" and builtin[adapter] then
+  local module = type(adapter) == "string" and builtin[adapter] or nil
+  if module then
     M.define_highlights()
-    require("agents.pickers." .. adapter).open(spec)
+    require(module).open(spec)
     return
   elseif adapter then
     adapter(spec)

@@ -220,6 +220,46 @@ T["Telescope is loaded on demand and reports a missing dependency"] = function()
   test.expect.equality(assert(notification):find("requires telescope.nvim", 1, true) ~= nil, true)
 end
 
+T["fzf-lua is loaded on demand and reports a missing dependency"] = function()
+  ---@type table?
+  local loaded = rawget(package.loaded, "fzf-lua")
+  ---@type (fun(name: string): unknown)?
+  local preload = rawget(package.preload, "fzf-lua")
+  test.finally(function()
+    rawset(package.loaded, "fzf-lua", loaded)
+    rawset(package.preload, "fzf-lua", preload)
+  end)
+  local attempted = false
+  rawset(package.loaded, "fzf-lua", nil)
+  rawset(package.preload, "fzf-lua", function()
+    attempted = true
+    error("fzf-lua is unavailable for this test")
+  end)
+  require("agents").setup({ picker = "fzf-lua" })
+  test.expect.equality(attempted, false)
+  set_select(function()
+    error("The configured picker must not silently fall back")
+  end)
+  ---@type string?
+  local notification
+  set_notify(function(message, level)
+    notification = message
+    test.expect.equality(level, vim.log.levels.ERROR)
+  end)
+  picker.open({
+    title = "Test picker",
+    items = { { text = "Item", data = 1 } },
+    default = "choose",
+    actions = {
+      choose = function()
+        error("Missing picker must not choose an item")
+      end,
+    },
+  })
+  test.expect.equality(attempted, true)
+  test.expect.equality(assert(notification):find("requires fzf-lua", 1, true) ~= nil, true)
+end
+
 T["actions context"] = test.new_set({
   parametrize = {
     { "none", { "new", "send" } },

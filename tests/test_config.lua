@@ -182,6 +182,7 @@ T["setup accepts the built-in and custom picker"] = function()
   expect(config.setup({ picker = "snacks" }).picker, "snacks")
   expect(config.setup({ picker = "mini" }).picker, "mini")
   expect(config.setup({ picker = "telescope" }).picker, "telescope")
+  expect(config.setup({ picker = "fzf-lua" }).picker, "fzf-lua")
   local adapter = function() end
   expect(config.setup({ picker = adapter }).picker, adapter)
   expect(config.setup({ picker = "snacks", picker_help = false }).picker_help, false)

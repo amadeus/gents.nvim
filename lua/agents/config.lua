@@ -38,8 +38,9 @@ local function validate(config)
       or config.picker == "snacks"
       or config.picker == "mini"
       or config.picker == "telescope"
+      or config.picker == "fzf-lua"
       or type(config.picker) == "function",
-    'agents: picker must be nil, "snacks", "mini", "telescope", or a function'
+    'agents: picker must be nil, "snacks", "mini", "telescope", "fzf-lua", or a function'
   )
   assert(type(config.picker_help) == "boolean", "agents: picker_help must be a boolean")
   assert(type(config.buflisted) == "boolean", "agents: buflisted must be a boolean")

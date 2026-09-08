@@ -213,3 +213,12 @@ The first test run downloads mini.test into `.deps/`; generated test and
 checker output stays in `.test/`. Pass `NVIM=/path/to/nvim` to use another
 Neovim build. To include the Snacks integration tests, set `SNACKS_DIR` to
 your snacks.nvim checkout when running `make test`.
+
+## Inspiration
+
+Thanks to these plugins for the ideas that helped shape agents.nvim:
+
+- [folke/sidekick.nvim](https://github.com/folke/sidekick.nvim) — for managing
+  CLI sessions and sharing editor context with agents.
+- [RobertTLange/agents.nvim](https://github.com/RobertTLange/agents.nvim) — for
+  keeping agent CLIs in native Neovim terminal buffers.

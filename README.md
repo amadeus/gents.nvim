@@ -153,6 +153,8 @@ position. With lazy.nvim, these settings live inside `opts`.
 agents.nvim uses Neovim's `vim.ui.select` picker by default. If you have
 [snacks.nvim](https://github.com/folke/snacks.nvim) installed, add
 `picker = "snacks"` to the same options table for its menus and extra shortcuts.
+With [mini.pick](https://github.com/nvim-mini/mini.pick) set up, use
+`picker = "mini"` instead.
 See [layouts and picker shortcuts](docs/usage.md#choose-where-sessions-open)
 for split, tab, current-window, and float settings.
 
@@ -211,8 +213,9 @@ make typecheck
 
 The first test run downloads mini.test into `.deps/`; generated test and
 checker output stays in `.test/`. Pass `NVIM=/path/to/nvim` to use another
-Neovim build. To include the Snacks integration tests, set `SNACKS_DIR` to
-your snacks.nvim checkout when running `make test`.
+Neovim build. To include the picker integration tests, set `SNACKS_DIR` to
+your snacks.nvim checkout or `MINI_PICK_DIR` to your mini.nvim or mini.pick
+checkout when running `make test`.
 
 ## Inspiration
 

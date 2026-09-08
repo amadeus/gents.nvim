@@ -34,8 +34,11 @@ local function validate(config)
     error('agents: on_exit must be "keep" or "close"', 3)
   end
   assert(
-    config.picker == nil or config.picker == "snacks" or type(config.picker) == "function",
-    'agents: picker must be nil, "snacks", or a function'
+    config.picker == nil
+      or config.picker == "snacks"
+      or config.picker == "mini"
+      or type(config.picker) == "function",
+    'agents: picker must be nil, "snacks", "mini", or a function'
   )
   assert(type(config.picker_help) == "boolean", "agents: picker_help must be a boolean")
   assert(type(config.buflisted) == "boolean", "agents: buflisted must be a boolean")

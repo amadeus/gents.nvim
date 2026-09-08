@@ -6,9 +6,10 @@ Use your usual picker for agents.nvim menus. By default, the plugin calls
 agents.nvim `picker` option unset to use it.
 
 That is enough to choose an item and run the menu's default action: execute an
-action, start a tool, choose a session, or send context. Cancelling does nothing.
-For the built-in Snacks adapter and its additional shortcuts, see
-[pickers and shortcuts](../usage.md#pickers-and-shortcuts).
+action, start a tool, choose a session, or send context. Cancelling does
+nothing. For the built-in Snacks adapter and its additional shortcuts, see
+[pickers and shortcuts](../usage.md#pickers-and-shortcuts). The built-in
+mini.pick adapter is described below.
 
 The examples below assume the chosen picker plugin is installed and configured.
 Choose one integration and merge its agents.nvim options into your existing
@@ -28,35 +29,40 @@ supports the default action for each menu. It does not add agents.nvim's
 placement, hide, close, or argument-editing shortcuts. Registration is a public
 [fzf-lua API](https://github.com/ibhagwan/fzf-lua#neovim-api).
 
-## mini.pick for agents.nvim menus
+## mini.pick with agents.nvim actions
 
-`mini.pick.setup()` already installs a `vim.ui.select` replacement. If you keep
-that replacement, agents.nvim uses it without further configuration. To use
-mini.pick for agents.nvim while another plugin handles your other selection
-menus, provide an adapter that calls `MiniPick.ui_select` directly:
+agents.nvim includes a mini.pick adapter. Set up mini.pick first, then select
+the adapter:
 
 ```lua
-require("agents").setup({
-  picker = function(spec)
-    MiniPick.ui_select(spec.items, {
-      prompt = spec.title,
-      format_item = function(item)
-        return item.text
-      end,
-    }, function(item)
-      if item then
-        spec.actions[spec.default](item)
-      end
-    end)
-  end,
-})
+require("mini.pick").setup()
+require("agents").setup({ picker = "mini" })
 ```
 
-Run this after your mini.pick setup. It supports each menu's default action and
-cancellation; it does not expose additional agents.nvim actions or context
-previews. The callback receives the original item after mini.pick returns to its
-target window. See the [MiniPick.ui_select
-documentation](https://nvim-mini.org/mini.nvim/doc/mini-pick.html).
+Menus open with your mini.pick window, matching, and navigation. Enter runs the
+menu's default action. Press Shift-Tab in a menu to open mini.pick's info view,
+which lists the additional agents.nvim actions under "Mappings (custom)":
+
+| Key        | Info view name         | Menus                 |
+| ---------- | ---------------------- | --------------------- |
+| Ctrl-V     | Agents open in vsplit  | New Session, Sessions |
+| Ctrl-S     | Agents open in split   | New Session, Sessions |
+| Ctrl-T     | Agents open in tabpage | New Session, Sessions |
+| Alt-F      | Agents open in float   | New Session, Sessions |
+| Ctrl-Enter | Agents open here       | New Session, Sessions |
+| Ctrl-E     | Agents edit command    | New Session           |
+| Alt-H      | Agents hide session    | Sessions              |
+| Ctrl-D     | Agents close session   | Sessions              |
+
+The vsplit, split, and tabpage actions use your `choose_in_vsplit`,
+`choose_in_split`, and `choose_in_tabpage` keys. The other keys are bound only
+where your mini.pick configuration leaves them free, and the info view always
+shows the actual bindings. Menus have no preview. See `:help agents-picker-mini`
+for the complete behavior.
+
+`mini.pick.setup()` also installs a `vim.ui.select` replacement. If you keep it
+and leave `picker` unset, agents.nvim menus still open in mini.pick with each
+menu's default action only.
 
 ## Telescope with placement actions
 

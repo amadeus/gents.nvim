@@ -129,6 +129,31 @@ T["report checks the configured Snacks dependency"] = test.new_set({
   end,
 })
 
+T["report checks the configured mini.pick setup"] = test.new_set({
+  parametrize = { { true }, { false } },
+}, {
+  ---@param available boolean
+  ["reports availability without opening a picker"] = function(available)
+    ---@type table?
+    local loaded = rawget(_G, "MiniPick")
+    test.finally(function()
+      rawset(_G, "MiniPick", loaded)
+    end)
+    rawset(_G, "MiniPick", available and {
+      start = function()
+        error("Health must not open the picker")
+      end,
+    } or nil)
+    only_tools().picker = "mini"
+    local output = report()
+    expect(contains(output, "Using mini.pick picker"), available)
+    expect(contains(output, "mini.pick is not set up"), not available)
+    if not available then
+      expect(contains(output, 'call require("mini.pick").setup()'), true)
+    end
+  end,
+})
+
 T["report warns about invalid picker values"] = function()
   local configured = only_tools()
   for _, picker in ipairs({ false, "unknown", {} }) do
@@ -136,7 +161,7 @@ T["report warns about invalid picker values"] = function()
     ---@diagnostic disable-next-line: assign-type-mismatch
     configured.picker = picker
     local output = report()
-    expect(contains(output, 'picker must be nil, "snacks", or a function'), true)
+    expect(contains(output, 'picker must be nil, "snacks", "mini", or a function'), true)
     expect(contains(output, "Set picker to nil to use vim.ui.select."), true)
   end
 end

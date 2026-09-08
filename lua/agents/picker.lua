@@ -18,7 +18,52 @@ local M = {}
 ---@field default string Action name used for Enter.
 
 ---@alias agents.PickerAdapter fun<T>(spec: agents.PickerSpec<T>)
----@alias agents.Picker "snacks"|agents.PickerAdapter
+---@alias agents.Picker "snacks"|"mini"|agents.PickerAdapter
+
+---Highlight groups for styled chunk kinds, shared by the built-in adapters.
+---@type table<string, string>
+M.chunk_highlights = {
+  directory = "AgentsPickerDirectory",
+  visible = "AgentsPickerVisible",
+  hidden = "AgentsPickerHidden",
+  placeholder = "AgentsPickerPlaceholder",
+  separator = "AgentsPickerSeparator",
+  description = "AgentsPickerDescription",
+}
+
+---Define the default picker highlight groups without replacing existing
+---definitions. The directory default is a plugin-owned group that follows
+---Snacks styling once Snacks has defined its groups, which happens after
+---startup, and uses a standard group otherwise.
+function M.define_highlights()
+  local links = {
+    AgentsPickerDirectory = "AgentsPickerDirectoryDefault",
+    AgentsPickerVisible = "DiagnosticInfo",
+    AgentsPickerHidden = "Comment",
+    AgentsPickerPlaceholder = "Comment",
+    AgentsPickerSeparator = "Comment",
+    AgentsPickerDescription = "Comment",
+  }
+  for name, link in pairs(links) do
+    vim.api.nvim_set_hl(0, name, { default = true, link = link })
+  end
+  vim.api.nvim_set_hl(0, "AgentsPickerDirectoryDefault", {
+    link = vim.fn.hlexists("SnacksPickerDir") == 1 and "SnacksPickerDir" or "NonText",
+  })
+end
+
+---The window a menu returns to before running an action. While a mini.pick
+---picker is active, its target window is the origin rather than the picker.
+---@return integer
+function M.origin()
+  if require("agents.config").get().picker == "mini" then
+    local origin = require("agents.pickers.mini").origin()
+    if origin then
+      return origin
+    end
+  end
+  return vim.api.nvim_get_current_win()
+end
 
 ---@param origin integer
 ---@param kind string
@@ -39,8 +84,9 @@ end
 ---@param spec agents.PickerSpec<T>
 function M.open(spec)
   local adapter = require("agents.config").get().picker
-  if adapter == "snacks" then
-    require("agents.pickers.snacks").open(spec)
+  if adapter == "snacks" or adapter == "mini" then
+    M.define_highlights()
+    require("agents.pickers." .. adapter).open(spec)
     return
   elseif adapter then
     adapter(spec)
@@ -110,7 +156,7 @@ end
 
 ---@param callback fun(command: agents.CommandName)
 function M.commands(callback)
-  local origin = vim.api.nvim_get_current_win()
+  local origin = M.origin()
   ---@type agents.PickerItem<agents.CommandName>[]
   local items = {}
   ---@type table<agents.CommandName, string>
@@ -149,7 +195,7 @@ end
 ---@param opts? agents.NewOptions
 function M.tools(callback, opts)
   local config = require("agents.config").get()
-  local origin = vim.api.nvim_get_current_win()
+  local origin = M.origin()
   ---@type agents.PickerItem<agents.Tool>[]
   local items = {}
   ---@type agents.PickerItem<agents.Tool>[]
@@ -263,7 +309,7 @@ end
 function M.sessions(candidates, callback)
   local window = require("agents.window")
   local tab = vim.api.nvim_get_current_tabpage()
-  local origin = vim.api.nvim_get_current_win()
+  local origin = M.origin()
   ---@type agents.Session[]
   local ordered = {}
   ---@type table<integer, integer>
@@ -376,7 +422,7 @@ end
 ---@param ctx agents.Context
 ---@param callback fun(parts: agents.Part[])
 function M.context(ctx, callback)
-  local origin = vim.api.nvim_get_current_win()
+  local origin = M.origin()
   local render = require("agents.render")
   local providers = require("agents.providers")
   ---@type agents.PickerItem<agents.Part[]>[]

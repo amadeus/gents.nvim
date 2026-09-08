@@ -216,6 +216,11 @@ require("agents").setup({
 See `:help agents.pick()` for session picker details and
 `:help agents-picker-snacks` for highlight customization.
 
+If you use mini.pick instead, set `picker = "mini"` after
+`require("mini.pick").setup()`. The same actions are available on mini.pick
+keys, and Shift-Tab opens its info view listing them. See
+[use your preferred picker](recipes/pickers.md) for the key table.
+
 Without a configured picker, agents.nvim uses `vim.ui.select`, including any
 replacement you have configured. To use another picker or build your own,
 see [custom pickers](recipes/pickers.md).

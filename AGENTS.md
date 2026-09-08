@@ -73,8 +73,9 @@ the README; versions used by CI are in `.github/workflows/ci.yml`.
 Use `make test NVIM=/path/to/nvim` to select a Neovim executable; the same
 override works for `make typecheck`. Run
 `SNACKS_DIR=/path/to/snacks.nvim make test` to include Snacks integration
-coverage. The first test run downloads mini.test into `.deps/`; generated test
-and checker output belongs in `.test/`.
+coverage, and `MINI_PICK_DIR=/path/to/mini.pick make test` for mini.pick. The
+first test run downloads mini.test into `.deps/`; generated test and checker
+output belongs in `.test/`.
 
 For Lua changes, run tests, formatting, and type checking. Add regression
 coverage for changed behavior using the existing suites and helpers. Lifecycle

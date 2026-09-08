@@ -42,8 +42,9 @@ Requirements ~
   must resolve on Neovim's PATH, or use absolute paths in tool overrides.
   See |agents-tools| for the built-in tool definitions.
 - Git for the installation examples below.
-- Optional: snacks.nvim for |agents-picker-snacks|. Otherwise agents.nvim uses
-  |vim.ui.select()| and has no required plugin dependency.
+- Optional: snacks.nvim for |agents-picker-snacks| or mini.pick for
+  |agents-picker-mini|. Otherwise agents.nvim uses |vim.ui.select()| and has
+  no required plugin dependency.
 
 Choose one installation method. Calling |agents.setup()| is optional if you
 want the defaults; loading the plugin registers |:Agents|. Put custom options
@@ -422,17 +423,19 @@ buflisted                                           *agents-config.buflisted*
     finding unlisted buffers.
 
 picker                                                 *agents-config.picker*
-    Type: nil, "snacks", or agents.PickerAdapter. Default: nil.
+    Type: nil, "snacks", "mini", or agents.PickerAdapter. Default: nil.
     Selects the adapter for new menus. Nil uses |vim.ui.select()|. "snacks"
     uses the built-in adapter and requires the optional snacks.nvim plugin.
-    A function receives an |agents.PickerSpec|.
+    "mini" uses the built-in mini.pick adapter and requires mini.pick to be
+    set up. A function receives an |agents.PickerSpec|.
     See |agents-pickers| for shortcuts, previews, and custom adapters.
 
 picker_help                                       *agents-config.picker_help*
     Type: boolean. Default: true.
     Shows shortcut hints in newly opened built-in Snacks picker menus. False
     hides the hints but shortcuts still work. It has no effect on
-    vim.ui.select or custom picker adapters.
+    vim.ui.select, the mini.pick adapter's native info view, or custom
+    picker adapters.
 
 icons                                                   *agents-config.icons*
     Type: agents.IconsOptions.
@@ -904,9 +907,10 @@ these use |vim.ui.select()|. Each row displays its `text`; confirming a row
 runs that menu's default action. Cancelling does nothing. An existing
 `vim.ui.select` replacement also handles these menus.
 
-The default adapter exposes only the default action. For placement shortcuts,
-argument editing, or preview panes, use |agents-picker-snacks| or supply a
-custom adapter as described in |agents-picker-custom|.
+The default adapter exposes only the default action. For placement shortcuts
+and argument editing, use |agents-picker-snacks| or |agents-picker-mini|, or
+supply a custom adapter as described in |agents-picker-custom|. The Snacks
+adapter also previews context items; the mini.pick adapter does not.
 
 Menus and ordering ~
 
@@ -1044,10 +1048,11 @@ shortcuts still work and your configured sizing remains in effect: >lua
       picker_help = false,
     })
 <
-Snacks renders context previews as text and uses these groups for row chunks:
+Snacks renders context previews as text. The built-in adapters use these
+groups for row chunks:
 
     Chunk kind      Highlight group             Default link
-    directory       AgentsPickerDirectory       SnacksPickerDir
+    directory       AgentsPickerDirectory       AgentsPickerDirectoryDefault
     visible         AgentsPickerVisible         DiagnosticInfo
     hidden          AgentsPickerHidden          Comment
     placeholder     AgentsPickerPlaceholder     Comment
@@ -1055,7 +1060,10 @@ Snacks renders context previews as text and uses these groups for row chunks:
     description     AgentsPickerDescription     Comment
 
 Chunks without a kind use the item's suggested `hl`, if present. Rows
-without chunks use that highlight for the whole text.
+without chunks use that highlight for the whole text. The plugin manages
+`AgentsPickerDirectoryDefault`: it links to `SnacksPickerDir` once Snacks has
+defined that group and to `NonText` otherwise, so directories look alike with
+or without Snacks. Override `AgentsPickerDirectory` like the other groups.
 
 The default links follow your colorscheme. Defaults are reapplied after
 colorscheme changes without replacing existing definitions. Define overrides
@@ -1069,6 +1077,56 @@ in your colorscheme, or use a callback: >lua
     })
     picker_highlights()
 <
+
+mini.pick adapter                                         *agents-picker-mini*
+
+Set up nvim-mini/mini.nvim or the standalone mini.pick module, then select
+the adapter: >lua
+    require("mini.pick").setup()
+    require("agents").setup({ picker = "mini" })
+<
+The adapter requires `MiniPick.setup()` to have run, as mini.pick recommends
+for plugin integrations. Selecting `"mini"` without it reports an error when
+opening a menu and does not switch to `vim.ui.select`. mini.pick replaces
+`vim.ui.select` during its setup; the adapter calls `MiniPick.start()`
+directly, so keeping or restoring your own `vim.ui.select` makes no
+difference to agents.nvim menus.
+
+Menus use your mini.pick window configuration, matching, navigation, and
+mappings, including buffer-local `vim.b.minipick_config`. The menu title is
+the source name. Press <S-Tab> (the `toggle_info` mapping) to open the info
+view, which lists the agents.nvim actions under `Mappings (custom)` next to
+mini.pick's built-in mappings:
+
+    Key         Action       Info view name            Available in
+    <CR>        default      Choose                    Every menu
+    <C-v>       vsplit       Agents open in vsplit     New Session, Sessions
+    <C-s>       split        Agents open in split      New Session, Sessions
+    <C-t>       tabnew       Agents open in tabpage    New Session, Sessions
+    <M-f>       float        Agents open in float      New Session, Sessions
+    <C-CR>      current      Agents open here          New Session, Sessions
+    <C-e>       edit_args    Agents edit command       New Session
+    <M-h>       hide         Agents hide session       Sessions
+    <C-d>       close        Agents close session      Sessions
+
+The vsplit, split, and tabnew actions use your `choose_in_vsplit`,
+`choose_in_split`, and `choose_in_tabpage` keys and replace those built-in
+actions in every agents.nvim menu, so mini.pick never splits the window
+before an action runs. Disabling one of those mappings in mini.pick also
+disables the corresponding agents.nvim action. The other keys are bound only
+when no mini.pick mapping, built-in or custom, already uses them; your
+mini.pick configuration wins, and the info view shows the resulting
+bindings. <C-f> and <C-h> keep their mini.pick scrolling meaning, so float
+and hide use the Alt variants.
+
+A menu requested from a custom mini.pick mapping, for example a mapping that
+calls |agents.send()| for the current item, opens after that picker closes
+and returns to that picker's target window before running an action.
+
+Menus have no preview, so the `toggle_preview` mapping is disabled.
+`picker_help` has no effect on this adapter. Row chunks use the highlight
+groups listed under |agents-picker-snacks|, and mini.pick's match
+highlighting is kept.
 
 Custom adapters                                         *agents-picker-custom*
 

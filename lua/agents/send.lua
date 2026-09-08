@@ -154,7 +154,7 @@ end
 ---@return agents.Session?
 local function deliver(parts, ctx, opts)
   if opts.target == nil and #require("agents.session").list() == 0 then
-    local origin = vim.api.nvim_get_current_win()
+    local origin = require("agents.picker").origin()
     require("agents.picker").tools(function(tool, launch_opts)
       local text = require("agents.render").text(parts, ctx, tool)
       local session = require("agents.session").new(tool, launch_opts, ctx.cwd)

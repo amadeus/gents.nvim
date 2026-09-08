@@ -150,6 +150,36 @@ T["Snacks is loaded on demand and reports a missing dependency"] = function()
   test.expect.equality(assert(notification):find("requires snacks.nvim", 1, true) ~= nil, true)
 end
 
+T["mini.pick must be set up and reports a missing dependency"] = function()
+  ---@type table?
+  local loaded = rawget(_G, "MiniPick")
+  test.finally(function()
+    rawset(_G, "MiniPick", loaded)
+  end)
+  rawset(_G, "MiniPick", nil)
+  require("agents").setup({ picker = "mini" })
+  set_select(function()
+    error("The configured picker must not silently fall back")
+  end)
+  ---@type string?
+  local notification
+  set_notify(function(message, level)
+    notification = message
+    test.expect.equality(level, vim.log.levels.ERROR)
+  end)
+  picker.open({
+    title = "Test picker",
+    items = { { text = "Item", data = 1 } },
+    default = "choose",
+    actions = {
+      choose = function()
+        error("Missing picker must not choose an item")
+      end,
+    },
+  })
+  test.expect.equality(assert(notification):find("requires mini.pick", 1, true) ~= nil, true)
+end
+
 T["actions context"] = test.new_set({
   parametrize = {
     { "none", { "new", "send" } },

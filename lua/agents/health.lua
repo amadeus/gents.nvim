@@ -46,11 +46,20 @@ function M.check()
         "Install and configure folke/snacks.nvim, or set picker to nil to use vim.ui.select."
       )
     end
+  elseif config.picker == "mini" then
+    if require("agents.pickers.mini").instance() then
+      vim.health.ok("Using mini.pick picker")
+    else
+      vim.health.error(
+        "mini.pick picker is configured but mini.pick is not set up",
+        'Install nvim-mini/mini.nvim or mini.pick and call require("mini.pick").setup(), or set picker to nil to use vim.ui.select.'
+      )
+    end
   elseif type(config.picker) == "function" then
     vim.health.ok("Using a custom picker function")
   else
     vim.health.warn(
-      'picker must be nil, "snacks", or a function',
+      'picker must be nil, "snacks", "mini", or a function',
       "Set picker to nil to use vim.ui.select."
     )
   end

@@ -1,15 +1,5 @@
 local M = {}
 
----@type table<string, string>
-local chunk_highlights = {
-  directory = "AgentsPickerDirectory",
-  visible = "AgentsPickerVisible",
-  hidden = "AgentsPickerHidden",
-  placeholder = "AgentsPickerPlaceholder",
-  separator = "AgentsPickerSeparator",
-  description = "AgentsPickerDescription",
-}
-
 -- Only the Snacks surface used by this adapter is described here, so Snacks
 -- remains optional and its type definitions are not required by LuaLS.
 ---@class agents.pickers.SnacksItem
@@ -373,7 +363,7 @@ function M.open(spec)
       for _, chunk in ipairs(source.chunks) do
         chunks[#chunks + 1] = {
           chunk.text,
-          chunk.kind and chunk_highlights[chunk.kind] or source.hl,
+          chunk.kind and require("agents.picker").chunk_highlights[chunk.kind] or source.hl,
         }
       end
       return chunks

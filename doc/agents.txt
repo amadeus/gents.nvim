@@ -108,7 +108,8 @@ vim-plug ~                                           *agents-install-vim-plug*
 Add the declaration inside your existing plug#begin()/plug#end() block: >vim
     Plug 'amadeus/agents.nvim'
 <
-Run `:PlugInstall`. Place configuration after plug#end() in init.vim, then
+Reload your configuration or restart Neovim, then run `:PlugInstall`.
+After installation, place configuration after plug#end() in init.vim, then
 restart Neovim: >vim
     lua << EOF
     require("agents").setup({
@@ -2189,8 +2190,8 @@ AgentsReady
 
     Sessions displayed only in another tab have `visible = false` and no
     `win`. The event does not include the notification text. To notify only
-    for sessions hidden from the current tab, test `not ev.data.visible`;
-    the example above also notifies for visible, unfocused sessions.
+    for sessions hidden from the current tab, test `not ev.data.visible`,
+    as in the example above.
 
                                                      *AgentsSend*
 AgentsSend

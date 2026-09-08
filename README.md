@@ -102,8 +102,9 @@ Add this inside your existing [vim-plug](https://github.com/junegunn/vim-plug)
 Plug 'amadeus/agents.nvim'
 ```
 
-Run `:PlugInstall`. After installation, add this after `plug#end()` in
-`init.vim`, then restart Neovim:
+Reload your configuration or restart Neovim, then run `:PlugInstall`.
+After installation, add this after `plug#end()` in `init.vim`, then restart
+Neovim:
 
 ```vim
 lua << EOF

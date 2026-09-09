@@ -37,21 +37,22 @@ If it does not, or you want to change when it notifies, use the recipes below.
 Some adjust built-in terminal notifications; others add a hook that tells
 Neovim when the CLI needs attention.
 
-| Tool                                      | Example setup                  | When it notifies                                  |
-| ----------------------------------------- | ------------------------------ | ------------------------------------------------- |
-| [Codex](#codex)                           | Optional notification settings | Completed turns with the filter shown below       |
-| [Claude Code](#claude-code)               | `Stop` hook                    | Main response finished                            |
-| [OpenCode](#opencode)                     | `session.idle` handler         | Session became idle, including cancellation       |
-| [Amp](#amp)                               | `agent.end` handler            | Turn finished without error or cancellation       |
-| [Gemini CLI](#gemini-cli)                 | `AfterAgent` hook              | Final response generated                          |
-| [Pi](#pi)                                 | Extension                      | Automatic work settled after a completed response |
-| [Qwen Code](#qwen-code)                   | `Stop` hook                    | Main response finished                            |
-| [GitHub Copilot CLI](#github-copilot-cli) | `agentStop` hook               | Main agent finished a turn                        |
-| [Grok CLI](#grok-cli)                     | `Stop` hook                    | Response finished                                 |
-| [Amazon Q CLI](#amazon-q-cli)             | `stop` hook                    | Assistant response finished                       |
-| [Cursor Agent](#cursor-agent)             | `afterAgentResponse` hook      | Assistant message finished                        |
-| [Aider](#aider)                           | Notification command           | Input requested after work starts                 |
-| [Crush](#crush)                           | Enable terminal notifications  | Turn finished or attention needed                 |
+| Tool                                      | Example setup                  | When it notifies                                                   |
+| ----------------------------------------- | ------------------------------ | ------------------------------------------------------------------ |
+| [Codex](#codex)                           | Optional notification settings | Completed turns with the filter shown below                        |
+| [Claude Code](#claude-code)               | `Stop` hook                    | Main response finished                                             |
+| [OpenCode](#opencode)                     | `session.idle` handler         | Session became idle, including cancellation                        |
+| [OpenCode 2](#opencode-2)                 | CLI plugin                     | Turn succeeded in the current conversation or an open OpenCode tab |
+| [Amp](#amp)                               | `agent.end` handler            | Turn finished without error or cancellation                        |
+| [Gemini CLI](#gemini-cli)                 | `AfterAgent` hook              | Final response generated                                           |
+| [Pi](#pi)                                 | Extension                      | Automatic work settled after a completed response                  |
+| [Qwen Code](#qwen-code)                   | `Stop` hook                    | Main response finished                                             |
+| [GitHub Copilot CLI](#github-copilot-cli) | `agentStop` hook               | Main agent finished a turn                                         |
+| [Grok CLI](#grok-cli)                     | `Stop` hook                    | Response finished                                                  |
+| [Amazon Q CLI](#amazon-q-cli)             | `stop` hook                    | Assistant response finished                                        |
+| [Cursor Agent](#cursor-agent)             | `afterAgentResponse` hook      | Assistant message finished                                         |
+| [Aider](#aider)                           | Notification command           | Input requested after work starts                                  |
+| [Crush](#crush)                           | Enable terminal notifications  | Turn finished or attention needed                                  |
 
 ## Codex
 
@@ -126,8 +127,8 @@ See the
 
 OpenCode's `session.idle` event lets you know the session has stopped working.
 It can also fire after cancellation or another idle transition, and this
-handler does not filter child sessions. Use this recipe with the default TUI;
-OpenCode 2 has a separate plugin API and cannot use this recipe.
+handler does not filter child sessions. Use this recipe with OpenCode 1;
+for OpenCode 2, use the [CLI plugin below](#opencode-2).
 
 Create `.opencode/plugins/gents-ready.js`:
 
@@ -152,6 +153,67 @@ export const GentsReady = async () => ({
 See the
 [plugin documentation](https://opencode.ai/docs/plugins/) and
 [idle lifecycle implementation](https://github.com/anomalyco/opencode/blob/v1.18.23/packages/opencode/src/session/run-state.ts#L70).
+
+## OpenCode 2
+
+This CLI plugin tells gents.nvim when a turn succeeds in the conversation
+displayed in OpenCode, or in one of its open tabs. It ignores conversations that
+are not open in that CLI, and does not notify for cancellation or errors. Your
+`GentsReady` callback above decides whether to show a notification based on the
+visibility of the Neovim terminal buffer.
+
+Create `~/.config/opencode/cli-plugins/gents-ready/tui.js`:
+
+```js
+import { execFile } from "node:child_process";
+
+export default {
+  id: "gents-ready.cli",
+  setup(context) {
+    const server = process.env.NVIM;
+    const id = process.env.GENTS_SESSION;
+    if (!server || !/^\d+$/.test(id ?? "")) return;
+
+    return context.data.on("session.execution.succeeded", (event) => {
+      const sessionID = event.data.sessionID;
+      const current = context.ui.router.current();
+      const visible = current.type === "session" && current.sessionID === sessionID;
+      const openTab =
+        context.ui.tabs.enabled() &&
+        context.ui.tabs.list().some((tab) => tab.sessionID === sessionID);
+      if (!visible && !openTab) return;
+
+      execFile(
+        "nvim",
+        ["--server", server, "--remote-expr", `v:lua.require'gents'.ready(${id})`],
+        { timeout: 2000 },
+        () => {}, // The Neovim session may have closed while OpenCode was working.
+      );
+    });
+  },
+};
+```
+
+Add the plugin to `~/.config/opencode/cli.json`, keeping any existing entries:
+
+```json
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "plugins": ["./cli-plugins/gents-ready"]
+}
+```
+
+If you set `XDG_CONFIG_HOME`, use `$XDG_CONFIG_HOME/opencode/` instead of
+`~/.config/opencode/` for both files. The plugin path is relative to `cli.json`.
+No package installation is needed for this example.
+
+Load this through `cli.json` so it runs in the CLI process, which inherits
+`NVIM` and `GENTS_SESSION` from gents.nvim. A plugin loaded in OpenCode's shared
+server cannot reliably identify the Neovim terminal that started the CLI.
+Start a new `opencode2` session through gents.nvim after adding the files.
+
+See OpenCode 2's [CLI plugin setup](https://opencode.ai/v2/docs/cli/plugins/)
+and [CLI plugin API](https://opencode.ai/v2/docs/build/plugins/cli/).
 
 ## Amp
 

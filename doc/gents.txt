@@ -2482,9 +2482,9 @@ Practical tool-specific recipes are in `docs/recipes/ready.md`:
 https://github.com/amadeus/gents.nvim/tree/main/docs/recipes
 The signal's scope matters: an idle notification can also follow a
 cancellation, and an attention notification can request permission. Hook
-support varies by CLI and execution mode. OpenCode 2 uses its own plugin
-API and has no ready-hook recipe here; do not use the OpenCode 1 recipe
-with it.
+support varies by CLI and execution mode. OpenCode 1 and OpenCode 2 have
+separate recipes. OpenCode 2 requires a CLI plugin loaded through
+`cli.json` so it can notify the correct gents.nvim session.
 
 Conversation titles and status ~
 

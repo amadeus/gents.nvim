@@ -132,6 +132,36 @@ shortcut. Setting `float` alone does not change the default split layout.
 Partial settings retain the other float defaults. In a lazy.nvim spec, put these
 settings in `opts`.
 
+Floats update their size and position when Neovim resizes. Use functions for
+`width`, `height`, `row`, or `col` when you want a custom calculation. For
+example, keep a 60-column float near the top-right corner:
+
+```lua
+require("agents").setup({
+  layout = "float",
+  float = {
+    width = 60,
+    height = function()
+      return vim.o.lines - 4
+    end,
+    row = 0,
+    col = function()
+      return vim.o.columns - 1
+    end,
+    anchor = "NE",
+    border = "rounded",
+  },
+})
+```
+
+These functions take no arguments and return numbers. They run when the view
+opens and on `VimResized`. Existing windows resize in place, preserving focus,
+input mode, and the running CLI. Each view keeps its original geometry
+settings; later setup changes apply to newly opened views. Resizing reapplies
+those settings, replacing manual size and position changes made with
+`nvim_win_set_config()`. This applies to `layout = "float"` and inline float
+tables. If you use a layout function, it manages its own window geometry.
+
 When you press Enter in a picker:
 
 - **New Session** starts the selected tool using your configured layout.
@@ -155,8 +185,12 @@ agents.show("claude", {
 `"current"` replaces the current window's buffer. An inline table opens a
 float with those settings; it must include `width` and `height` and does
 not inherit your configured `float` settings. Values in `(0, 1]` are
-fractions of the editor; larger values are cells. Floats are centered unless
-you supply `row` and `col`.
+fractions of the editor; larger values are cells. This also applies to width
+and height returned by functions. Dimensions round down to whole cells.
+Floats are centered unless you supply `row` and `col`. Numeric proportions
+and default centering follow editor resizes without callbacks. Dimensions stay
+at least one cell when the editor is small; Neovim handles oversized dimensions
+and off-screen placement.
 
 Placing another view keeps the same buffer and CLI process. Hide and close
 work with floats as well as splits. Changing your default layout does not

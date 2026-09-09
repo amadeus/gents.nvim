@@ -112,6 +112,48 @@ T["new enters terminal input after returning to the event loop"] = function()
   )
 end
 
+T["float resizing"] = test.new_set({ parametrize = { { "t" }, { "nt" }, { "n" }, { "i" } } }, {
+  ---@param expected string
+  ["preserves the current window, mode, buffer, and job"] = function(expected)
+    lua([[
+      _G.source_win = vim.api.nvim_get_current_win()
+      _G.session = require("agents").new("cat", {
+        layout = {
+          width = function() return 0.5 end,
+          height = function() return 0.5 end,
+        },
+      })
+      _G.float_win = vim.api.nvim_get_current_win()
+      _G.original_buf, _G.original_job = session.buf, session.job
+    ]])
+    mode("t")
+    if expected == "nt" then
+      input([[<C-\><C-n>]])
+    elseif expected == "n" or expected == "i" then
+      lua([[vim.api.nvim_set_current_win(source_win); vim.cmd.stopinsert()]])
+      mode("n")
+      if expected == "i" then
+        input("i")
+      end
+    end
+    mode(expected)
+    local current = get("vim.api.nvim_get_current_win()")
+
+    lua([[
+      vim.o.columns, vim.o.lines = 100, 40
+      vim.api.nvim_exec_autocmds("VimResized", {})
+    ]])
+
+    mode(expected)
+    eq(get("vim.api.nvim_get_current_win()"), current)
+    eq(get("vim.api.nvim_win_get_buf(float_win) == original_buf"), true)
+    eq(get("session.buf == original_buf and session.job == original_job"), true)
+    eq(get("vim.fn.jobwait({ session.job }, 0)"), { -1 })
+    eq(get("vim.api.nvim_win_get_width(float_win)"), 50)
+    eq(get("vim.api.nvim_win_get_height(float_win)"), 20)
+  end,
+})
+
 T["explicit show enters terminal input for hidden and visible sessions"] = function()
   spawn()
   input([[<C-\><C-n>]])

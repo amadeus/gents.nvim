@@ -78,29 +78,105 @@ function M.visible(session, tab)
   return M.find(session, tab) ~= nil
 end
 
----@param value number
+---@param value agents.FloatValue
+---@param field string
+---@return number
+local function float_value(value, field)
+  ---@type number
+  local resolved
+  if type(value) == "function" then
+    resolved = value()
+  else
+    resolved = value
+  end
+  assert(
+    type(resolved) == "number" and resolved == resolved and math.abs(resolved) < math.huge,
+    "agents: float " .. field .. " must resolve to a finite number"
+  )
+  return resolved
+end
+
+---@param value agents.FloatValue
 ---@param size integer
 ---@param dimension "width"|"height"
----@return number
+---@return integer
 local function float_dimension(value, size, dimension)
-  assert(type(value) == "number", "agents: float " .. dimension .. " must be a number")
-  if value > 0 and value <= 1 then
-    return math.floor(size * value)
+  local resolved = float_value(value, dimension)
+  if resolved > 0 and resolved <= 1 then
+    resolved = size * resolved
   end
-  return value
+  return math.max(1, math.floor(resolved))
 end
 
 ---@param layout agents.FloatConfig
 ---@return vim.api.keyset.win_config
 local function float_config(layout)
-  local opts = vim.deepcopy(layout)
-  opts.width = float_dimension(opts.width, vim.o.columns, "width")
-  opts.height = float_dimension(opts.height, vim.o.lines, "height")
+  -- Geometry resolution leaves nested window options untouched.
+  ---@type agents.FloatOptions
+  local opts = vim.tbl_extend("force", layout, {})
+  opts.width = float_dimension(layout.width, vim.o.columns, "width")
+  opts.height = float_dimension(layout.height, vim.o.lines, "height")
   opts.relative = opts.relative or "editor"
-  opts.row = opts.row or math.floor((vim.o.lines - opts.height) / 2)
-  opts.col = opts.col or math.floor((vim.o.columns - opts.width) / 2)
+  opts.row = opts.row ~= nil and float_value(opts.row, "row")
+    or math.floor((vim.o.lines - opts.height) / 2)
+  opts.col = opts.col ~= nil and float_value(opts.col, "col")
+    or math.floor((vim.o.columns - opts.width) / 2)
   return opts
 end
+
+---@class agents.FloatView
+---@field layout agents.FloatConfig
+---@field relative string
+---@field win? integer
+---@field bufpos? [integer, integer]
+---@field row_offset number
+---@field col_offset number
+
+---@type table<integer, agents.FloatView>
+local floats = {}
+local float_group = vim.api.nvim_create_augroup("AgentsFloats", { clear = true })
+
+vim.api.nvim_create_autocmd("WinClosed", {
+  group = float_group,
+  desc = "Forget closed session floats",
+  callback = function(event)
+    floats[vim.fn.str2nr(event.match)] = nil
+  end,
+})
+
+vim.api.nvim_create_autocmd("VimResized", {
+  group = float_group,
+  desc = "Update session float geometry",
+  callback = function()
+    for win, view in pairs(floats) do
+      if not vim.api.nvim_win_is_valid(win) or vim.api.nvim_win_get_config(win).relative == "" then
+        floats[win] = nil
+      else
+        local ok, err = pcall(function()
+          local opts = float_config(view.layout)
+          ---@type vim.api.keyset.win_config
+          local geometry = {
+            width = opts.width,
+            height = opts.height,
+          }
+          -- Keep the native anchor resolved at opening (including cursor-relative floats).
+          -- If its reference window closed, resize without changing Neovim's remaining anchor.
+          if not view.win or vim.api.nvim_win_is_valid(view.win) then
+            geometry.relative = view.relative
+            geometry.win = view.win
+            geometry.bufpos = view.bufpos
+            geometry.row = opts.row + view.row_offset
+            geometry.col = opts.col + view.col_offset
+          end
+          vim.api.nvim_win_set_config(win, geometry)
+        end)
+        if not ok and vim.api.nvim_win_is_valid(win) then
+          vim.notify("agents: could not resize float: " .. tostring(err), vim.log.levels.ERROR)
+        end
+      end
+    end
+  end,
+})
 
 ---@param buf? integer Existing buffer; omit to choose a new session's window first.
 ---@param layout? agents.Layout
@@ -115,7 +191,18 @@ function M.open(buf, layout)
   ---@type integer
   local win
   if type(layout) == "table" then
-    win = vim.api.nvim_open_win(buf or 0, true, float_config(layout))
+    local spec = vim.deepcopy(layout)
+    local opts = float_config(spec)
+    win = vim.api.nvim_open_win(buf or 0, true, opts)
+    local actual = vim.api.nvim_win_get_config(win)
+    floats[win] = {
+      layout = spec,
+      relative = actual.relative,
+      win = actual.win,
+      bufpos = actual.bufpos,
+      row_offset = actual.row - opts.row,
+      col_offset = actual.col - opts.col,
+    }
   elseif type(layout) == "function" then
     win = layout()
   else

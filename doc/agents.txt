@@ -398,7 +398,8 @@ Changing configuration affects subsequent actions. Existing sessions retain
 their launch command, tool definition, environment, working directory,
 'buflisted' value, and on_exit policy. New picker menus use the current
 picker, picker_help, icons, tools, and prompts. New window openings use the
-current layout and float defaults; existing windows are not rearranged.
+current layout and float defaults. Changing setup does not rearrange existing
+windows; float views retain their original geometry settings for later resizes.
 Configured keymaps update immediately, including existing session buffers.
 
 layout                                                 *agents-config.layout*
@@ -774,7 +775,8 @@ layout accepts these |agents.Layout| forms:
 An Ex layout command must leave the desired window current. A callback takes
 no arguments and returns a window ID; agents.nvim focuses that window and
 assigns the session buffer. For a new session, the callback runs before its
-terminal buffer exists. Callbacks may return an existing window.
+terminal buffer exists. Callbacks may return an existing window. A layout
+function manages its own window geometry; agents.nvim does not resize it.
 >lua
     require("agents").setup({
       layout = function()
@@ -808,22 +810,52 @@ otherwise it shows the session, which can focus an existing view elsewhere.
 
 Floating windows                                                *agents-float*
 
-The float setup option accepts partial |agents.FloatOptions|. Inline layout
-tables require width and height and do not merge with float defaults. Other
-fields pass through to |nvim_open_win()|, including border, title, style,
-zindex, relative, row, and col.
-
-For width and height, numbers in (0, 1] are proportions of 'columns' and
-'lines', rounded down. Numbers above 1 are cell dimensions. Omitted relative
-defaults to "editor"; omitted row and col center the float using the editor
-dimensions. Explicit zero coordinates are preserved. Geometry is resolved
-when opening the window; it does not automatically track later resizes.
+Floats adapt to the editor size, so a centered view stays centered and a
+custom placement can follow an edge when Neovim resizes. width, height, row,
+and col accept numbers or functions that take no arguments and return a
+number. For example, keep a 60-column float near the top-right corner:
 >lua
     require("agents").setup({
       layout = "float",
-      float = { width = 60, height = 0.8 },
+      float = {
+        width = 60,
+        height = function()
+          return vim.o.lines - 4
+        end,
+        row = 0,
+        col = function()
+          return vim.o.columns - 1
+        end,
+        anchor = "NE",
+        border = "rounded",
+      },
     })
 <
+agents.nvim evaluates the geometry when opening the view and on |VimResized|.
+It updates the existing window in place, preserving focus, input mode, and the
+session's buffer and CLI process. Each view retains its original geometry
+settings; later setup changes apply to newly opened views. On resize, those
+settings also replace manual size and position changes made with
+|nvim_win_set_config()|. This applies to layout = "float" and inline float
+tables; a layout function manages its own window geometry.
+
+For width and height, numbers in (0, 1] are proportions of 'columns' and
+'lines'; numbers above 1 are cell dimensions. Both round down to whole cells,
+including callback results. Omitted relative defaults to "editor"; omitted
+row and col center the float using the editor dimensions. Explicit zero
+coordinates are preserved. Numeric proportions and default centering also
+update on resize; callbacks are only needed for custom calculations.
+
+Resolved width and height are at least one cell, even when a small proportion
+rounds to zero or a callback returns a nonpositive number. Neovim handles
+oversized dimensions and off-screen placement through its native rules.
+row and col also accept native fractional and negative coordinates.
+
+The float setup option accepts partial |agents.FloatOptions|. Inline layout
+tables require width and height and do not merge with float defaults. Other
+fields pass through to |nvim_open_win()|, including border, title, style,
+zindex, relative, and anchor.
+
 For custom relative anchors, supply suitable row and col. Values still need
 to satisfy Neovim's window configuration constraints.
 
@@ -2062,22 +2094,34 @@ One of:
 agents.nvim assigns the session buffer to the chosen window. Inline float
 tables do not inherit setup's float table. See |agents-layouts|.
 
+                                                          *agents.FloatValue*
+A finite number or a function taking no arguments and returning a finite
+number. Used for width, height, row, and col. Functions run when the float
+opens and on |VimResized|; their results follow the same geometry rules as
+numeric values. See |agents-float|.
+
                                                         *agents.FloatOptions*
 Partial floating-window defaults for setup. Accepts the floating-window
-configuration fields supported by |nvim_open_win()|. agents.nvim handles these
-dimensions before opening the window:
+configuration fields supported by |nvim_open_win()|. agents.nvim resolves
+these fields when opening the view and on |VimResized|:
 
-    width?   number  In (0, 1]: fraction of editor columns; otherwise cells.
-    height?  number  In (0, 1]: fraction of editor lines; otherwise cells.
+    width?   agents.FloatValue  Fraction of editor columns or cells.
+    height?  agents.FloatValue  Fraction of editor lines or cells.
+    row?     agents.FloatValue  Vertical position; defaults to centered.
+    col?     agents.FloatValue  Horizontal position; defaults to centered.
 
+For width and height, values in (0, 1] are proportions; values above 1 are
+cells. Both round down to whole cells, with a minimum dimension of one cell.
 Setup supplies default width = 0.8, height = 0.8, border = "rounded". Other
-fields, such as relative, row, col, anchor, border, title, and zindex, use
-Neovim's configuration types. See |agents-float| for placement details.
+fields, such as relative, anchor, border, title, and zindex, use Neovim's
+configuration types. See |agents.FloatValue| and |agents-float| for placement
+and resize details.
 
                                                          *agents.FloatConfig*
 An inline float layout or the resolved setup float table. Same fields as
-|agents.FloatOptions|, but width and height are required. The native API must
-accept the resulting geometry; invalid dimensions produce an error.
+|agents.FloatOptions|, but width and height are required. Callback results
+must be finite numbers; the resolved options must satisfy Neovim's window
+configuration constraints.
 
                                                          *agents.IconsOptions*
 Partial visibility markers:

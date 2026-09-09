@@ -21,15 +21,20 @@
 ---@field title? agents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
 ---@field enabled? boolean
 
----Partial defaults for floating windows. Fractions in (0, 1] are screen proportions.
+---Evaluated when a float opens and on VimResized.
+---@alias agents.FloatValue number|fun(): number
+
+---Partial float defaults. Width/height in (0, 1] are screen proportions; cell sizes round down.
 ---@class agents.FloatOptions: vim.api.keyset.win_config
----@field width? number
----@field height? number
+---@field width? agents.FloatValue
+---@field height? agents.FloatValue
+---@field row? agents.FloatValue
+---@field col? agents.FloatValue
 
 ---An inline float layout, or the complete floating-window defaults after setup.
 ---@class agents.FloatConfig: agents.FloatOptions
----@field width number
----@field height number
+---@field width agents.FloatValue
+---@field height agents.FloatValue
 
 ---An Ex command that creates a window, "float", "current", inline float options,
 ---or a callback that creates or chooses a window; the plugin assigns its buffer.

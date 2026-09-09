@@ -40,11 +40,11 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
     -- Optional: a 60-column float near the top-right corner.
     -- float = {
     --   width = 60,
-    --   height = vim.o.lines - 4,
+    --   height = function() return vim.o.lines - 4 end,
     --   row = 0,
     --   border = "rounded",
     --   anchor = "NE",
-    --   col = vim.o.columns - 2,
+    --   col = function() return vim.o.columns - 1 end,
     -- },
   },
   keys = {
@@ -73,11 +73,11 @@ require("agents").setup({
   -- Optional: a 60-column float near the top-right corner.
   -- float = {
   --   width = 60,
-  --   height = vim.o.lines - 4,
+  --   height = function() return vim.o.lines - 4 end,
   --   row = 0,
   --   border = "rounded",
   --   anchor = "NE",
-  --   col = vim.o.columns - 2,
+  --   col = function() return vim.o.columns - 1 end,
   -- },
   keys = {
     -- Pick a CLI tool and start a new session.
@@ -115,11 +115,11 @@ require("agents").setup({
   -- Optional: a 60-column float near the top-right corner.
   -- float = {
   --   width = 60,
-  --   height = vim.o.lines - 4,
+  --   height = function() return vim.o.lines - 4 end,
   --   row = 0,
   --   border = "rounded",
   --   anchor = "NE",
-  --   col = vim.o.columns - 2,
+  --   col = function() return vim.o.columns - 1 end,
   -- },
   keys = {
     -- Pick a CLI tool and start a new session.
@@ -147,8 +147,9 @@ By default, sessions open in a full-height vertical split on the right
 focuses that window.
 
 For floating windows by default, uncomment `layout = "float"` in your
-configuration above. The optional `float` example sets the window's size and
-position. With lazy.nvim, these settings live inside `opts`.
+configuration above. The optional `float` example keeps the window near the
+top-right corner as Neovim resizes. With lazy.nvim, these settings live inside
+`opts`.
 
 agents.nvim uses Neovim's `vim.ui.select` picker by default. If you have
 [snacks.nvim](https://github.com/folke/snacks.nvim) installed, add

@@ -1,43 +1,43 @@
 local M = {}
 
----@class agents.PickerChunk
+---@class gents.PickerChunk
 ---@field text string
 ---@field kind? "directory"|"visible"|"hidden"|"placeholder"|"separator"|"description" Styling role for rich picker adapters.
 
----@class agents.PickerItem<T>
+---@class gents.PickerItem<T>
 ---@field text string
 ---@field preview? string
 ---@field data T
 ---@field hl? string Suggested highlight group for adapters that support item styling.
----@field chunks? agents.PickerChunk[] Styled parts that concatenate to text.
+---@field chunks? gents.PickerChunk[] Styled parts that concatenate to text.
 
----@class agents.PickerSpec<T>
+---@class gents.PickerSpec<T>
 ---@field title string
----@field items agents.PickerItem<T>[]
----@field actions table<string, fun(item: agents.PickerItem<T>)>
+---@field items gents.PickerItem<T>[]
+---@field actions table<string, fun(item: gents.PickerItem<T>)>
 ---@field default string Action name used for Enter.
 
----@alias agents.PickerAdapter fun<T>(spec: agents.PickerSpec<T>)
----@alias agents.Picker "snacks"|"mini"|"telescope"|"fzf-lua"|agents.PickerAdapter
+---@alias gents.PickerAdapter fun<T>(spec: gents.PickerSpec<T>)
+---@alias gents.Picker "snacks"|"mini"|"telescope"|"fzf-lua"|gents.PickerAdapter
 
 ---Built-in adapter modules by configuration value, loaded when a menu opens.
 ---@type table<string, string>
 local builtin = {
-  snacks = "agents.pickers.snacks",
-  mini = "agents.pickers.mini",
-  telescope = "agents.pickers.telescope",
-  ["fzf-lua"] = "agents.pickers.fzf",
+  snacks = "gents.pickers.snacks",
+  mini = "gents.pickers.mini",
+  telescope = "gents.pickers.telescope",
+  ["fzf-lua"] = "gents.pickers.fzf",
 }
 
 ---Highlight groups for styled chunk kinds, shared by the built-in adapters.
 ---@type table<string, string>
 M.chunk_highlights = {
-  directory = "AgentsPickerDirectory",
-  visible = "AgentsPickerVisible",
-  hidden = "AgentsPickerHidden",
-  placeholder = "AgentsPickerPlaceholder",
-  separator = "AgentsPickerSeparator",
-  description = "AgentsPickerDescription",
+  directory = "GentsPickerDirectory",
+  visible = "GentsPickerVisible",
+  hidden = "GentsPickerHidden",
+  placeholder = "GentsPickerPlaceholder",
+  separator = "GentsPickerSeparator",
+  description = "GentsPickerDescription",
 }
 
 ---Define the default picker highlight groups without replacing existing
@@ -46,17 +46,17 @@ M.chunk_highlights = {
 ---startup, and uses a standard group otherwise.
 function M.define_highlights()
   local links = {
-    AgentsPickerDirectory = "AgentsPickerDirectoryDefault",
-    AgentsPickerVisible = "DiagnosticInfo",
-    AgentsPickerHidden = "Comment",
-    AgentsPickerPlaceholder = "Comment",
-    AgentsPickerSeparator = "Comment",
-    AgentsPickerDescription = "Comment",
+    GentsPickerDirectory = "GentsPickerDirectoryDefault",
+    GentsPickerVisible = "DiagnosticInfo",
+    GentsPickerHidden = "Comment",
+    GentsPickerPlaceholder = "Comment",
+    GentsPickerSeparator = "Comment",
+    GentsPickerDescription = "Comment",
   }
   for name, link in pairs(links) do
     vim.api.nvim_set_hl(0, name, { default = true, link = link })
   end
-  vim.api.nvim_set_hl(0, "AgentsPickerDirectoryDefault", {
+  vim.api.nvim_set_hl(0, "GentsPickerDirectoryDefault", {
     link = vim.fn.hlexists("SnacksPickerDir") == 1 and "SnacksPickerDir" or "NonText",
   })
 end
@@ -66,7 +66,7 @@ end
 ---rather than the picker window.
 ---@return integer
 function M.origin()
-  local adapter = require("agents.config").get().picker
+  local adapter = require("gents.config").get().picker
   if adapter == "mini" or adapter == "telescope" then
     ---@type integer?
     local origin = require(builtin[adapter]).origin()
@@ -83,7 +83,7 @@ end
 local function restore_origin(origin, kind)
   if not vim.api.nvim_win_is_valid(origin) then
     vim.notify(
-      "agents.nvim: the window that opened the " .. kind .. " picker no longer exists",
+      "gents.nvim: the window that opened the " .. kind .. " picker no longer exists",
       vim.log.levels.ERROR
     )
     return false
@@ -93,9 +93,9 @@ local function restore_origin(origin, kind)
 end
 
 ---@generic T
----@param spec agents.PickerSpec<T>
+---@param spec gents.PickerSpec<T>
 function M.open(spec)
-  local adapter = require("agents.config").get().picker
+  local adapter = require("gents.config").get().picker
   local module = type(adapter) == "string" and builtin[adapter] or nil
   if module then
     M.define_highlights()
@@ -116,7 +116,7 @@ function M.open(spec)
         return item.text
       end,
     },
-    ---@param item? agents.PickerItem<unknown>
+    ---@param item? gents.PickerItem<unknown>
     function(item)
       if item then
         spec.actions[spec.default](item)
@@ -126,7 +126,7 @@ function M.open(spec)
 end
 
 ---@generic T
----@param items agents.PickerItem<T>[]
+---@param items gents.PickerItem<T>[]
 ---@param descriptions table<integer, string>
 local function describe_items(items, descriptions)
   local width = 0
@@ -147,9 +147,9 @@ local function describe_items(items, descriptions)
   end
 end
 
----@return agents.CommandName[]
+---@return gents.CommandName[]
 local function contextual_commands()
-  local registry = require("agents.session")
+  local registry = require("gents.session")
   local running = false
   for _, session in ipairs(registry.list()) do
     if session.state ~= "exited" then
@@ -167,12 +167,12 @@ local function contextual_commands()
   return { "send", "toggle", "focus", "pick", "hide", "close", "new" }
 end
 
----@param callback fun(command: agents.CommandName)
+---@param callback fun(command: gents.CommandName)
 function M.commands(callback)
   local origin = M.origin()
-  ---@type agents.PickerItem<agents.CommandName>[]
+  ---@type gents.PickerItem<gents.CommandName>[]
   local items = {}
-  ---@type table<agents.CommandName, string>
+  ---@type table<gents.CommandName, string>
   local descriptions = {
     close = "Hide and kill a session",
     focus = "Switch focus between a session and your last buffer",
@@ -190,11 +190,11 @@ function M.commands(callback)
   end
   describe_items(items, details)
   M.open({
-    title = "Agents: Actions",
+    title = "Gents: Actions",
     items = items,
     default = "run",
     actions = {
-      ---@param item agents.PickerItem<agents.CommandName>
+      ---@param item gents.PickerItem<gents.CommandName>
       run = function(item)
         if restore_origin(origin, "actions") then
           callback(item.data)
@@ -204,18 +204,18 @@ function M.commands(callback)
   })
 end
 
----@param callback fun(tool: agents.Tool, opts: agents.NewOptions)
----@param opts? agents.NewOptions
+---@param callback fun(tool: gents.Tool, opts: gents.NewOptions)
+---@param opts? gents.NewOptions
 function M.tools(callback, opts)
-  local config = require("agents.config").get()
+  local config = require("gents.config").get()
   local origin = M.origin()
-  ---@type agents.PickerItem<agents.Tool>[]
+  ---@type gents.PickerItem<gents.Tool>[]
   local items = {}
-  ---@type agents.PickerItem<agents.Tool>[]
+  ---@type gents.PickerItem<gents.Tool>[]
   local unavailable = {}
   ---@type table<integer, string>
   local descriptions = {}
-  for _, name in ipairs(require("agents.tools").names(config.tools)) do
+  for _, name in ipairs(require("gents.tools").names(config.tools)) do
     local tool = config.tools[name]
     if tool.enabled ~= false then
       local missing = vim.fn.executable(tool.cmd[1]) == 0
@@ -233,8 +233,8 @@ function M.tools(callback, opts)
   end
   describe_items(items, descriptions)
 
-  ---@param item agents.PickerItem<agents.Tool>
-  ---@param launch_opts agents.NewOptions
+  ---@param item gents.PickerItem<gents.Tool>
+  ---@param launch_opts gents.NewOptions
   local function launch(item, launch_opts)
     if not restore_origin(origin, "tool") then
       return
@@ -242,7 +242,7 @@ function M.tools(callback, opts)
     local tool = item.data
     local cmd = launch_opts.cmd or tool.cmd
     if vim.fn.executable(cmd[1]) == 0 then
-      vim.notify("agents.nvim: executable not found: " .. cmd[1], vim.log.levels.ERROR)
+      vim.notify("gents.nvim: executable not found: " .. cmd[1], vim.log.levels.ERROR)
       if tool.url then
         vim.ui.open(tool.url)
       end
@@ -251,17 +251,17 @@ function M.tools(callback, opts)
     callback(tool, launch_opts)
   end
 
-  ---@type agents.PickerSpec<agents.Tool>
+  ---@type gents.PickerSpec<gents.Tool>
   local spec = {
-    title = "Agents: New Session",
+    title = "Gents: New Session",
     items = items,
     default = "new",
     actions = {
-      ---@param item agents.PickerItem<agents.Tool>
+      ---@param item gents.PickerItem<gents.Tool>
       new = function(item)
         launch(item, vim.deepcopy(opts or {}))
       end,
-      ---@param item agents.PickerItem<agents.Tool>
+      ---@param item gents.PickerItem<gents.Tool>
       edit_args = function(item)
         if not restore_origin(origin, "tool") then
           return
@@ -270,7 +270,7 @@ function M.tools(callback, opts)
         local cmd = vim.deepcopy(launch_opts.cmd or item.data.cmd)
         vim.list_extend(cmd, launch_opts.args or {})
         vim.ui.input(
-          { prompt = "Agents: command: ", default = table.concat(cmd, " ") },
+          { prompt = "Gents: command: ", default = table.concat(cmd, " ") },
           function(value)
             if value == nil then
               return
@@ -281,7 +281,7 @@ function M.tools(callback, opts)
               edited[#edited + 1] = word
             end
             if #edited == 0 then
-              vim.notify("agents.nvim: command must not be empty", vim.log.levels.ERROR)
+              vim.notify("gents.nvim: command must not be empty", vim.log.levels.ERROR)
               return
             end
             launch_opts.cmd, launch_opts.args = edited, nil
@@ -292,7 +292,7 @@ function M.tools(callback, opts)
     },
   }
   for _, layout in ipairs({ "vsplit", "split", "tabnew", "float", "current" }) do
-    ---@param item agents.PickerItem<agents.Tool>
+    ---@param item gents.PickerItem<gents.Tool>
     spec.actions[layout] = function(item)
       local launch_opts = vim.deepcopy(opts or {})
       launch_opts.layout = layout
@@ -317,13 +317,13 @@ local function display_title(title)
   return shortened .. "..."
 end
 
----@param candidates agents.Session[]
----@param callback fun(session: agents.Session)
+---@param candidates gents.Session[]
+---@param callback fun(session: gents.Session)
 function M.sessions(candidates, callback)
-  local window = require("agents.window")
+  local window = require("gents.window")
   local tab = vim.api.nvim_get_current_tabpage()
   local origin = M.origin()
-  ---@type agents.Session[]
+  ---@type gents.Session[]
   local ordered = {}
   ---@type table<integer, integer>
   local ranks = {}
@@ -340,12 +340,12 @@ function M.sessions(candidates, callback)
     return a.id < b.id
   end)
 
-  ---@type agents.PickerItem<agents.Session>[]
+  ---@type gents.PickerItem<gents.Session>[]
   local items = {}
-  ---@type { session: agents.Session, marker: string, visible: boolean, label: string, title: string }[]
+  ---@type { session: gents.Session, marker: string, visible: boolean, label: string, title: string }[]
   local rows = {}
   local marker_width, label_width, title_width = 0, 0, 0
-  local icons = require("agents.config").get().icons
+  local icons = require("gents.config").get().icons
   for _, session in ipairs(ordered) do
     local visible = window.visible(session, tab)
     local marker = visible and icons.visible or icons.hidden
@@ -374,7 +374,7 @@ function M.sessions(candidates, callback)
     local padding = string.rep(" ", title_width - vim.fn.strdisplaywidth(row.title))
     local directory = vim.fn.fnamemodify(session.cwd, ":~")
     local text = row.marker .. summary .. " · " .. row.title .. padding .. " · " .. directory
-    ---@type agents.PickerChunk[]
+    ---@type gents.PickerChunk[]
     local chunks = {
       { text = row.marker, kind = row.visible and "visible" or "hidden" },
       { text = summary },
@@ -392,37 +392,37 @@ function M.sessions(candidates, callback)
     items[#items + 1] = { text = text, data = session, chunks = chunks }
   end
 
-  ---@param item agents.PickerItem<agents.Session>
-  ---@param action fun(session: agents.Session)
+  ---@param item gents.PickerItem<gents.Session>
+  ---@param action fun(session: gents.Session)
   local function select(item, action)
-    local session = require("agents.session").get(item.data.id)
+    local session = require("gents.session").get(item.data.id)
     if session and restore_origin(origin, "session") then
       action(session)
     end
   end
 
-  ---@type agents.PickerSpec<agents.Session>
+  ---@type gents.PickerSpec<gents.Session>
   local spec = {
-    title = "Agents: Sessions",
+    title = "Gents: Sessions",
     items = items,
     default = "show",
     actions = {
-      ---@param item agents.PickerItem<agents.Session>
+      ---@param item gents.PickerItem<gents.Session>
       show = function(item)
         select(item, callback)
       end,
-      ---@param item agents.PickerItem<agents.Session>
+      ---@param item gents.PickerItem<gents.Session>
       hide = function(item)
         select(item, window.hide)
       end,
-      ---@param item agents.PickerItem<agents.Session>
+      ---@param item gents.PickerItem<gents.Session>
       close = function(item)
-        select(item, require("agents.session").close)
+        select(item, require("gents.session").close)
       end,
     },
   }
   for _, layout in ipairs({ "vsplit", "split", "tabnew", "float", "current" }) do
-    ---@param item agents.PickerItem<agents.Session>
+    ---@param item gents.PickerItem<gents.Session>
     spec.actions[layout] = function(item)
       select(item, function(session)
         window.show(session, layout)
@@ -432,20 +432,20 @@ function M.sessions(candidates, callback)
   M.open(spec)
 end
 
----@param ctx agents.Context
----@param callback fun(parts: agents.Part[])
+---@param ctx gents.Context
+---@param callback fun(parts: gents.Part[])
 function M.context(ctx, callback)
   local origin = M.origin()
-  local render = require("agents.render")
-  local providers = require("agents.providers")
-  ---@type agents.PickerItem<agents.Part[]>[]
+  local render = require("gents.render")
+  local providers = require("gents.providers")
+  ---@type gents.PickerItem<gents.Part[]>[]
   local items = {}
   ---@type string[]
   local descriptions = {}
 
   ---@param label string
   ---@param description string
-  ---@param source agents.Item[]
+  ---@param source gents.Item[]
   local function add(label, description, source)
     local parts = render.resolve(source, ctx)
     if parts then
@@ -454,7 +454,7 @@ function M.context(ctx, callback)
     end
   end
 
-  local prompts = require("agents.config").get().prompts
+  local prompts = require("gents.config").get().prompts
   ---@type string[]
   local names = vim.tbl_keys(prompts)
   table.sort(names)
@@ -467,11 +467,11 @@ function M.context(ctx, callback)
   describe_items(items, descriptions)
 
   M.open({
-    title = "Agents: Send Context",
+    title = "Gents: Send Context",
     items = items,
     default = "send",
     actions = {
-      ---@param item agents.PickerItem<agents.Part[]>
+      ---@param item gents.PickerItem<gents.Part[]>
       send = function(item)
         if restore_origin(origin, "context") then
           callback(item.data)

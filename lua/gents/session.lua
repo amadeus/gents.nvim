@@ -1,24 +1,24 @@
 local M = {}
----@type table<integer, agents.Session>
+---@type table<integer, gents.Session>
 local registry = {}
 ---@type table<integer, boolean>
 local closing = {}
 local next_id = 0
 
----@class agents.Session
+---@class gents.Session
 ---@field id integer
----@field tool agents.Tool
+---@field tool gents.Tool
 ---@field label string
 ---@field title? string
 ---@field cmd string[]
 ---@field cwd string
 ---@field buf integer
 ---@field job? integer Assigned after the terminal job starts.
----@field state agents.SessionState
+---@field state gents.SessionState
 ---@field exit_code? integer
 ---@field tab? integer
 
----@return agents.Session[]
+---@return gents.Session[]
 function M.list()
   local sessions = vim.tbl_values(registry)
   table.sort(sessions, function(a, b)
@@ -28,20 +28,20 @@ function M.list()
 end
 
 ---@param id integer
----@return agents.Session?
+---@return gents.Session?
 function M.get(id)
   return registry[id]
 end
 
----@return agents.Session?
+---@return gents.Session?
 function M.current()
-  local session = registry[vim.b.agents_session]
+  local session = registry[vim.b.gents_session]
   if session and session.buf == vim.api.nvim_get_current_buf() then
     return session
   end
 end
 
----@param tool agents.Tool
+---@param tool gents.Tool
 ---@param requested? string
 ---@return string
 local function label_for(tool, requested)
@@ -55,8 +55,8 @@ local function label_for(tool, requested)
     end
   end
   if requested then
-    assert(type(requested) == "string" and requested:find("%S"), "agents: label must not be empty")
-    assert(not labels[requested], "agents: session label already exists: " .. requested)
+    assert(type(requested) == "string" and requested:find("%S"), "gents: label must not be empty")
+    assert(not labels[requested], "gents: session label already exists: " .. requested)
     return requested
   end
   local ordinal = count + 1
@@ -68,7 +68,7 @@ local function label_for(tool, requested)
   return label
 end
 
----@param tool agents.Tool
+---@param tool gents.Tool
 ---@param id integer
 ---@return table<string, string>
 local function environment(tool, id)
@@ -96,37 +96,37 @@ local function environment(tool, id)
   for name, value in pairs(tool.env or {}) do
     env[name] = value ~= false and value or nil
   end
-  env.AGENTS_SESSION = tostring(id)
+  env.GENTS_SESSION = tostring(id)
   return env
 end
 
----@param session agents.Session
----@return agents.Session?
+---@param session gents.Session
+---@return gents.Session?
 function M.close(session)
   if registry[session.id] ~= session then
     return
   end
   registry[session.id] = nil
-  require("agents.send").detach(session)
+  require("gents.send").detach(session)
   local running = session.state ~= "exited" and session.job and session.job > 0
   if running then
     closing[session.id] = true
     vim.fn.jobstop(session.job)
   end
-  require("agents.window").hide(session)
+  require("gents.window").hide(session)
   if not running and vim.api.nvim_buf_is_valid(session.buf) then
     vim.api.nvim_buf_delete(session.buf, { force = true })
   end
   return session
 end
 
----@param tool agents.Tool
----@param opts? agents.NewOptions
+---@param tool gents.Tool
+---@param opts? gents.NewOptions
 ---@param cwd? string Working directory captured before a deferred launch.
----@return agents.Session
+---@return gents.Session
 function M.new(tool, opts, cwd)
   opts = opts or {}
-  assert(opts.cmd == nil or opts.args == nil, "agents: cmd and args are mutually exclusive")
+  assert(opts.cmd == nil or opts.args == nil, "gents: cmd and args are mutually exclusive")
   local cmd = vim.deepcopy(tool.cmd)
   local override = opts.cmd
   if override ~= nil then
@@ -134,26 +134,26 @@ function M.new(tool, opts, cwd)
   end
   assert(
     type(cmd) == "table" and vim.islist(cmd) and #cmd > 0 and cmd[1] ~= "",
-    "agents: cmd must be a non-empty list of strings starting with an executable"
+    "gents: cmd must be a non-empty list of strings starting with an executable"
   )
   for _, arg in ipairs(cmd) do
-    assert(type(arg) == "string", "agents: cmd must be a list of strings")
+    assert(type(arg) == "string", "gents: cmd must be a list of strings")
   end
   if opts.args ~= nil then
-    assert(vim.islist(opts.args), "agents: args must be a list of strings")
+    assert(vim.islist(opts.args), "gents: args must be a list of strings")
     for _, arg in ipairs(opts.args) do
-      assert(type(arg) == "string", "agents: args must be a list of strings")
+      assert(type(arg) == "string", "gents: args must be a list of strings")
       cmd[#cmd + 1] = arg
     end
   end
   local label = label_for(tool, opts.label)
   cwd = cwd or vim.fn.getcwd(0)
-  local config = require("agents.config").get()
+  local config = require("gents.config").get()
   local on_exit = config.on_exit
   -- Allocate in the destination so Neovim associates its window options there.
-  local win = require("agents.window").open(nil, opts.layout)
+  local win = require("gents.window").open(nil, opts.layout)
   next_id = next_id + 1
-  ---@type agents.Session
+  ---@type gents.Session
   local session = {
     id = next_id,
     tool = vim.deepcopy(tool),
@@ -164,7 +164,7 @@ function M.new(tool, opts, cwd)
     state = "starting",
   }
   vim.bo[session.buf].bufhidden = "hide"
-  vim.b[session.buf].agents_session = session.id
+  vim.b[session.buf].gents_session = session.id
   registry[session.id] = session
 
   vim.api.nvim_create_autocmd("BufWipeout", {
@@ -176,7 +176,7 @@ function M.new(tool, opts, cwd)
         return
       end
       registry[session.id] = nil
-      require("agents.send").detach(session)
+      require("gents.send").detach(session)
       if session.job and session.job > 0 and session.state ~= "exited" then
         vim.fn.jobstop(session.job)
       end
@@ -184,8 +184,8 @@ function M.new(tool, opts, cwd)
   })
 
   local ok, err = pcall(function()
-    require("agents.events").attach(session)
-    require("agents.window").attach(session)
+    require("gents.events").attach(session)
+    require("gents.window").attach(session)
     vim.api.nvim_win_set_buf(win, session.buf)
     session.tab = vim.api.nvim_get_current_tabpage()
     session.job = vim.fn.jobstart(cmd, {
@@ -194,7 +194,7 @@ function M.new(tool, opts, cwd)
       clear_env = true,
       env = environment(tool, session.id),
       on_exit = function(_, code)
-        require("agents.send").detach(session)
+        require("gents.send").detach(session)
         session.state = "exited"
         session.exit_code = code
         if closing[session.id] then
@@ -207,7 +207,7 @@ function M.new(tool, opts, cwd)
             end
           end)
         end
-        require("agents.events").emit("AgentsSessionExit", {
+        require("gents.events").emit("GentsSessionExit", {
           id = session.id,
           exit_code = code,
         })
@@ -218,20 +218,20 @@ function M.new(tool, opts, cwd)
         end
       end,
     })
-    assert(session.job > 0, "agents: could not start " .. tool.name)
-    require("agents.send").attach(session)
+    assert(session.job > 0, "gents: could not start " .. tool.name)
+    require("gents.send").attach(session)
     vim.bo[session.buf].buflisted = config.buflisted
-    require("agents.buffer_names").update(session)
-    require("agents.keys").attach(session.buf)
-    vim.bo[session.buf].filetype = "agents_terminal"
+    require("gents.buffer_names").update(session)
+    require("gents.keys").attach(session.buf)
+    vim.bo[session.buf].filetype = "gents_terminal"
     vim.cmd.startinsert()
-    require("agents.events").emit("AgentsSessionStart", { id = session.id })
+    require("gents.events").emit("GentsSessionStart", { id = session.id })
     if
       registry[session.id] == session
       and vim.api.nvim_win_is_valid(win)
       and vim.api.nvim_win_get_buf(win) == session.buf
     then
-      require("agents.events").emit("AgentsSessionShow", { id = session.id, win = win })
+      require("gents.events").emit("GentsSessionShow", { id = session.id, win = win })
     end
   end)
   if not ok then

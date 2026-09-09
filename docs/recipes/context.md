@@ -1,13 +1,13 @@
 # Sending context
 
 Send the code, errors, or output you are working with to a CLI session without
-copying it by hand. Run `:Agents send` from your source buffer, choose the context
-you want to share, and agents.nvim pastes it into the destination session.
+copying it by hand. Run `:Gents send` from your source buffer, choose the context
+you want to share, and gents.nvim pastes it into the destination session.
 
 For a common request, skip the context picker and name a provider directly:
 
 ```vim
-:Agents send buffer
+:Gents send buffer
 ```
 
 This copies the whole buffer, including unsaved edits, and focuses the
@@ -47,14 +47,14 @@ different directory. `selection` and `buffer` copy Neovim's current text.
 To share a particular range without making a selection, use an Ex range:
 
 ```vim
-:3,8Agents send
-:3,8Agents send line
+:3,8Gents send
+:3,8Gents send line
 ```
 
 The first command copies lines 3 through 8; the second references those lines.
 Lua mappings can capture characterwise, linewise, and blockwise selections when
 they call `send()` while Visual or Select mode is still active. See
-`:help agents-keymaps` for examples.
+`:help gents-keymaps` for examples.
 
 ## Choose a session and keep working
 
@@ -69,8 +69,8 @@ Name a destination when you already know which conversation needs the context,
 or use `--no-focus` to stay in the editor:
 
 ```vim
-:Agents send buffer --target claude #2
-:Agents send diagnostics --no-focus
+:Gents send buffer --target claude #2
+:Gents send diagnostics --no-focus
 ```
 
 `--no-focus` still shows the destination if needed, then restores the invoking
@@ -78,7 +78,7 @@ window. A layout that replaces that window's buffer cannot restore its previous
 buffer. In Lua, pass `{ focus = false }` as the second argument to `send()`.
 
 For a request you want to submit immediately, pass `{ submit = true }` to Lua
-`send()`. See `:help agents.send()` for submission and startup waiting behavior.
+`send()`. See `:help gents.send()` for submission and startup waiting behavior.
 
 ## Combine context with instructions
 
@@ -86,13 +86,13 @@ A single message can include several providers. For example, this sends a file
 reference alongside its diagnostics:
 
 ```vim
-:Agents send file diagnostics
+:Gents send file diagnostics
 ```
 
 Add your own instructions with a Lua composition:
 
 ```lua
-require("agents").send({
+require("gents").send({
   { text = "Explain this code:" },
   { any = { "selection", "line" } },
 })
@@ -109,7 +109,7 @@ Saved prompts give a composition a name so you can reuse its instructions with
 the file or selection you are working on. Add them to your setup:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   prompts = {
     explain = {
       { text = "Explain this code:" },
@@ -120,8 +120,8 @@ require("agents").setup({
 })
 ```
 
-Run `:Agents send explain`, or choose `explain` from the context picker. Each use
-reads the source context at that time. `:Agents send review diagnostics` combines
+Run `:Gents send explain`, or choose `explain` from the context picker. Each use
+reads the source context at that time. `:Gents send review diagnostics` combines
 the review request with the current buffer's diagnostics.
 
 Saved prompts appear first in the picker, sorted by name, when their required
@@ -136,22 +136,22 @@ Custom providers make project information or another plugin's output available
 in the same picker and commands. For example, add a shorter terminal excerpt:
 
 ```lua
-require("agents").provider("terminal_tail", {
+require("gents").provider("terminal_tail", {
   desc = "Last 50 terminal lines",
   render = function(ctx)
-    return require("agents.providers").terminal(ctx, 50)
+    return require("gents.providers").terminal(ctx, 50)
   end,
 })
 ```
 
-From an ordinary terminal, run `:Agents send terminal_tail`. The built-in
+From an ordinary terminal, run `:Gents send terminal_tail`. The built-in
 `terminal` provider keeps its 1,000-line limit. For a limit needed on just one
 send, pass the function as an item instead:
 
 ```lua
-require("agents").send({
+require("gents").send({
   function(ctx)
-    return require("agents.providers").terminal(ctx, 50)
+    return require("gents.providers").terminal(ctx, 50)
   end,
 })
 ```
@@ -161,4 +161,4 @@ apply. Providers should read context without changing editor state: they run
 while the picker builds its choices, even if you choose something else.
 
 The complete provider, composition, and delivery contracts are in
-`:help agents-context` in the [full help file](../../doc/agents.txt).
+`:help gents-context` in the [full help file](../../doc/gents.txt).

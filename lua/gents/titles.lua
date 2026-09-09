@@ -49,7 +49,7 @@ local function codex_thread_title(cmd)
 end
 
 ---@param title string
----@param session agents.Session
+---@param session gents.Session
 ---@return string?
 function M.codex(title, session)
   if not codex_thread_title(session.cmd) then
@@ -75,14 +75,14 @@ local function clean(title)
   return vim.trim((title:gsub("%c", " ")))
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param raw string
 function M.update(session, raw)
   local parser = session.tool.title
   if
     parser == false
     or session.state == "exited"
-    or require("agents.session").get(session.id) ~= session
+    or require("gents.session").get(session.id) ~= session
   then
     return
   end
@@ -90,10 +90,7 @@ function M.update(session, raw)
   local title = raw
   if parser then
     title = parser(clean(raw), session)
-    assert(
-      title == nil or type(title) == "string",
-      "agents: tool.title must return a string or nil"
-    )
+    assert(title == nil or type(title) == "string", "gents: tool.title must return a string or nil")
   end
   if title then
     title = clean(title)
@@ -103,8 +100,8 @@ function M.update(session, raw)
   end
   if title ~= session.title then
     session.title = title
-    require("agents.buffer_names").update(session)
-    require("agents.events").emit("AgentsSessionTitle", { id = session.id, title = title })
+    require("gents.buffer_names").update(session)
+    require("gents.events").emit("GentsSessionTitle", { id = session.id, title = title })
   end
 end
 

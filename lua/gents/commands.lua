@@ -1,10 +1,10 @@
 local M = {}
 
----@type agents.CommandName[]
+---@type gents.CommandName[]
 local subcommands = { "actions", "close", "focus", "hide", "new", "pick", "send", "toggle" }
 
 ---@param actions_only? boolean Exclude the actions menu from its own choices.
----@return agents.CommandName[]
+---@return gents.CommandName[]
 function M.names(actions_only)
   return vim.list_slice(subcommands, actions_only and 2 or 1)
 end
@@ -46,23 +46,23 @@ local function target_from(args)
   return target
 end
 
----@class agents.commands.Options
+---@class gents.commands.Options
 ---@field args string
 ---@field range? integer
 ---@field line1? integer
 ---@field line2? integer
----@field context? agents.Context Source captured before an actions picker opened.
+---@field context? gents.Context Source captured before an actions picker opened.
 
----@param opts agents.commands.Options
----@return agents.Session?
+---@param opts gents.commands.Options
+---@return gents.Session?
 function M.run(opts)
   local args = words(opts.args)
   local command = table.remove(args, 1) or "pick"
-  local agents = require("agents")
+  local gents = require("gents")
 
   if command == "actions" and #args > 0 then
     command = table.remove(args, 1)
-    assert(command ~= "actions", "agents: actions cannot select itself")
+    assert(command ~= "actions", "gents: actions cannot select itself")
   end
 
   ---@type { line1: integer, line2: integer }?
@@ -71,18 +71,18 @@ function M.run(opts)
     range = { line1 = assert(opts.line1), line2 = assert(opts.line2) }
   end
   if range and command ~= "send" and command ~= "actions" then
-    error("agents: only send accepts a range", 0)
+    error("gents: only send accepts a range", 0)
   end
 
   if command == "send" then
-    ---@type agents.SendOptions?
+    ---@type gents.SendOptions?
     local send_opts
     ---@type string[]
     local names = {}
     for i, arg in ipairs(args) do
       if arg == "--target" then
         local target = target_from(vim.list_slice(args, i + 1))
-        assert(target ~= nil, "agents: --target requires a session id or label")
+        assert(target ~= nil, "gents: --target requires a session id or label")
         send_opts = send_opts or {}
         send_opts.target = target
         break
@@ -93,11 +93,11 @@ function M.run(opts)
         names[#names + 1] = arg
       end
     end
-    ---@type agents.Item[]?
+    ---@type gents.Item[]?
     local items
     if #names > 0 then
       items = {}
-      local prompts = require("agents.config").get().prompts
+      local prompts = require("gents.config").get().prompts
       for _, name in ipairs(names) do
         vim.list_extend(items, prompts[name] or { name })
       end
@@ -106,16 +106,16 @@ function M.run(opts)
       items = { "selection" }
     end
     if opts.context then
-      return require("agents.send").from_context(opts.context, items, send_opts)
+      return require("gents.send").from_context(opts.context, items, send_opts)
     elseif range then
-      return require("agents.send").run(items, send_opts, range)
+      return require("gents.send").run(items, send_opts, range)
     end
-    return agents.send(items, send_opts)
+    return gents.send(items, send_opts)
   end
 
   if command == "new" then
     local name = table.remove(args, 1)
-    return agents.new(name, #args > 0 and { args = args } or nil)
+    return gents.new(name, #args > 0 and { args = args } or nil)
   end
 
   if
@@ -125,18 +125,18 @@ function M.run(opts)
     or command == "focus"
     or command == "toggle"
   then
-    return agents[command](target_from(args))
+    return gents[command](target_from(args))
   end
 
   if command == "actions" then
     if range then
-      return agents.actions(range)
+      return gents.actions(range)
     end
-    return agents.actions()
+    return gents.actions()
   end
 
   error(
-    "agents: unknown command '"
+    "gents: unknown command '"
       .. command
       .. "' (expected: "
       .. table.concat(subcommands, ", ")
@@ -151,7 +151,7 @@ end
 local function complete_target(arglead, remainder)
   ---@type string[]
   local candidates = {}
-  for _, session in ipairs(require("agents").sessions()) do
+  for _, session in ipairs(require("gents").sessions()) do
     candidates[#candidates + 1] = session.label
   end
 
@@ -160,7 +160,7 @@ local function complete_target(arglead, remainder)
   if preceding ~= "" then
     preceding = preceding .. " "
   else
-    for _, session in ipairs(require("agents").sessions()) do
+    for _, session in ipairs(require("gents").sessions()) do
       candidates[#candidates + 1] = tostring(session.id)
     end
   end
@@ -193,8 +193,8 @@ function M.complete(arglead, cmdline, cursorpos)
     if remainder:find("%s") then
       return {}
     end
-    local tools = require("agents.tools")
-    return matching(tools.names(require("agents.config").get().tools), arglead)
+    local tools = require("gents.tools")
+    return matching(tools.names(require("gents.config").get().tools), arglead)
   end
 
   if command == "send" then
@@ -203,8 +203,8 @@ function M.complete(arglead, cmdline, cursorpos)
     if target then
       return complete_target(arglead, target)
     end
-    local names = require("agents.providers").names()
-    for name in pairs(require("agents.config").get().prompts) do
+    local names = require("gents.providers").names()
+    for name in pairs(require("gents.config").get().prompts) do
       if not vim.list_contains(names, name) then
         names[#names + 1] = name
       end
@@ -232,7 +232,7 @@ function M.complete(arglead, cmdline, cursorpos)
 end
 
 function M.setup()
-  vim.api.nvim_create_user_command("Agents", M.run, {
+  vim.api.nvim_create_user_command("Gents", M.run, {
     nargs = "*",
     range = true,
     complete = M.complete,

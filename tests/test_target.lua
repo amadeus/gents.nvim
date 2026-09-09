@@ -1,6 +1,6 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local target = require("agents.target")
+local target = require("gents.target")
 local original_select = vim.ui.select
 
 ---@param select fun<T>(items: T[], opts: vim.ui.select.Opts, on_choice: fun(item: T?, idx?: integer))
@@ -21,7 +21,7 @@ local T = test.new_set({
 T["explicit ids and labels override the current session"] = function()
   local first = H.new()
   local second = H.new()
-  ---@type agents.Session?
+  ---@type gents.Session?
   local selected
   local result = target.with(first.id, function(session)
     selected = session
@@ -55,9 +55,9 @@ T["one visible session still opens the picker when sessions exist elsewhere"] = 
   vim.cmd("new")
   ---@type integer?
   local selected
-  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param items gents.PickerItem<gents.Session>[]
   ---@param _ vim.ui.select.Opts
-  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, callback)
     test.expect.equality({ items[1].data.id, items[2].data.id }, { here.id, elsewhere.id })
     callback(items[2], 2)
@@ -76,13 +76,13 @@ T["one visible session still opens the picker when another session is hidden"] =
   local original = vim.api.nvim_get_current_win()
   local visible = H.new()
   local hidden = H.new()
-  require("agents").hide(hidden.id)
+  require("gents").hide(hidden.id)
   vim.api.nvim_set_current_win(original)
   ---@type integer?
   local selected
-  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param items gents.PickerItem<gents.Session>[]
   ---@param _ vim.ui.select.Opts
-  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, callback)
     test.expect.equality({ items[1].data.id, items[2].data.id }, { visible.id, hidden.id })
     callback(items[2], 2)
@@ -96,7 +96,7 @@ end
 
 T["a sole hidden session is selected"] = function()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   test.expect.equality(
     target.with(nil, function(selected)
       return selected.id
@@ -108,13 +108,13 @@ end
 T["ambiguous sessions use the picker and return nil"] = function()
   local first = H.new()
   local second = H.new()
-  require("agents").hide(first.id)
-  require("agents").hide(second.id)
-  ---@type agents.Session?
+  require("gents").hide(first.id)
+  require("gents").hide(second.id)
+  ---@type gents.Session?
   local selected
-  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param items gents.PickerItem<gents.Session>[]
   ---@param _ vim.ui.select.Opts
-  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, callback)
     test.expect.equality(#items, 2)
     callback(items[2], 2)
@@ -133,7 +133,7 @@ T["filters prefer an eligible current session and resolve a sole matching sessio
   local current = H.new()
   local current_win = vim.api.nvim_get_current_win()
   local hidden = H.new()
-  require("agents").hide(hidden.id)
+  require("gents").hide(hidden.id)
   local unrelated = H.new()
   vim.api.nvim_set_current_win(current_win)
   local selected = target.with(function(session)
@@ -157,9 +157,9 @@ T["an ambiguous filter only offers matching sessions"] = function()
   local unrelated = H.new()
   ---@type integer?
   local selected
-  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param items gents.PickerItem<gents.Session>[]
   ---@param _ vim.ui.select.Opts
-  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, callback)
     test.expect.equality({ items[1].data.id, items[2].data.id }, { first.id, second.id })
     test.expect.equality(#items, 2)

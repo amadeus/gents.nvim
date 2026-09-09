@@ -1,38 +1,38 @@
 local M = {}
 
----@param opts? agents.SetupOptions
+---@param opts? gents.SetupOptions
 function M.setup(opts)
-  local config = require("agents.config").setup(opts)
-  require("agents.keys").setup(config.keys)
+  local config = require("gents.config").setup(opts)
+  require("gents.keys").setup(config.keys)
 end
 
 ---@param tool? string
----@param opts? agents.NewOptions
----@return agents.Session?
+---@param opts? gents.NewOptions
+---@return gents.Session?
 function M.new(tool, opts)
   if tool == nil then
-    return require("agents.picker").tools(function(selected, launch_opts)
+    return require("gents.picker").tools(function(selected, launch_opts)
       return M.new(selected.name, launch_opts)
     end, opts)
   end
-  local definition = require("agents.config").get().tools[tool]
-  assert(definition, "agents: unknown tool: " .. tostring(tool))
-  return require("agents.session").new(definition, opts)
+  local definition = require("gents.config").get().tools[tool]
+  assert(definition, "gents: unknown tool: " .. tostring(tool))
+  return require("gents.session").new(definition, opts)
 end
 
----@return agents.Session[]
+---@return gents.Session[]
 function M.sessions()
-  return require("agents.session").list()
+  return require("gents.session").list()
 end
 
----@return agents.Session?
+---@return gents.Session?
 function M.current()
-  return require("agents.session").current()
+  return require("gents.session").current()
 end
 
----@return agents.Status[]
+---@return gents.Status[]
 function M.status()
-  ---@type agents.Status[]
+  ---@type gents.Status[]
   local result = {}
   for _, session in ipairs(M.sessions()) do
     result[#result + 1] = {
@@ -40,7 +40,7 @@ function M.status()
       tool = session.tool.name,
       label = session.label,
       title = session.title,
-      visible = require("agents.window").visible(session),
+      visible = require("gents.window").visible(session),
       state = session.state,
       cwd = session.cwd,
     }
@@ -49,38 +49,38 @@ function M.status()
 end
 
 ---@param id integer
----@return agents.ReadyEvent
+---@return gents.ReadyEvent
 function M.ready(id)
-  local session = require("agents.session").get(id)
-  assert(session, "agents: no session with id " .. tostring(id))
-  return require("agents.events").ready(session, "hook")
+  local session = require("gents.session").get(id)
+  assert(session, "gents: no session with id " .. tostring(id))
+  return require("gents.events").ready(session, "hook")
 end
 
 ---Omitting items opens the context picker.
----@param items? agents.Item[]
----@param opts? agents.SendOptions
----@return agents.Session?
+---@param items? gents.Item[]
+---@param opts? gents.SendOptions
+---@return gents.Session?
 function M.send(items, opts)
-  return require("agents.send").run(items, opts)
+  return require("gents.send").run(items, opts)
 end
 
 ---@param name string
----@param spec agents.Provider
+---@param spec gents.Provider
 function M.provider(name, spec)
-  require("agents.providers").register(name, spec)
+  require("gents.providers").register(name, spec)
 end
 
----@param target? agents.Target
----@param opts? agents.ShowOptions
----@return agents.Session?
+---@param target? gents.Target
+---@param opts? gents.ShowOptions
+---@return gents.Session?
 function M.show(target, opts)
-  return require("agents.target").with(target, function(session)
-    return require("agents.window").show(session, opts and opts.layout)
+  return require("gents.target").with(target, function(session)
+    return require("gents.window").show(session, opts and opts.layout)
   end)
 end
 
----@param target? agents.Target
----@return agents.Session?
+---@param target? gents.Target
+---@return gents.Session?
 function M.focus(target)
   if target ~= nil then
     return M.show(target)
@@ -96,20 +96,20 @@ function M.focus(target)
   return M.show()
 end
 
----@param target? agents.Target
----@return agents.Session?
+---@param target? gents.Target
+---@return gents.Session?
 function M.hide(target)
-  return require("agents.target").with(target, require("agents.window").hide)
+  return require("gents.target").with(target, require("gents.window").hide)
 end
 
----@param target? agents.Target
----@return agents.Session?
+---@param target? gents.Target
+---@return gents.Session?
 function M.close(target)
-  return require("agents.target").with(target, require("agents.session").close)
+  return require("gents.target").with(target, require("gents.session").close)
 end
 
----@param target? agents.Target
----@return agents.Session?
+---@param target? gents.Target
+---@return gents.Session?
 function M.pick(target)
   if target ~= nil then
     return M.show(target)
@@ -118,7 +118,7 @@ function M.pick(target)
   if #sessions == 0 then
     return M.new()
   end
-  return require("agents.picker").sessions(sessions, function(session)
+  return require("gents.picker").sessions(sessions, function(session)
     return M.show(session.id)
   end)
 end
@@ -127,16 +127,16 @@ end
 ---@param range? { line1: integer, line2: integer } Explicit Ex range for send.
 ---@return nil
 function M.actions(range)
-  local ctx = range and require("agents.context").capture(range) or nil
+  local ctx = range and require("gents.context").capture(range) or nil
   local mode = vim.fn.mode()
   if mode == "v" or mode == "V" or mode == "\22" or mode == "s" or mode == "S" or mode == "\19" then
     if not ctx and not M.current() then
-      ctx = require("agents.context").capture()
+      ctx = require("gents.context").capture()
     end
     vim.cmd.normal({ args = { "\27" }, bang = true })
   end
-  require("agents.picker").commands(function(command)
-    require("agents.commands").run({
+  require("gents.picker").commands(function(command)
+    require("gents.commands").run({
       args = command,
       context = ctx,
       range = range and 1 or nil,
@@ -146,15 +146,15 @@ function M.actions(range)
   end)
 end
 
----@param target? agents.Target
----@return agents.Session?
+---@param target? gents.Target
+---@return gents.Session?
 function M.toggle(target)
-  local window = require("agents.window")
+  local window = require("gents.window")
   local tab = vim.api.nvim_get_current_tabpage()
   if target == nil and #M.sessions() == 0 then
     return M.new()
   end
-  return require("agents.target").with(target, function(session)
+  return require("gents.target").with(target, function(session)
     if window.visible(session, tab) then
       return window.hide(session, tab)
     end

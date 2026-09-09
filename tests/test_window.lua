@@ -1,7 +1,7 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local agents = require("agents")
-local window = require("agents.window")
+local gents = require("gents")
+local window = require("gents.window")
 local T = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
 local eq = test.expect.equality
 
@@ -31,7 +31,7 @@ T["layout opens each documented form"] = test.new_set({
     },
   },
 }, {
-  ---@param layout agents.Layout
+  ---@param layout gents.Layout
   ["shows the session"] = function(layout)
     local session = H.new({ layout = layout })
     eq(vim.api.nvim_get_current_buf(), session.buf)
@@ -44,7 +44,7 @@ T["layout opens each documented form"] = test.new_set({
 T["new terminal window options"] = test.new_set({
   parametrize = { { "vsplit" }, { "current" }, { "tabnew" }, { "float" } },
 }, {
-  ---@param layout agents.Layout
+  ---@param layout gents.Layout
   ["survive placement in the originating editor window"] = function(layout)
     local source_win, source_buf = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
     local number, relativenumber = vim.wo.number, vim.wo.relativenumber
@@ -64,12 +64,12 @@ T["new terminal window options"] = test.new_set({
     vim.api.nvim_win_set_buf(source_win, source_buf)
     eq({ vim.wo.number, vim.wo.relativenumber }, { true, true })
 
-    agents.show(session.id, { layout = "current" })
+    gents.show(session.id, { layout = "current" })
     eq(vim.api.nvim_get_current_win(), source_win)
     eq(vim.api.nvim_get_current_buf(), buf)
     eq({ vim.wo.number, vim.wo.relativenumber }, { false, false })
     eq({ session.buf, session.job }, { buf, job })
-    eq(agents.sessions(), { session })
+    eq(gents.sessions(), { session })
     eq(vim.fn.jobwait({ job }, 0), { -1 })
 
     vim.api.nvim_win_set_buf(source_win, source_buf)
@@ -85,7 +85,7 @@ T["custom layouts choose the destination before a session buffer exists"] = func
   local session = H.new({
     layout = function()
       eq(vim.api.nvim_list_bufs(), buffers)
-      eq(agents.sessions(), {})
+      eq(gents.sessions(), {})
       vim.cmd.vsplit()
       destination = vim.api.nvim_get_current_win()
       vim.api.nvim_set_current_win(source_win)
@@ -148,7 +148,7 @@ T["fractional cell dimensions"] = test.new_set({
   ["round down on opening and resizing without rounding coordinates"] = function(kind)
     restore_editor_size()
     resize_editor(81, 41)
-    ---@type agents.FloatConfig
+    ---@type gents.FloatConfig
     local opts = { width = 72.9, height = 36.9, row = 0.5, col = 0.5 }
     if kind == "callbacks" then
       opts.width = function()
@@ -222,17 +222,17 @@ T["each float retains its own geometry when options and setup change"] = functio
   restore_editor_size()
   resize_editor(80, 40)
   local source = vim.api.nvim_get_current_win()
-  agents.setup({ float = { width = 0.25, height = 0.5 }, tools = { cat = { cmd = { "cat" } } } })
+  gents.setup({ float = { width = 0.25, height = 0.5 }, tools = { cat = { cmd = { "cat" } } } })
   local first = H.new({ layout = "float" })
   local first_win = vim.api.nvim_get_current_win()
   local inline = { width = 0.5, height = 8, row = 1, col = 2 }
-  agents.show(first.id, { layout = inline })
+  gents.show(first.id, { layout = inline })
   local second_win = vim.api.nvim_get_current_win()
   local second = H.new({ layout = { width = 10, height = 4, row = 2, col = 3 } })
   local third_win = vim.api.nvim_get_current_win()
   inline.width = 90
-  require("agents.config").get().float.width = 90
-  agents.setup({ float = { width = 11, height = 5 } })
+  require("gents.config").get().float.width = 90
+  gents.setup({ float = { width = 11, height = 5 } })
   vim.api.nvim_set_current_win(source)
 
   resize_editor(120, 60)
@@ -248,7 +248,7 @@ T["each float retains its own geometry when options and setup change"] = functio
   eq(vim.api.nvim_win_get_buf(first_win), first.buf)
   eq(vim.api.nvim_win_get_buf(second_win), first.buf)
   eq(vim.api.nvim_win_get_buf(third_win), second.buf)
-  eq(agents.sessions(), { first, second })
+  eq(gents.sessions(), { first, second })
   eq(vim.fn.jobwait({ first.job, second.job }, 0), { -1, -1 })
 end
 
@@ -476,9 +476,9 @@ T["removed float windows"] = test.new_set({
     if action == "native close" then
       vim.api.nvim_win_close(win, true)
     elseif action == "hide" then
-      agents.hide(session.id)
+      gents.hide(session.id)
     else
-      agents.close(session.id)
+      gents.close(session.id)
     end
 
     vim.api.nvim_exec_autocmds("VimResized", {})
@@ -486,7 +486,7 @@ T["removed float windows"] = test.new_set({
     eq(vim.api.nvim_win_is_valid(win), false)
     eq(calls, 1)
     if action ~= "close" then
-      eq(agents.sessions(), { session })
+      eq(gents.sessions(), { session })
       eq(vim.fn.jobwait({ session.job }, 0), { -1 })
     end
   end,
@@ -499,7 +499,7 @@ T["tiny editor float geometry"] = test.new_set({
   ["stays valid and recovers after expanding the editor"] = function(kind)
     restore_editor_size()
     resize_editor(80, 40)
-    ---@type agents.FloatConfig
+    ---@type gents.FloatConfig
     local opts = { width = 0.5, height = 0.25, border = "single" }
     if kind == "callbacks" then
       opts.width = function()
@@ -537,7 +537,7 @@ T["show without a layout reuses an existing window in another tab"] = function()
   local session = H.new({ layout = "tabnew" })
   local win, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
   vim.cmd.tabprevious()
-  agents.show(session.id)
+  gents.show(session.id)
   eq(vim.api.nvim_get_current_win(), win)
   eq(vim.api.nvim_get_current_tabpage(), tab)
   eq(vim.fn.win_findbuf(session.buf), { win })
@@ -548,7 +548,7 @@ T["an explicit show layout opens a view without leaving the invoking tab"] = fun
   local existing = vim.api.nvim_get_current_win()
   vim.cmd.tabnew()
   local tab = vim.api.nvim_get_current_tabpage()
-  agents.show(session.id, { layout = "float" })
+  gents.show(session.id, { layout = "float" })
   eq(vim.api.nvim_get_current_tabpage(), tab)
   eq(vim.api.nvim_win_get_config(0).relative, "editor")
   eq(vim.api.nvim_get_current_buf(), session.buf)
@@ -560,7 +560,7 @@ end
 T["hide closes a sole-window tab and keeps its job running"] = function()
   local session = H.new({ layout = "tabnew" })
   local tab = vim.api.nvim_get_current_tabpage()
-  agents.hide(session.id)
+  gents.hide(session.id)
   eq(vim.api.nvim_tabpage_is_valid(tab), false)
   eq(window.visible(session), false)
   eq(vim.fn.jobwait({ session.job }, 0), { -1 })
@@ -569,7 +569,7 @@ end
 T["hide uses the alternate buffer in the final window"] = function()
   local original = vim.api.nvim_get_current_buf()
   local session = H.new({ layout = "current" })
-  agents.hide(session.id)
+  gents.hide(session.id)
   eq(vim.api.nvim_get_current_buf(), original)
   eq(#vim.api.nvim_list_wins(), 1)
   eq(window.visible(session), false)
@@ -579,7 +579,7 @@ T["hide creates an empty buffer when no alternate survives"] = function()
   local original = vim.api.nvim_get_current_buf()
   local session = H.new({ layout = "current" })
   vim.api.nvim_buf_delete(original, { force = true })
-  agents.hide(session.id)
+  gents.hide(session.id)
   eq(vim.api.nvim_get_current_buf() ~= session.buf, true)
   eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "" })
   eq(vim.bo.buftype, "")
@@ -595,10 +595,10 @@ T["two remaining agent windows"] = test.new_set({
     eq(#vim.api.nvim_list_wins(), 2)
     eq(vim.fn.bufnr("#"), first.buf)
 
-    agents[first_action](first.id)
+    gents[first_action](first.id)
     eq(#vim.api.nvim_list_wins(), 1)
     eq(vim.api.nvim_get_current_buf(), second.buf)
-    agents.hide(second.id)
+    gents.hide(second.id)
 
     eq(window.visible(first), false)
     eq(window.visible(second), false)
@@ -606,13 +606,13 @@ T["two remaining agent windows"] = test.new_set({
     eq(vim.bo.buftype, "")
     eq(vim.api.nvim_buf_get_name(0), "")
     eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "" })
-    eq(agents.current(), nil)
+    eq(gents.current(), nil)
     eq(vim.fn.jobwait({ second.job }, 0), { -1 })
     if first_action == "hide" then
-      eq(agents.sessions(), { first, second })
+      eq(gents.sessions(), { first, second })
       eq(vim.fn.jobwait({ first.job }, 0), { -1 })
     else
-      eq(agents.sessions(), { second })
+      eq(gents.sessions(), { second })
       H.wait(function()
         return first.state == "exited"
       end)
@@ -625,7 +625,7 @@ T["renamed terminal in the final window"] = test.new_set({
 }, {
   ---@param action "hide"|"close"
   ["leaves an empty buffer without restarting the terminal"] = function(action)
-    local group = vim.api.nvim_create_augroup("AgentsRenamedTerminalTest", { clear = true })
+    local group = vim.api.nvim_create_augroup("GentsRenamedTerminalTest", { clear = true })
     test.finally(function()
       vim.api.nvim_del_augroup_by_id(group)
     end)
@@ -644,15 +644,15 @@ T["renamed terminal in the final window"] = test.new_set({
     eq(vim.api.nvim_buf_is_loaded(alternate), false)
     eq(vim.api.nvim_buf_get_name(alternate):match("^term://") ~= nil, true)
 
-    agents[action](session.id)
+    gents[action](session.id)
     if action == "close" then
       H.wait(function()
         return session.state == "exited" and not vim.api.nvim_buf_is_valid(session.buf)
       end)
-      eq(agents.sessions(), {})
+      eq(gents.sessions(), {})
       eq(vim.fn.jobwait({ session.job }, 0)[1] ~= -1, true)
     else
-      eq(agents.sessions(), { session })
+      eq(gents.sessions(), { session })
       eq(vim.fn.jobwait({ session.job }, 0), { -1 })
       eq(window.visible(session), false)
     end
@@ -661,7 +661,7 @@ T["renamed terminal in the final window"] = test.new_set({
     eq(vim.bo.buftype, "")
     eq(vim.api.nvim_buf_get_name(0), "")
     eq(vim.api.nvim_buf_get_lines(0, 0, -1, false), { "" })
-    eq(agents.current(), nil)
+    eq(gents.current(), nil)
   end,
 })
 
@@ -671,7 +671,7 @@ T["hide removes every view of a session across tabs"] = function()
   vim.cmd.tabnew()
   vim.api.nvim_win_set_buf(0, session.buf)
   eq(#vim.fn.win_findbuf(session.buf), 3)
-  agents.hide(session.id)
+  gents.hide(session.id)
   eq(vim.fn.win_findbuf(session.buf), {})
   eq(vim.fn.jobwait({ session.job }, 0), { -1 })
 end
@@ -681,13 +681,13 @@ T["native buffer replacement hides a session without plugin involvement"] = func
   local session = H.new()
   vim.cmd.buffer(original)
   eq(window.visible(session), false)
-  eq(agents.current(), nil)
-  eq(agents.sessions(), { session })
+  eq(gents.current(), nil)
+  eq(gents.sessions(), { session })
   eq(vim.fn.jobwait({ session.job }, 0), { -1 })
 end
 
 T["TermOpen and filetype customizations are preserved"] = function()
-  local group = vim.api.nvim_create_augroup("AgentsWindowTest", { clear = true })
+  local group = vim.api.nvim_create_augroup("GentsWindowTest", { clear = true })
   test.finally(function()
     vim.api.nvim_del_augroup_by_id(group)
   end)
@@ -696,7 +696,7 @@ T["TermOpen and filetype customizations are preserved"] = function()
   vim.api.nvim_create_autocmd("TermOpen", {
     group = group,
     callback = function(ev)
-      observed = vim.b[ev.buf].agents_session
+      observed = vim.b[ev.buf].gents_session
       vim.wo.number = true
       vim.wo.signcolumn = "yes:2"
       vim.wo.winfixwidth = true
@@ -704,7 +704,7 @@ T["TermOpen and filetype customizations are preserved"] = function()
   })
   vim.api.nvim_create_autocmd("FileType", {
     group = group,
-    pattern = "agents_terminal",
+    pattern = "gents_terminal",
     callback = function()
       vim.wo.foldcolumn = "3"
     end,

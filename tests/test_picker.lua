@@ -1,6 +1,6 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local picker = require("agents.picker")
+local picker = require("gents.picker")
 local original_select, original_open, original_notify = vim.ui.select, vim.ui.open, vim.notify
 local original_input = vim.ui.input
 local T = test.new_set({
@@ -35,9 +35,9 @@ local function set_open(callback)
   vim.ui.open = callback
 end
 
----@param spec { items: agents.PickerItem<agents.Tool>[] }
+---@param spec { items: gents.PickerItem<gents.Tool>[] }
 ---@param name string
----@return agents.PickerItem<agents.Tool>?
+---@return gents.PickerItem<gents.Tool>?
 local function find_tool(spec, name)
   for _, item in ipairs(spec.items) do
     if item.data.name == name then
@@ -47,12 +47,12 @@ local function find_tool(spec, name)
 end
 
 T["default adapter formats items and runs only the default action"] = function()
-  ---@type agents.PickerItem<integer>?
+  ---@type gents.PickerItem<integer>?
   local selected
   local item = { text = "First item", data = 1 }
-  ---@param items agents.PickerItem<integer>[]
+  ---@param items gents.PickerItem<integer>[]
   ---@param opts vim.ui.select.Opts
-  ---@param callback fun(item: agents.PickerItem<integer>?, idx?: integer)
+  ---@param callback fun(item: gents.PickerItem<integer>?, idx?: integer)
   set_select(function(items, opts, callback)
     test.expect.equality(items, { item })
     test.expect.equality(opts.prompt, "Test picker")
@@ -92,10 +92,10 @@ T["cancelling the default picker does nothing"] = function()
 end
 
 T["configured adapter receives the complete spec unchanged"] = function()
-  ---@type agents.PickerSpec<integer>?
+  ---@type gents.PickerSpec<integer>?
   local received
-  require("agents").setup({
-    ---@param spec agents.PickerSpec<integer>
+  require("gents").setup({
+    ---@param spec gents.PickerSpec<integer>
     picker = function(spec)
       received = spec
     end,
@@ -125,7 +125,7 @@ T["Snacks is loaded on demand and reports a missing dependency"] = function()
     attempted = true
     error("Snacks is unavailable for this test")
   end)
-  require("agents").setup({ picker = "snacks" })
+  require("gents").setup({ picker = "snacks" })
   test.expect.equality(attempted, false)
   set_select(function()
     error("The configured picker must not silently fall back")
@@ -157,7 +157,7 @@ T["mini.pick must be set up and reports a missing dependency"] = function()
     rawset(_G, "MiniPick", loaded)
   end)
   rawset(_G, "MiniPick", nil)
-  require("agents").setup({ picker = "mini" })
+  require("gents").setup({ picker = "mini" })
   set_select(function()
     error("The configured picker must not silently fall back")
   end)
@@ -195,7 +195,7 @@ T["Telescope is loaded on demand and reports a missing dependency"] = function()
     attempted = true
     error("module 'plenary.async' not found")
   end)
-  require("agents").setup({ picker = "telescope" })
+  require("gents").setup({ picker = "telescope" })
   test.expect.equality(attempted, false)
   set_select(function()
     error("The configured picker must not silently fall back")
@@ -235,7 +235,7 @@ T["fzf-lua is loaded on demand and reports a missing dependency"] = function()
     attempted = true
     error("fzf-lua is unavailable for this test")
   end)
-  require("agents").setup({ picker = "fzf-lua" })
+  require("gents").setup({ picker = "fzf-lua" })
   test.expect.equality(attempted, false)
   set_select(function()
     error("The configured picker must not silently fall back")
@@ -272,9 +272,9 @@ T["actions context"] = test.new_set({
   },
 }, {
   ---@param context string
-  ---@param expected agents.CommandName[]
+  ---@param expected gents.CommandName[]
   ["orders available commands and retains their descriptions"] = function(context, expected)
-    local agents = require("agents")
+    local gents = require("gents")
     local origin = vim.api.nvim_get_current_win()
     if context ~= "none" then
       if context == "exited with live" then
@@ -286,29 +286,29 @@ T["actions context"] = test.new_set({
         H.wait(function()
           return session.state == "exited"
         end)
-        test.expect.equality(agents.current(), session)
+        test.expect.equality(gents.current(), session)
       elseif context == "outside" then
         vim.api.nvim_set_current_win(origin)
       elseif context == "hidden" then
-        agents.hide(session.id)
+        gents.hide(session.id)
         test.expect.equality(vim.fn.win_findbuf(session.buf), {})
       elseif context == "other tab" then
         vim.cmd.tabnew()
       end
     end
-    local sessions = agents.sessions()
-    ---@type agents.PickerSpec<agents.CommandName>?
+    local sessions = gents.sessions()
+    ---@type gents.PickerSpec<gents.CommandName>?
     local received
-    require("agents.config").get().picker = function(spec)
+    require("gents.config").get().picker = function(spec)
       received = spec
     end
 
-    agents.actions()
+    gents.actions()
 
     assert(received)
-    test.expect.equality(received.title, "Agents: Actions")
+    test.expect.equality(received.title, "Gents: Actions")
     test.expect.equality(received.default, "run")
-    ---@type table<agents.CommandName, string>
+    ---@type table<gents.CommandName, string>
     local descriptions = {
       close = "Hide and kill a session",
       focus = "Switch focus between a session and your last buffer",
@@ -333,7 +333,7 @@ T["actions context"] = test.new_set({
       })
     end
     test.expect.equality(names, expected)
-    test.expect.equality(agents.sessions(), sessions)
+    test.expect.equality(gents.sessions(), sessions)
   end,
 })
 
@@ -341,12 +341,12 @@ T["actions restores the invoking window before dispatching toggle"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
   vim.api.nvim_set_current_win(origin)
-  ---@type agents.PickerSpec<agents.CommandName>?
+  ---@type gents.PickerSpec<gents.CommandName>?
   local received
-  require("agents.config").get().picker = function(spec)
+  require("gents.config").get().picker = function(spec)
     received = spec
   end
-  require("agents").actions()
+  require("gents").actions()
   assert(received)
   vim.cmd.new()
 
@@ -364,9 +364,9 @@ end
 T["actions refuses to dispatch after its invoking window closes"] = function()
   local session = H.new()
   local origin = vim.api.nvim_get_current_win()
-  ---@type agents.PickerSpec<agents.CommandName>?
+  ---@type gents.PickerSpec<gents.CommandName>?
   local received
-  require("agents.config").get().picker = function(spec)
+  require("gents.config").get().picker = function(spec)
     received = spec
   end
   ---@type string?
@@ -374,7 +374,7 @@ T["actions refuses to dispatch after its invoking window closes"] = function()
   set_notify(function(message)
     notification = message
   end)
-  require("agents").actions()
+  require("gents").actions()
   assert(received)
   vim.api.nvim_win_close(origin, true)
 
@@ -384,30 +384,30 @@ T["actions refuses to dispatch after its invoking window closes"] = function()
     end
   end
 
-  test.expect.equality(require("agents").sessions(), { session })
+  test.expect.equality(require("gents").sessions(), { session })
   test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
   test.expect.equality(
     notification,
-    "agents.nvim: the window that opened the actions picker no longer exists"
+    "gents.nvim: the window that opened the actions picker no longer exists"
   )
 end
 
 T["context rows distinguish prompts from providers and align only available entries"] = function()
   local origin = vim.api.nvim_get_current_win()
   local prompt = { { text = "Saved buffer prompt" } }
-  require("agents.config").get().prompts = {
+  require("gents.config").get().prompts = {
     buffer = prompt,
     ["説明説明説明"] = { { text = "Explain this" } },
     unavailable_prompt_with_a_very_long_name = { "selection" },
   }
-  ---@type agents.PickerSpec<agents.Part[]>?
+  ---@type gents.PickerSpec<gents.Part[]>?
   local received
-  require("agents.config").get().picker = function(spec)
+  require("gents.config").get().picker = function(spec)
     received = spec
   end
-  ---@type agents.Part[]?
+  ---@type gents.Part[]?
   local chosen
-  picker.context(require("agents.context").capture(), function(parts)
+  picker.context(require("gents.context").capture(), function(parts)
     chosen = parts
   end)
   assert(received)
@@ -415,7 +415,7 @@ T["context rows distinguish prompts from providers and align only available entr
   test.expect.equality(received.items[2].text, "説明説明説明 · Saved prompt")
   test.expect.equality(received.items[1].preview, "Saved buffer prompt")
   test.expect.equality(received.items[1].data, prompt)
-  ---@type agents.PickerItem<agents.Part[]>?
+  ---@type gents.PickerItem<gents.Part[]>?
   local buffer
   for _, item in ipairs(received.items) do
     local chunks = assert(item.chunks)
@@ -445,15 +445,15 @@ T["context orders common providers and inserts selection after line when availab
   test.finally(function()
     vim.cmd("messages clear")
   end)
-  require("agents.config").get().prompts = { example = { { text = "Saved prompt" } } }
-  ---@type agents.PickerSpec<agents.Part[]>?
+  require("gents.config").get().prompts = { example = { { text = "Saved prompt" } } }
+  ---@type gents.PickerSpec<gents.Part[]>?
   local received
-  require("agents.config").get().picker = function(spec)
+  require("gents.config").get().picker = function(spec)
     received = spec
   end
 
   for _, selected in ipairs({ false, true }) do
-    local ctx = require("agents.context").capture(selected and { line1 = 1, line2 = 1 } or nil)
+    local ctx = require("gents.context").capture(selected and { line1 = 1, line2 = 1 } or nil)
     picker.context(ctx, function() end)
     assert(received)
     ---@type string[]
@@ -470,15 +470,15 @@ T["context orders common providers and inserts selection after line when availab
 end
 
 T["tools use the default adapter and launch the selected tool"] = function()
-  ---@param items agents.PickerItem<agents.Tool>[]
-  ---@param callback fun(item: agents.PickerItem<agents.Tool>?, idx?: integer)
+  ---@param items gents.PickerItem<gents.Tool>[]
+  ---@param callback fun(item: gents.PickerItem<gents.Tool>?, idx?: integer)
   set_select(function(items, _, callback)
     callback(find_tool({ items = items }, "cat"))
   end)
-  ---@type agents.Session?
+  ---@type gents.Session?
   local session
   picker.tools(function(tool)
-    session = require("agents").new(tool.name)
+    session = require("gents").new(tool.name)
   end)
   assert(session)
   test.expect.equality(session.tool.name, "cat")
@@ -487,8 +487,8 @@ end
 
 T["tools sort installed and missing groups alphabetically across built-ins and custom names"] = function()
   local executable = vim.v.progpath
-  local missing = "/__agents_missing_executable__"
-  require("agents.config").get().tools = {
+  local missing = "/__gents_missing_executable__"
+  require("gents.config").get().tools = {
     zeta = { name = "zeta", cmd = { executable } },
     claude = { name = "claude", cmd = { executable } },
     beta = { name = "beta", cmd = { executable } },
@@ -497,9 +497,9 @@ T["tools sort installed and missing groups alphabetically across built-ins and c
     alpha = { name = "alpha", cmd = { missing } },
     ignored = { name = "ignored", cmd = { executable }, enabled = false },
   }
-  ---@type agents.PickerItem<agents.Tool>[]?
+  ---@type gents.PickerItem<gents.Tool>[]?
   local received
-  ---@param items agents.PickerItem<agents.Tool>[]
+  ---@param items gents.PickerItem<gents.Tool>[]
   set_select(function(items)
     received = items
   end)
@@ -519,15 +519,15 @@ T["tools sort installed and missing groups alphabetically across built-ins and c
 end
 
 T["missing tools are annotated and selection reports the install URL"] = function()
-  ---@type agents.PickerSpec<agents.Tool>?
+  ---@type gents.PickerSpec<gents.Tool>?
   local received
-  require("agents").setup({
+  require("gents").setup({
     tools = {
-      missing = { cmd = { "/__agents_missing_executable__" }, url = "https://example.com/install" },
+      missing = { cmd = { "/__gents_missing_executable__" }, url = "https://example.com/install" },
       cat = { cmd = { "cat" } },
       ignored = { cmd = { "cat" }, enabled = false },
     },
-    ---@param spec agents.PickerSpec<agents.Tool>
+    ---@param spec gents.PickerSpec<gents.Tool>
     picker = function(spec)
       received = spec
     end,
@@ -568,27 +568,27 @@ T["missing tools are annotated and selection reports the install URL"] = functio
   })
   received.actions.new(missing)
   test.expect.equality(notification, {
-    "agents.nvim: executable not found: /__agents_missing_executable__",
+    "gents.nvim: executable not found: /__gents_missing_executable__",
     vim.log.levels.ERROR,
   })
   test.expect.equality(opened, "https://example.com/install")
 end
 
 T["tool selection restores its invoking window"] = function()
-  ---@type fun(item: agents.PickerItem<agents.Tool>?)?
+  ---@type fun(item: gents.PickerItem<gents.Tool>?)?
   local callback
-  ---@type agents.PickerItem<agents.Tool>[]?
+  ---@type gents.PickerItem<gents.Tool>[]?
   local items
   local origin = vim.api.nvim_get_current_win()
-  ---@param values agents.PickerItem<agents.Tool>[]
-  ---@param on_choice fun(item: agents.PickerItem<agents.Tool>?, idx?: integer)
+  ---@param values gents.PickerItem<gents.Tool>[]
+  ---@param on_choice fun(item: gents.PickerItem<gents.Tool>?, idx?: integer)
   set_select(function(values, _, on_choice)
     items, callback = values, on_choice
   end)
-  ---@type agents.Session?
+  ---@type gents.Session?
   local session
   picker.tools(function(tool)
-    session = require("agents").new(tool.name, { layout = "current" })
+    session = require("gents").new(tool.name, { layout = "current" })
   end)
   vim.cmd("new")
   assert(callback)(find_tool({ items = assert(items) }, "cat"))
@@ -598,15 +598,15 @@ T["tool selection restores its invoking window"] = function()
 end
 
 T["tool selection reports a closed invoking window without launching"] = function()
-  ---@type fun(item: agents.PickerItem<agents.Tool>?)?
+  ---@type fun(item: gents.PickerItem<gents.Tool>?)?
   local callback
-  ---@type agents.PickerItem<agents.Tool>[]?
+  ---@type gents.PickerItem<gents.Tool>[]?
   local items
   ---@type string?
   local notified
   local origin = vim.api.nvim_get_current_win()
-  ---@param values agents.PickerItem<agents.Tool>[]
-  ---@param on_choice fun(item: agents.PickerItem<agents.Tool>?, idx?: integer)
+  ---@param values gents.PickerItem<gents.Tool>[]
+  ---@param on_choice fun(item: gents.PickerItem<gents.Tool>?, idx?: integer)
   set_select(function(values, _, on_choice)
     items, callback = values, on_choice
   end)
@@ -621,19 +621,19 @@ T["tool selection reports a closed invoking window without launching"] = functio
   assert(callback)(find_tool({ items = assert(items) }, "cat"))
   test.expect.equality(
     notified,
-    "agents.nvim: the window that opened the tool picker no longer exists"
+    "gents.nvim: the window that opened the tool picker no longer exists"
   )
-  test.expect.equality(#require("agents").sessions(), 0)
+  test.expect.equality(#require("gents").sessions(), 0)
 end
 
 T["session rows prefer this tab and show state cwd and changed argv"] = function()
-  require("agents").setup({ tools = { cat = { cmd = { "cat" } }, sh = { cmd = { "sh", "-c" } } } })
+  require("gents").setup({ tools = { cat = { cmd = { "cat" } }, sh = { cmd = { "sh", "-c" } } } })
   local elsewhere = H.new()
   local hidden = H.new({ layout = "tabnew" })
   vim.cmd("new")
-  require("agents").hide(hidden.id)
+  require("gents").hide(hidden.id)
   local visible = H.new()
-  local exited = assert(require("agents").new("sh", { args = { "exit 7" } }))
+  local exited = assert(require("gents").new("sh", { args = { "exit 7" } }))
   test.expect.equality(
     vim.wait(1000, function()
       return exited.state == "exited"
@@ -641,15 +641,15 @@ T["session rows prefer this tab and show state cwd and changed argv"] = function
     true
   )
 
-  ---@type agents.Session?
+  ---@type gents.Session?
   local selected
-  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param items gents.PickerItem<gents.Session>[]
   ---@param opts vim.ui.select.Opts
-  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, opts, callback)
     test.expect.equality(
       vim.tbl_map(
-        ---@param item agents.PickerItem<agents.Session>
+        ---@param item gents.PickerItem<gents.Session>
         ---@return integer
         function(item)
           return item.data.id
@@ -682,13 +682,13 @@ T["session rows prefer this tab and show state cwd and changed argv"] = function
     test.expect.equality(assert(opts.format_item)(items[4]), items[4].text)
     callback(items[3])
   end)
-  picker.sessions(require("agents").sessions(), function(session)
+  picker.sessions(require("gents").sessions(), function(session)
     selected = session
   end)
   test.expect.equality(selected, hidden)
 
-  require("agents").hide(exited.id)
-  ---@param items agents.PickerItem<agents.Session>[]
+  require("gents").hide(exited.id)
+  ---@param items gents.PickerItem<gents.Session>[]
   set_select(function(items)
     test.expect.equality(
       items[1].text,
@@ -703,34 +703,34 @@ end
 
 T["session picker ignores a session closed while it was open"] = function()
   local session = H.new()
-  ---@type fun(item: agents.PickerItem<agents.Session>?)?
+  ---@type fun(item: gents.PickerItem<gents.Session>?)?
   local callback
-  ---@type agents.PickerItem<agents.Session>?
+  ---@type gents.PickerItem<gents.Session>?
   local item
-  ---@param items agents.PickerItem<agents.Session>[]
-  ---@param on_choice fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  ---@param items gents.PickerItem<gents.Session>[]
+  ---@param on_choice fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, on_choice)
     item, callback = items[1], on_choice
   end)
   picker.sessions({ session }, function()
     error("closed session must not be selected")
   end)
-  require("agents").close(session.id)
+  require("gents").close(session.id)
   assert(callback)(item)
 end
 
 T["session selection reports a closed invoking window without showing"] = function()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   local origin = vim.api.nvim_get_current_win()
-  ---@type fun(item: agents.PickerItem<agents.Session>?)?
+  ---@type fun(item: gents.PickerItem<gents.Session>?)?
   local callback
-  ---@type agents.PickerItem<agents.Session>?
+  ---@type gents.PickerItem<gents.Session>?
   local item
   ---@type string?
   local notified
-  ---@param items agents.PickerItem<agents.Session>[]
-  ---@param on_choice fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  ---@param items gents.PickerItem<gents.Session>[]
+  ---@param on_choice fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, on_choice)
     item, callback = items[1], on_choice
   end)
@@ -738,7 +738,7 @@ T["session selection reports a closed invoking window without showing"] = functi
     notified = message
   end)
   picker.sessions({ session }, function(selected)
-    require("agents").show(selected.id, { layout = "current" })
+    require("gents").show(selected.id, { layout = "current" })
   end)
   vim.cmd("new")
   local unrelated = vim.api.nvim_get_current_buf()
@@ -746,7 +746,7 @@ T["session selection reports a closed invoking window without showing"] = functi
   assert(callback)(item)
   test.expect.equality(
     notified,
-    "agents.nvim: the window that opened the session picker no longer exists"
+    "gents.nvim: the window that opened the session picker no longer exists"
   )
   test.expect.equality(vim.api.nvim_get_current_buf(), unrelated)
   test.expect.equality(vim.fn.win_findbuf(session.buf), {})
@@ -755,18 +755,18 @@ end
 T["a native view in another tab ranks after hidden sessions from this tab"] = function()
   local origin = vim.api.nvim_get_current_win()
   local elsewhere, hidden = H.new(), H.new()
-  require("agents").hide(elsewhere.id)
-  require("agents").hide(hidden.id)
+  require("gents").hide(elsewhere.id)
+  require("gents").hide(hidden.id)
   vim.cmd.tabnew()
   vim.api.nvim_win_set_buf(0, elsewhere.buf)
   vim.api.nvim_set_current_win(origin)
-  ---@type agents.PickerSpec<agents.Session>?
+  ---@type gents.PickerSpec<gents.Session>?
   local spec
-  ---@param value agents.PickerSpec<agents.Session>
-  require("agents.config").get().picker = function(value)
+  ---@param value gents.PickerSpec<gents.Session>
+  require("gents.config").get().picker = function(value)
     spec = value
   end
-  require("agents").pick()
+  require("gents").pick()
   test.expect.equality(
     { assert(spec).items[1].data.id, assert(spec).items[2].data.id },
     { hidden.id, elsewhere.id }
@@ -781,12 +781,12 @@ T["a native view in another tab ranks after hidden sessions from this tab"] = fu
   )
 end
 
----@return fun(): agents.PickerSpec<agents.Tool>
+---@return fun(): gents.PickerSpec<gents.Tool>
 local function capture_tools()
-  ---@type agents.PickerSpec<agents.Tool>?
+  ---@type gents.PickerSpec<gents.Tool>?
   local captured
-  ---@param spec agents.PickerSpec<agents.Tool>
-  require("agents.config").get().picker = function(spec)
+  ---@param spec gents.PickerSpec<gents.Tool>
+  require("gents.config").get().picker = function(spec)
     captured = spec
   end
   return function()
@@ -794,12 +794,12 @@ local function capture_tools()
   end
 end
 
----@return fun(): agents.PickerSpec<agents.Session>
+---@return fun(): gents.PickerSpec<gents.Session>
 local function capture_sessions()
-  ---@type agents.PickerSpec<agents.Session>?
+  ---@type gents.PickerSpec<gents.Session>?
   local captured
-  ---@param spec agents.PickerSpec<agents.Session>
-  require("agents.config").get().picker = function(spec)
+  ---@param spec gents.PickerSpec<gents.Session>
+  require("gents.config").get().picker = function(spec)
     captured = spec
   end
   return function()
@@ -809,7 +809,7 @@ end
 
 T["custom session markers follow native tab switches and multiple views"] = function()
   local session = H.new()
-  require("agents").setup({ icons = { visible = "v", hidden = "h" } })
+  require("gents").setup({ icons = { visible = "v", hidden = "h" } })
   local first_tab = vim.api.nvim_get_current_tabpage()
   vim.cmd.tabnew()
   local second_tab = vim.api.nvim_get_current_tabpage()
@@ -818,7 +818,7 @@ T["custom session markers follow native tab switches and multiple views"] = func
 
   ---@param marker string
   local function expect_marker(marker)
-    require("agents").pick()
+    require("gents").pick()
     local item = get_spec().items[1]
     test.expect.equality(item.data.id, session.id)
     test.expect.equality(
@@ -843,21 +843,21 @@ T["custom session markers follow native tab switches and multiple views"] = func
 end
 
 T["session columns align display cells across titles labels and visibility"] = function()
-  require("agents").setup({
+  require("gents").setup({
     icons = { visible = "界", hidden = "." },
     tools = { cat = { cmd = { "cat" } }, assistant = { cmd = { "cat" } } },
   })
   local titled = H.new()
   titled.title = "日本語 é"
   local numbered = H.new()
-  local assistant = assert(require("agents").new("assistant"))
+  local assistant = assert(require("gents").new("assistant"))
   assistant.title = "Plan"
   local custom = H.new({ label = "review-long" })
-  require("agents").hide(numbered.id)
-  require("agents").hide(custom.id)
+  require("gents").hide(numbered.id)
+  require("gents").hide(custom.id)
   test.expect.equality(numbered.label, "cat #2")
 
-  ---@type { session: agents.Session, name: string, title?: string, marker: string }[]
+  ---@type { session: gents.Session, name: string, title?: string, marker: string }[]
   local rows = {
     { session = titled, name = "cat", title = "日本語 é", marker = "界" },
     { session = assistant, name = "assistant", title = "Plan", marker = "界" },
@@ -872,7 +872,7 @@ T["session columns align display cells across titles labels and visibility"] = f
     return vim.fn.strdisplaywidth(text:sub(1, start - 1))
   end
 
-  ---@type agents.Session?
+  ---@type gents.Session?
   local selected
   local get_spec = capture_sessions()
   picker.sessions({ custom, assistant, numbered, titled }, function(session)
@@ -983,7 +983,7 @@ T["session chunks preserve full text and mark visibility and directory"] = funct
   session.title = "Check [hidden] · 日本語"
   session.cwd = "/project [○]/日本語 folder"
   local get_spec = capture_sessions()
-  require("agents").pick()
+  require("gents").pick()
   local item = get_spec().items[1]
   test.expect.equality(item.data, session)
   test.expect.equality(
@@ -1015,11 +1015,11 @@ T["session picker reads current titles without changing labels or selection iden
   local session = H.new()
   test.expect.equality(session.label, "cat #2")
   session.title = "Investigate flaky tests"
-  ---@type agents.Session?
+  ---@type gents.Session?
   local selected
-  ---@param items agents.PickerItem<agents.Session>[]
+  ---@param items gents.PickerItem<gents.Session>[]
   ---@param opts vim.ui.select.Opts
-  ---@param callback fun(item: agents.PickerItem<agents.Session>?, idx?: integer)
+  ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, opts, callback)
     test.expect.equality(
       assert(opts.format_item)(items[1]),
@@ -1048,7 +1048,7 @@ T["session picker reads current titles without changing labels or selection iden
     get_spec().items[1].text,
     "●  cat #2 · Untitled · " .. vim.fn.fnamemodify(session.cwd, ":~")
   )
-  require("agents").hide("cat #2")
+  require("gents").hide("cat #2")
   test.expect.equality(vim.fn.win_findbuf(session.buf), {})
 end
 
@@ -1076,11 +1076,11 @@ T["tool layout actions"] = test.new_set({ parametrize = layouts }, {
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
     local requested = layout == "float" and "current" or "float"
     local opts = { args = { "-u" }, layout = requested, label = "custom" }
-    require("agents").new(nil, opts)
+    require("gents").new(nil, opts)
     local spec = get_spec()
     vim.cmd.tabnew()
     spec.actions[layout](assert(find_tool(spec, "cat")))
-    local session = assert(require("agents").current())
+    local session = assert(require("gents").current())
     expect_layout(layout, origin, tab, session.buf)
     test.expect.equality(session.cmd, { "cat", "-u" })
     test.expect.equality(session.label, "custom")
@@ -1098,13 +1098,13 @@ T["edit arguments runs the full argv and retains the original tool"] = function(
   set_input(function(opts, callback)
     input_opts, input_callback = opts, callback
   end)
-  require("agents").new(nil, { args = { "-u" }, layout = "current" })
+  require("gents").new(nil, { args = { "-u" }, layout = "current" })
   local spec = get_spec()
   spec.actions.edit_args(assert(find_tool(spec, "cat")))
   test.expect.equality(assert(input_opts).default, "cat -u")
   vim.cmd.tabnew()
   assert(input_callback)("  printf \t %s\\n edited-argv  ")
-  local session = assert(require("agents").current())
+  local session = assert(require("gents").current())
   test.expect.equality(vim.api.nvim_get_current_win(), origin)
   test.expect.equality(session.cmd, { "printf", "%s\\n", "edited-argv" })
   test.expect.equality(session.tool.cmd, { "cat" })
@@ -1116,7 +1116,7 @@ T["edit arguments runs the full argv and retains the original tool"] = function(
   local output = table.concat(vim.api.nvim_buf_get_lines(session.buf, 0, -1, false), "\n")
   test.expect.equality(output:find("edited%-argv") ~= nil, true)
   local get_sessions = capture_sessions()
-  require("agents").pick()
+  require("gents").pick()
   test.expect.equality(get_sessions().items[1].text:find("printf %%s\\n edited%-argv") ~= nil, true)
 end
 
@@ -1125,10 +1125,10 @@ T["edit arguments treats shell syntax as literal argv"] = function()
   set_input(function(_, callback)
     callback([[printf %s 'quoted word' $HOME ; echo unsafe]])
   end)
-  require("agents").new()
+  require("gents").new()
   local spec = get_spec()
   spec.actions.edit_args(assert(find_tool(spec, "cat")))
-  local session = assert(require("agents").current())
+  local session = assert(require("gents").current())
   test.expect.equality(
     session.cmd,
     { "printf", "%s", "'quoted", "word'", "$HOME", ";", "echo", "unsafe" }
@@ -1146,12 +1146,12 @@ T["edit arguments cancellation and empty input do not launch"] = function()
     set_input(function(_, callback)
       callback(value or nil)
     end)
-    require("agents").new()
+    require("gents").new()
     local spec = get_spec()
     spec.actions.edit_args(assert(find_tool(spec, "cat")))
-    test.expect.equality(#require("agents").sessions(), 0)
+    test.expect.equality(#require("gents").sessions(), 0)
   end
-  test.expect.equality(message, "agents.nvim: command must not be empty")
+  test.expect.equality(message, "gents.nvim: command must not be empty")
 end
 
 T["edit arguments stops when the invoking window closes during input"] = function()
@@ -1167,16 +1167,16 @@ T["edit arguments stops when the invoking window closes during input"] = functio
   set_notify(function(value)
     message = value
   end)
-  require("agents").new()
+  require("gents").new()
   local spec = get_spec()
   spec.actions.edit_args(assert(find_tool(spec, "cat")))
   vim.cmd.new()
   vim.api.nvim_win_close(origin, true)
   assert(callback)("cat")
-  test.expect.equality(#require("agents").sessions(), 0)
+  test.expect.equality(#require("gents").sessions(), 0)
   test.expect.equality(
     message,
-    "agents.nvim: the window that opened the tool picker no longer exists"
+    "gents.nvim: the window that opened the tool picker no longer exists"
   )
 end
 
@@ -1185,9 +1185,9 @@ T["session layout actions"] = test.new_set({ parametrize = layouts }, {
   ["show hidden sessions from the invoking window"] = function(layout)
     local get_spec = capture_sessions()
     local session = H.new()
-    require("agents").hide(session.id)
+    require("gents").hide(session.id)
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-    require("agents").pick()
+    require("gents").pick()
     local spec = get_spec()
     vim.cmd.tabnew()
     spec.actions[layout](spec.items[1])
@@ -1201,14 +1201,14 @@ T["session layout actions"] = test.new_set({ parametrize = layouts }, {
     local win = vim.api.nvim_get_current_win()
     vim.cmd.tabnew()
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-    require("agents").pick()
+    require("gents").pick()
     local spec = get_spec()
     vim.cmd.tabnew()
     spec.actions[layout](spec.items[1])
     expect_layout(layout, origin, tab, session.buf)
     test.expect.equality(vim.api.nvim_win_get_buf(win), session.buf)
     test.expect.equality(#vim.fn.win_findbuf(session.buf), 2)
-    test.expect.equality(require("agents").sessions(), { session })
+    test.expect.equality(require("gents").sessions(), { session })
     test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
   end,
 })
@@ -1225,7 +1225,7 @@ T["session current action"] = test.new_set({ parametrize = { { false }, { true }
       vim.cmd.new()
     end
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-    require("agents").pick()
+    require("gents").pick()
     local spec = get_spec()
     vim.cmd.tabnew()
     spec.actions.current(spec.items[1])
@@ -1241,28 +1241,28 @@ T["session hide and close actions preserve or terminate the job"] = function()
   local session = H.new()
   local split = vim.api.nvim_get_current_win()
   vim.cmd.tabnew()
-  require("agents").pick()
+  require("gents").pick()
   local spec = get_spec()
   spec.actions.float(spec.items[1])
   local float = vim.api.nvim_get_current_win()
   test.expect.equality(#vim.fn.win_findbuf(session.buf), 2)
-  require("agents").pick()
+  require("gents").pick()
   spec = get_spec()
   spec.actions.hide(spec.items[1])
   test.expect.equality(vim.fn.win_findbuf(session.buf), {})
   test.expect.equality(vim.api.nvim_win_is_valid(float), false)
   test.expect.equality(vim.api.nvim_win_is_valid(split), false)
   test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
-  test.expect.equality(require("agents.session").get(session.id), session)
-  require("agents").pick()
+  test.expect.equality(require("gents.session").get(session.id), session)
+  require("gents").pick()
   spec = get_spec()
   spec.actions.float(spec.items[1])
   float = vim.api.nvim_get_current_win()
-  require("agents").pick()
+  require("gents").pick()
   spec = get_spec()
   spec.actions.close(spec.items[1])
   test.expect.equality(vim.api.nvim_win_is_valid(float), false)
-  test.expect.equality(require("agents.session").get(session.id), nil)
+  test.expect.equality(require("gents.session").get(session.id), nil)
   H.wait(function()
     return not vim.api.nvim_buf_is_valid(session.buf)
       and vim.fn.jobwait({ session.job }, 0)[1] ~= -1
@@ -1272,13 +1272,13 @@ end
 T["all session actions ignore stale selections"] = function()
   local get_spec = capture_sessions()
   local session = H.new()
-  require("agents").pick()
+  require("gents").pick()
   local spec = get_spec()
-  require("agents").close(session.id)
+  require("gents").close(session.id)
   for _, action in pairs(spec.actions) do
     action(spec.items[1])
   end
-  test.expect.equality(#require("agents").sessions(), 0)
+  test.expect.equality(#require("gents").sessions(), 0)
 end
 
 return T

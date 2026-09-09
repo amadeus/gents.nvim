@@ -1,18 +1,18 @@
 # Session information in your statusline
 
 A statusline can identify the conversation in a session buffer and show how many
-other sessions are running. agents.nvim supplies the data; you choose the text
+other sessions are running. gents.nvim supplies the data; you choose the text
 and where it appears in your statusline.
 
 ## Name the current session
 
-Use `agents.current()` in a statusline component to show the tool and its
+Use `gents.current()` in a statusline component to show the tool and its
 conversation title, falling back to the stable session label. This example
 returns an empty string for other buffers:
 
 ```lua
-function _G.AgentsStatus()
-  local session = require("agents").current()
+function _G.GentsStatus()
+  local session = require("gents").current()
   if not session then
     return ""
   end
@@ -22,11 +22,11 @@ function _G.AgentsStatus()
   return name .. (session.state == "exited" and " [exited]" or "")
 end
 
-vim.opt.statusline:append(" %{v:lua.AgentsStatus()}")
+vim.opt.statusline:append(" %{v:lua.GentsStatus()}")
 ```
 
 The final line appends the component to Neovim's native statusline. If you
-use a statusline plugin, pass `AgentsStatus` where that plugin accepts a Lua
+use a statusline plugin, pass `GentsStatus` where that plugin accepts a Lua
 component function instead. For example, the component might show
 `codex · Fix session focus` or `codex #2`.
 
@@ -36,14 +36,14 @@ for title handling and custom parsers.
 
 ## Count running and hidden sessions
 
-To keep track of sessions while editing another buffer, use `agents.status()`.
+To keep track of sessions while editing another buffer, use `gents.status()`.
 It returns fresh snapshots of all sessions, including hidden and exited ones.
 This component counts only running sessions and shows how many are hidden:
 
 ```lua
-function _G.AgentsCount()
+function _G.GentsCount()
   local running, hidden = 0, 0
-  for _, session in ipairs(require("agents").status()) do
+  for _, session in ipairs(require("gents").status()) do
     if session.state ~= "exited" then
       running = running + 1
       if not session.visible then
@@ -54,10 +54,10 @@ function _G.AgentsCount()
   if running == 0 then
     return ""
   end
-  return ("Agents %d (%d hidden)"):format(running, hidden)
+  return ("Gents %d (%d hidden)"):format(running, hidden)
 end
 
-vim.opt.statusline:append(" %{v:lua.AgentsCount()}")
+vim.opt.statusline:append(" %{v:lua.GentsCount()}")
 ```
 
 `visible` means shown in the current tab. A session displayed only in another
@@ -71,7 +71,7 @@ exits, request one from the corresponding User events:
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
-  pattern = { "AgentsSessionTitle", "AgentsSessionExit" },
+  pattern = { "GentsSessionTitle", "GentsSessionExit" },
   callback = function()
     vim.schedule(function()
       vim.cmd("redrawstatus!")
@@ -82,7 +82,7 @@ vim.api.nvim_create_autocmd("User", {
 
 Use your statusline plugin's refresh method if it caches component results. For
 a count or visibility display, also refresh on normal buffer, window, and tab
-changes: those can change what is visible without an agents.nvim command.
+changes: those can change what is visible without a gents.nvim command.
 
-See `:help agents.current()`, `:help agents.status()`, and `:help agents-events`
-in the [complete help reference](../../doc/agents.txt) for fields and events.
+See `:help gents.current()`, `:help gents.status()`, and `:help gents-events`
+in the [complete help reference](../../doc/gents.txt) for fields and events.

@@ -6,7 +6,7 @@ local function clean(text)
   return vim.trim((text:gsub("[/\\%c]", " "):gsub("%s+", " ")))
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@return string
 local function name_for(session)
   local tool = clean(session.tool.name)
@@ -16,10 +16,10 @@ local function name_for(session)
     label = tool ~= "" and tool or "session"
   end
   local display = title ~= "" and (tool ~= "" and tool or label) .. " · " .. title or label
-  return "agents://" .. session.id .. "/" .. display
+  return "gents://" .. session.id .. "/" .. display
 end
 
----@param session agents.Session
+---@param session gents.Session
 function M.update(session)
   local buf = session.buf
   if not vim.api.nvim_buf_is_valid(buf) then

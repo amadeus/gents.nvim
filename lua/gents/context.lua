@@ -1,22 +1,22 @@
 local M = {}
 
----@alias agents.context.Position [integer, integer, integer, integer]
----@alias agents.context.Segment [agents.context.Position, agents.context.Position]
----@class agents.context.Selection
+---@alias gents.context.Position [integer, integer, integer, integer]
+---@alias gents.context.Segment [gents.context.Position, gents.context.Position]
+---@class gents.context.Selection
 ---@field lines string[]
----@field segments agents.context.Segment[]
+---@field segments gents.context.Segment[]
 
 -- Public ranges use byte columns. Keep the actual selection separately because
 -- partial tabs and virtual block columns cannot fit in those two endpoints.
----@type table<agents.Context, agents.context.Selection>
+---@type table<gents.Context, gents.context.Selection>
 local selections = setmetatable({}, { __mode = "k" })
 
----@param ctx agents.Context
----@param first agents.context.Position
----@param last agents.context.Position
+---@param ctx gents.Context
+---@param first gents.context.Position
+---@param last gents.context.Position
 ---@param mode string
 ---@param exclusive boolean
----@return agents.context.Selection
+---@return gents.context.Selection
 local function read_selection(ctx, first, last, mode, exclusive)
   return vim.api.nvim_win_call(ctx.win, function()
     return {
@@ -31,10 +31,10 @@ local function read_selection(ctx, first, last, mode, exclusive)
 end
 
 ---@param range? { line1: integer, line2: integer } An explicit Ex range is linewise.
----@return agents.Context
+---@return gents.Context
 function M.capture(range)
   local win = vim.api.nvim_get_current_win()
-  ---@type agents.Context
+  ---@type gents.Context
   local ctx = {
     win = win,
     buf = vim.api.nvim_win_get_buf(win),
@@ -45,7 +45,7 @@ function M.capture(range)
   }
   local mode = vim.fn.mode()
   mode = mode == "s" and "v" or mode == "S" and "V" or mode == "\19" and "\22" or mode
-  ---@type agents.context.Position?, agents.context.Position?
+  ---@type gents.context.Position?, gents.context.Position?
   local first, last
   local exclusive = false
   if range then
@@ -53,7 +53,7 @@ function M.capture(range)
       range.line1 >= 1
         and range.line1 <= range.line2
         and range.line2 <= vim.api.nvim_buf_line_count(ctx.buf),
-      "agents: invalid source line range"
+      "gents: invalid source line range"
     )
     first, last = { ctx.buf, range.line1, 1, 0 }, { ctx.buf, range.line2, 1, 0 }
     mode = "V"
@@ -84,8 +84,8 @@ function M.capture(range)
   return ctx
 end
 
----@param ctx agents.Context
----@return agents.context.Selection?
+---@param ctx gents.Context
+---@return gents.context.Selection?
 local function selection_for(ctx)
   local range = ctx.range
   if not range then
@@ -103,7 +103,7 @@ local function selection_for(ctx)
   )
 end
 
----@param ctx agents.Context
+---@param ctx gents.Context
 ---@return string[]?
 function M.selection(ctx)
   local selection = selection_for(ctx)
@@ -111,8 +111,8 @@ function M.selection(ctx)
 end
 
 ---Per-line byte spans also preserve block selections for diagnostic filtering.
----@param ctx agents.Context
----@return agents.context.Segment[]?
+---@param ctx gents.Context
+---@return gents.context.Segment[]?
 function M.segments(ctx)
   local selection = selection_for(ctx)
   return selection and vim.deepcopy(selection.segments) or nil

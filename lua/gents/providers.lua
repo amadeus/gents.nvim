@@ -1,5 +1,5 @@
 local M = {}
-local context = require("agents.context")
+local context = require("gents.context")
 local builtin_order = {
   "line",
   "selection",
@@ -11,10 +11,10 @@ local builtin_order = {
   "locationlist",
   "terminal",
 }
----@type table<string, agents.Provider>
+---@type table<string, gents.Provider>
 local registry = {}
 
----@param ctx agents.Context
+---@param ctx gents.Context
 ---@return string?
 local function filename(ctx)
   local name = vim.api.nvim_buf_get_name(ctx.buf)
@@ -24,11 +24,11 @@ local function filename(ctx)
   end
 end
 
----@param ctx agents.Context
+---@param ctx gents.Context
 ---@param path string
 ---@return string
 local function display_path(ctx, path)
-  return path == "" and "[No Name]" or require("agents.render").path(path, ctx.cwd)
+  return path == "" and "[No Name]" or require("gents.render").path(path, ctx.cwd)
 end
 
 ---@param lines string[]
@@ -116,7 +116,7 @@ registry.buffer = {
 }
 
 ---@param diagnostic vim.Diagnostic
----@param segments agents.context.Segment[]
+---@param segments gents.context.Segment[]
 ---@param linewise boolean
 ---@return boolean
 local function intersects(diagnostic, segments, linewise)
@@ -176,9 +176,9 @@ registry.diagnostics = {
   end,
 }
 
----@param ctx agents.Context
+---@param ctx gents.Context
 ---@param entries vim.quickfix.entry[]
----@return agents.Part[]?
+---@return gents.Part[]?
 local function list_entries(ctx, entries)
   ---@type string[]
   local lines = {}
@@ -214,14 +214,14 @@ registry.locationlist = {
 }
 
 ---Read terminal context directly, or use an inline item to choose a per-send limit.
----@param ctx agents.Context
+---@param ctx gents.Context
 ---@param limit? integer Maximum lines after trimming trailing blanks; defaults to 1000.
----@return agents.Part[]?
+---@return gents.Part[]?
 function M.terminal(ctx, limit)
   limit = limit or 1000
   assert(
     type(limit) == "number" and limit > 0 and limit % 1 == 0,
-    "agents: terminal line limit must be a positive integer"
+    "gents: terminal line limit must be a positive integer"
   )
   if vim.bo[ctx.buf].buftype ~= "terminal" then
     return nil
@@ -247,23 +247,23 @@ registry.messages = {
 }
 
 ---@param name string
----@param spec agents.Provider
+---@param spec gents.Provider
 ---@return nil
 function M.register(name, spec)
   assert(
     type(name) == "string" and name:match("^%S+$"),
-    "agents: provider name must be nonempty and contain no whitespace"
+    "gents: provider name must be nonempty and contain no whitespace"
   )
   assert(
     type(spec) == "table" and type(spec.desc) == "string",
-    "agents: provider requires a description"
+    "gents: provider requires a description"
   )
-  assert(type(spec.render) == "function", "agents: provider requires a render function")
+  assert(type(spec.render) == "function", "gents: provider requires a render function")
   registry[name] = spec
 end
 
 ---@param name string
----@return agents.Provider?
+---@return gents.Provider?
 function M.get(name)
   return registry[name]
 end

@@ -1,12 +1,12 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local agents = require("agents")
-local send = require("agents.send")
+local gents = require("gents")
+local send = require("gents.send")
 local eq = test.expect.equality
 
 ---@type string[]
 local files = {}
----@type agents.SendEvent[]
+---@type gents.SendEvent[]
 local observed = {}
 ---@type integer
 local group
@@ -16,10 +16,10 @@ local T = test.new_set({
     pre_case = function()
       H.reset()
       observed = {}
-      group = vim.api.nvim_create_augroup("AgentsSendTest", { clear = true })
+      group = vim.api.nvim_create_augroup("GentsSendTest", { clear = true })
       vim.api.nvim_create_autocmd("User", {
         group = group,
-        pattern = "AgentsSend",
+        pattern = "GentsSend",
         callback = function(ev)
           observed[#observed + 1] = vim.deepcopy(ev.data)
         end,
@@ -39,7 +39,7 @@ local T = test.new_set({
 -- A real PTY application enables bracketed paste, then records every input byte.
 -- Raw mode keeps the kernel from turning carriage returns into line feeds.
 ---@param banner? boolean
----@return agents.test.Session, string
+---@return gents.test.Session, string
 local function receiver(banner)
   local path = vim.fn.tempname()
   files[#files + 1] = path
@@ -50,7 +50,7 @@ local function receiver(banner)
       "sh",
       "-c",
       "stty raw -echo; printf '\\033[?2004h" .. greeting .. '\'; exec cat > "$1"',
-      "agents-send-test",
+      "gents-send-test",
       path,
     },
   })
@@ -101,7 +101,7 @@ T["delivery to a hidden buffer preserves the current window and cursor"] = funct
   vim.api.nvim_buf_set_lines(0, 0, -1, false, { "one", "two", "three" })
   vim.api.nvim_win_set_cursor(source, { 2, 1 })
   local session, path = receiver()
-  agents.hide(session.id)
+  gents.hide(session.id)
   vim.api.nvim_set_current_win(source)
   vim.cmd.stopinsert()
   send.enqueue(session, "hidden")
@@ -174,7 +174,7 @@ T["closing or wiping a starting session discards queued input"] = function()
   local wiped, wiped_path = receiver()
   send.enqueue(closed, "closed", true)
   send.enqueue(wiped, "wiped", true)
-  agents.close(closed.id)
+  gents.close(closed.id)
   vim.api.nvim_buf_delete(wiped.buf, { force = true })
   H.wait(function()
     return closed.state == "exited" and wiped.state == "exited"
@@ -207,9 +207,9 @@ T["a send listener can close during a large paste before its pending submit"] = 
   local session, path = receiver()
   vim.api.nvim_create_autocmd("User", {
     group = group,
-    pattern = "AgentsSend",
+    pattern = "GentsSend",
     callback = function()
-      agents.close(session.id)
+      gents.close(session.id)
     end,
   })
   send.enqueue(session, string.rep("closing", 150000), true)

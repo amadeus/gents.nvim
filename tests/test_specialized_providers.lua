@@ -1,7 +1,7 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local context = require("agents.context")
-local providers = require("agents.providers")
+local context = require("gents.context")
+local providers = require("gents.providers")
 local eq = test.expect.equality
 local T = test.new_set({
   hooks = {
@@ -17,8 +17,8 @@ local T = test.new_set({
 })
 
 ---@param name string
----@param ctx? agents.Context
----@return agents.Part[]?
+---@param ctx? gents.Context
+---@return gents.Part[]?
 local function render(name, ctx)
   return assert(providers.get(name)).render(ctx or context.capture())
 end
@@ -28,16 +28,16 @@ T["terminal provider omits ordinary buffers"] = function()
 end
 
 T["buffer provider reads the captured checkhealth buffer"] = function()
-  vim.cmd("checkhealth agents")
+  vim.cmd("checkhealth gents")
   local ctx = context.capture()
   eq(vim.bo[ctx.buf].filetype, "checkhealth")
   local expected = table.concat(vim.api.nvim_buf_get_lines(ctx.buf, 0, -1, false), "\n")
-  eq(expected:find("agents", 1, true) ~= nil, true)
+  eq(expected:find("gents", 1, true) ~= nil, true)
   vim.cmd("new")
   eq(render("buffer", ctx), { { code = expected, ft = "checkhealth" } })
 end
 
----@return agents.Context
+---@return gents.Context
 local function terminal()
   local job = vim.fn.jobstart({
     "sh",
@@ -69,7 +69,7 @@ T["terminal limits vary per call without changing the registered default"] = fun
   local ctx = terminal()
   vim.cmd("new")
   eq(providers.terminal(ctx, 2), { { code = "line 1249\nline 1250", ft = "text" } })
-  local parts = assert(require("agents.render").resolve({
+  local parts = assert(require("gents.render").resolve({
     function(captured)
       return providers.terminal(captured, 1)
     end,
@@ -111,10 +111,10 @@ end
 T["help context picker"] = test.new_set({ parametrize = { { false }, { true } } }, {
   ---@param selected boolean
   ["offers file and line references in provider order"] = function(selected)
-    ---@type agents.PickerSpec<agents.Part[]>?
+    ---@type gents.PickerSpec<gents.Part[]>?
     local received
-    require("agents").setup({
-      ---@param spec agents.PickerSpec<agents.Part[]>
+    require("gents").setup({
+      ---@param spec gents.PickerSpec<gents.Part[]>
       picker = function(spec)
         received = spec
       end,
@@ -125,12 +125,12 @@ T["help context picker"] = test.new_set({ parametrize = { { false }, { true } } 
     vim.cmd("messages clear")
     if selected then
       vim.cmd.normal({ args = { "Vjj" }, bang = true })
-      require("agents").send()
+      require("gents").send()
     else
-      vim.cmd("Agents send")
+      vim.cmd("Gents send")
     end
     local spec = assert(received)
-    eq(spec.title, "Agents: Send Context")
+    eq(spec.title, "Gents: Send Context")
     ---@type string[]
     local names = {}
     ---@type table<string, string>
@@ -152,17 +152,17 @@ T["help context picker"] = test.new_set({ parametrize = { { false }, { true } } 
 })
 
 T["context picker offers health output through buffer without a duplicate provider"] = function()
-  ---@type agents.PickerSpec<agents.Part[]>?
+  ---@type gents.PickerSpec<gents.Part[]>?
   local received
-  require("agents").setup({
-    ---@param spec agents.PickerSpec<agents.Part[]>
+  require("gents").setup({
+    ---@param spec gents.PickerSpec<gents.Part[]>
     picker = function(spec)
       received = spec
     end,
   })
   vim.api.nvim_buf_set_lines(0, 0, -1, false, { "health contents" })
   vim.bo.filetype = "checkhealth"
-  require("agents").send()
+  require("gents").send()
   local spec = assert(received)
   ---@type table<string, string>
   local previews = {}

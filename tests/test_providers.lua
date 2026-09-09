@@ -1,9 +1,9 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local providers = require("agents.providers")
-local context = require("agents.context")
+local providers = require("gents.providers")
+local context = require("gents.context")
 local eq = test.expect.equality
-local namespace = vim.api.nvim_create_namespace("AgentsProvidersTest")
+local namespace = vim.api.nvim_create_namespace("GentsProvidersTest")
 
 local T = test.new_set({
   hooks = {
@@ -19,8 +19,8 @@ local T = test.new_set({
 })
 
 ---@param name string
----@param ctx? agents.Context
----@return agents.Part[]?
+---@param ctx? gents.Context
+---@return gents.Part[]?
 local function render(name, ctx)
   return assert(providers.get(name)).render(ctx or context.capture())
 end
@@ -273,12 +273,12 @@ T["locationlist reads the displayed list when invoked in its window"] = function
 end
 
 T["diagnostic and quickfix paths preserve literal environment and tilde characters"] = function()
-  local original = vim.env.AGENTS_TEST_PATH
+  local original = vim.env.GENTS_TEST_PATH
   test.finally(function()
-    vim.env.AGENTS_TEST_PATH = original
+    vim.env.GENTS_TEST_PATH = original
   end)
-  vim.env.AGENTS_TEST_PATH = "expanded-incorrectly"
-  local name = "~/$AGENTS_TEST_PATH.lua"
+  vim.env.GENTS_TEST_PATH = "expanded-incorrectly"
+  local name = "~/$GENTS_TEST_PATH.lua"
   vim.api.nvim_buf_set_name(0, vim.fn.getcwd() .. "/" .. name)
   vim.diagnostic.set(namespace, 0, { { lnum = 0, col = 0, message = "diagnostic" } })
   vim.fn.setqflist(

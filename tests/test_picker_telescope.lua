@@ -5,50 +5,50 @@ if not (vim.env.TELESCOPE_DIR and vim.env.PLENARY_DIR) then
 end
 
 -- The optional integration uses this small surface of the real Telescope API.
----@class agents.test.TelescopeManager
----@field num_results fun(self: agents.test.TelescopeManager): integer
----@field get_entry fun(self: agents.test.TelescopeManager, index: integer): agents.pickers.TelescopeEntry?
+---@class gents.test.TelescopeManager
+---@field num_results fun(self: gents.test.TelescopeManager): integer
+---@field get_entry fun(self: gents.test.TelescopeManager, index: integer): gents.pickers.TelescopeEntry?
 
----@class agents.test.TelescopePicker
+---@class gents.test.TelescopePicker
 ---@field prompt_title string
 ---@field prompt_win integer
 ---@field prompt_bufnr integer
 ---@field results_bufnr integer
 ---@field original_win_id integer
 ---@field selection_caret string
----@field manager? agents.test.TelescopeManager
----@field get_selection fun(self: agents.test.TelescopePicker): agents.pickers.TelescopeEntry?
----@field get_multi_selection fun(self: agents.test.TelescopePicker): agents.pickers.TelescopeEntry[]
----@field set_prompt fun(self: agents.test.TelescopePicker, text: string)
----@field move_selection fun(self: agents.test.TelescopePicker, change: integer)
----@field register_completion_callback fun(self: agents.test.TelescopePicker, callback: fun())
----@field clear_completion_callbacks fun(self: agents.test.TelescopePicker)
+---@field manager? gents.test.TelescopeManager
+---@field get_selection fun(self: gents.test.TelescopePicker): gents.pickers.TelescopeEntry?
+---@field get_multi_selection fun(self: gents.test.TelescopePicker): gents.pickers.TelescopeEntry[]
+---@field set_prompt fun(self: gents.test.TelescopePicker, text: string)
+---@field move_selection fun(self: gents.test.TelescopePicker, change: integer)
+---@field register_completion_callback fun(self: gents.test.TelescopePicker, callback: fun())
+---@field clear_completion_callbacks fun(self: gents.test.TelescopePicker)
 
----@class agents.test.TelescopeMapping
+---@class gents.test.TelescopeMapping
 ---@field mode string
 ---@field keybind string
 ---@field desc string
 
----@class agents.test.TelescopeStatus
----@field picker? agents.test.TelescopePicker
+---@class gents.test.TelescopeStatus
+---@field picker? gents.test.TelescopePicker
 
----@class agents.test.TelescopeState
+---@class gents.test.TelescopeState
 ---@field get_existing_prompt_bufnrs fun(): integer[]
----@field get_status fun(prompt_bufnr: integer): agents.test.TelescopeStatus
+---@field get_status fun(prompt_bufnr: integer): gents.test.TelescopeStatus
 
 vim.opt.runtimepath:append(vim.env.PLENARY_DIR)
 vim.opt.runtimepath:append(vim.env.TELESCOPE_DIR)
----@type agents.test.TelescopeState
+---@type gents.test.TelescopeState
 local tstate = require("telescope.state")
----@type { get_current_picker: fun(prompt_bufnr: integer): agents.test.TelescopePicker }
+---@type { get_current_picker: fun(prompt_bufnr: integer): gents.test.TelescopePicker }
 local action_state = require("telescope.actions.state")
 ---@type { which_key: fun(prompt_bufnr: integer), close: fun(prompt_bufnr: integer) }
 local actions = require("telescope.actions")
----@type { get_registered_mappings: fun(prompt_bufnr: integer): agents.test.TelescopeMapping[] }
+---@type { get_registered_mappings: fun(prompt_bufnr: integer): gents.test.TelescopeMapping[] }
 local action_utils = require("telescope.actions.utils")
----@type { values: agents.pickers.TelescopeConfigValues }
+---@type { values: gents.pickers.TelescopeConfigValues }
 local tconfig = require("telescope.config")
----@type { default_mappings: table<string, table<string, agents.pickers.TelescopeMapping>> }
+---@type { default_mappings: table<string, table<string, gents.pickers.TelescopeMapping>> }
 local tmappings = require("telescope.mappings")
 ---@type { new: fun(opts: table, defaults: table): { find: fun(self: table) } }
 local tpickers = require("telescope.pickers")
@@ -65,8 +65,8 @@ T = test.new_set({
   hooks = {
     pre_case = function()
       H.reset()
-      require("agents").setup({ picker = "telescope" })
-      require("agents.config").get().tools = {
+      require("gents").setup({ picker = "telescope" })
+      require("gents.config").get().tools = {
         cat = { name = "cat", cmd = { "cat" } },
       }
     end,
@@ -86,7 +86,7 @@ T = test.new_set({
 
 ---Wait for the open picker to list the expected number of rows, or any rows.
 ---@param count? integer
----@return agents.test.TelescopePicker
+---@return gents.test.TelescopePicker
 local function current_picker(count)
   local prompt_bufnr = assert(tstate.get_existing_prompt_bufnrs()[1])
   local picker = action_state.get_current_picker(prompt_bufnr)
@@ -105,7 +105,7 @@ local function current_picker(count)
   return picker
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@param text string
 ---@param count integer
 local function filter(picker, text, count)
@@ -121,7 +121,7 @@ local function filter(picker, text, count)
 end
 
 ---Run the prompt-buffer mapping for a key without waiting for the picker to close.
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@param key string
 ---@param mode string
 local function trigger(picker, key, mode)
@@ -133,7 +133,7 @@ local function trigger(picker, key, mode)
   callback()
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@param key string
 ---@param mode string
 local function press(picker, key, mode)
@@ -145,7 +145,7 @@ local function press(picker, key, mode)
   vim.wait(20)
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@return string[] Displayed rows without their caret prefix, top to bottom.
 local function rows(picker)
   ---@type string[]
@@ -158,7 +158,7 @@ local function rows(picker)
   return result
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@return string[] Row text in match order, best first.
 local function ordered(picker)
   ---@type string[]
@@ -170,7 +170,7 @@ local function ordered(picker)
   return result
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@param namespace string
 ---@return { [1]: string, [2]: string }[] Highlight groups with their text, in buffer order.
 local function highlights(picker, namespace)
@@ -202,13 +202,13 @@ local function highlights(picker, namespace)
   return result
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@return { [1]: string, [2]: string }[]
 local function row_highlights(picker)
   return highlights(picker, "telescope_entry")
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@param group string
 ---@param text string
 ---@return boolean
@@ -221,7 +221,7 @@ local function has_highlight(picker, group, text)
   return false
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@return string[] Text highlighted by Telescope as matching the prompt.
 local function match_highlights(picker)
   ---@type string[]
@@ -233,7 +233,7 @@ local function match_highlights(picker)
   return result
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@return table<string, string> Registered mapping names by "mode key".
 local function registered(picker)
   ---@type table<string, string>
@@ -244,7 +244,7 @@ local function registered(picker)
   return result
 end
 
----@param picker agents.test.TelescopePicker
+---@param picker gents.test.TelescopePicker
 ---@return string The text of Telescope's key hint window for the current mode.
 local function help_text(picker)
   vim.api.nvim_set_current_win(picker.prompt_win)
@@ -272,17 +272,17 @@ T["shows other-tab sessions as hidden with their titles and preserves selection"
   session.title = "Investigate flaky tests"
   local session_tab = vim.api.nvim_get_current_tabpage()
   vim.cmd.tabnew()
-  require("agents").pick()
+  require("gents").pick()
   local picker = current_picker(1)
   local directory = vim.fn.fnamemodify(session.cwd, ":~")
   local text = "○  cat · Investigate flaky tests · " .. directory
-  eq(picker.prompt_title, "Agents: Sessions")
+  eq(picker.prompt_title, "Gents: Sessions")
   eq(rows(picker), { text })
   eq(row_highlights(picker), {
-    { "AgentsPickerHidden", "○" },
-    { "AgentsPickerSeparator", " · " },
-    { "AgentsPickerSeparator", " · " },
-    { "AgentsPickerDirectory", directory },
+    { "GentsPickerHidden", "○" },
+    { "GentsPickerSeparator", " · " },
+    { "GentsPickerSeparator", " · " },
+    { "GentsPickerDirectory", directory },
   })
   eq(match_highlights(picker), {})
   filter(picker, "no-such-session-or-directory", 0)
@@ -290,9 +290,9 @@ T["shows other-tab sessions as hidden with their titles and preserves selection"
   filter(picker, "flaky", 1)
   eq(rows(picker), { text })
   eq(#match_highlights(picker) > 0, true)
-  eq(row_highlights(picker)[4], { "AgentsPickerDirectory", directory })
+  eq(row_highlights(picker)[4], { "GentsPickerDirectory", directory })
   press(picker, "<CR>", "i")
-  eq(require("agents").current(), session)
+  eq(require("gents").current(), session)
   eq(session.label, "review")
   eq(vim.api.nvim_get_current_tabpage(), session_tab)
 end
@@ -317,7 +317,7 @@ T["explicit placement"] = test.new_set({
     local win = vim.api.nvim_get_current_win()
     vim.cmd.tabnew()
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-    require("agents").pick()
+    require("gents").pick()
     press(current_picker(1), key, mode)
     eq(vim.api.nvim_get_current_win() == origin, layout == "current")
     eq(vim.api.nvim_get_current_tabpage(), tab)
@@ -328,7 +328,7 @@ T["explicit placement"] = test.new_set({
     end
     eq(vim.api.nvim_win_get_buf(win), session.buf)
     eq(#vim.fn.win_findbuf(session.buf), 2)
-    eq(require("agents").sessions(), { session })
+    eq(require("gents").sessions(), { session })
     eq(vim.fn.jobwait({ session.job }, 0), { -1 })
   end,
 })
@@ -348,7 +348,7 @@ T["built-in tool shortcuts"] = test.new_set({
   ---@param layout string
   ["launch a real session from Insert and Normal mode mappings"] = function(key, layout)
     if layout == "float" then
-      require("agents.config").get().float = {
+      require("gents.config").get().float = {
         width = 0.5,
         height = 0.25,
         row = 1,
@@ -362,9 +362,9 @@ T["built-in tool shortcuts"] = test.new_set({
         eq(assert(opts).default, "cat")
         callback("cat -u")
       end)
-      require("agents").new()
+      require("gents").new()
       press(current_picker(1), key, mode)
-      local session = assert(require("agents").current())
+      local session = assert(require("gents").current())
       eq(vim.api.nvim_get_current_win() == origin, layout == "current")
       eq(vim.api.nvim_get_current_tabpage() == tab, layout ~= "tabnew")
       eq(session.cmd, key == "<C-e>" and { "cat", "-u" } or { "cat" })
@@ -377,7 +377,7 @@ T["built-in tool shortcuts"] = test.new_set({
         eq({ config.row, config.col }, { 1, 2 })
         eq(config.border, { "┌", "─", "┐", "│", "┘", "─", "└", "│" })
       end
-      require("agents").close(session.id)
+      require("gents").close(session.id)
     end
   end,
 })
@@ -403,23 +403,23 @@ T["built-in session shortcuts"] = test.new_set({
     for _, mode in ipairs({ "i", "n" }) do
       local session = H.new()
       if action ~= "hide" then
-        require("agents").hide(session.id)
+        require("gents").hide(session.id)
       end
       local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-      require("agents").pick()
+      require("gents").pick()
       local picker = current_picker(1)
       if action == "hide" then
         eq(row_highlights(picker), {
-          { "AgentsPickerVisible", "●" },
-          { "AgentsPickerSeparator", " · " },
-          { "AgentsPickerPlaceholder", "Untitled" },
-          { "AgentsPickerSeparator", " · " },
-          { "AgentsPickerDirectory", vim.fn.fnamemodify(session.cwd, ":~") },
+          { "GentsPickerVisible", "●" },
+          { "GentsPickerSeparator", " · " },
+          { "GentsPickerPlaceholder", "Untitled" },
+          { "GentsPickerSeparator", " · " },
+          { "GentsPickerDirectory", vim.fn.fnamemodify(session.cwd, ":~") },
         })
       end
       press(picker, key, mode)
       if action == "close" then
-        eq(require("agents.session").get(session.id), nil)
+        eq(require("gents.session").get(session.id), nil)
         H.wait(function()
           return not vim.api.nvim_buf_is_valid(session.buf)
         end)
@@ -436,7 +436,7 @@ T["built-in session shortcuts"] = test.new_set({
         end
       end
       if action ~= "close" then
-        require("agents").close(session.id)
+        require("gents").close(session.id)
       end
     end
   end,
@@ -455,10 +455,10 @@ T["actions ordering"] = test.new_set({
     if context ~= "empty" then
       local session = H.new()
       if context == "editor" then
-        require("agents").hide(session.id)
+        require("gents").hide(session.id)
       end
     end
-    require("agents").actions()
+    require("gents").actions()
     local picker = current_picker(#expected)
     ---@type string[]
     local names = {}
@@ -473,30 +473,30 @@ T["actions ordering"] = test.new_set({
 T["actions picker runs the chosen command in the invoking window"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
-  require("agents").hide(session.id)
-  require("agents").actions()
+  require("gents").hide(session.id)
+  require("gents").actions()
   local picker = current_picker(7)
-  eq(picker.prompt_title, "Agents: Actions")
+  eq(picker.prompt_title, "Gents: Actions")
   eq(ordered(picker)[1], "send   · Pick context to send to a session")
   eq(vim.list_contains(rows(picker), "send   · Pick context to send to a session"), true)
-  eq(has_highlight(picker, "AgentsPickerSeparator", " · "), true)
-  eq(has_highlight(picker, "AgentsPickerDescription", "Pick context to send to a session"), true)
+  eq(has_highlight(picker, "GentsPickerSeparator", " · "), true)
+  eq(has_highlight(picker, "GentsPickerDescription", "Pick context to send to a session"), true)
   filter(picker, "and kill", 1)
   press(picker, "<CR>", "i")
-  eq(require("agents.session").get(session.id), nil)
+  eq(require("gents.session").get(session.id), nil)
   eq(vim.api.nvim_get_current_win(), origin)
 end
 
 T["actions chain into the session picker from the invoking window"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
-  require("agents").hide(session.id)
-  require("agents").actions()
+  require("gents").hide(session.id)
+  require("gents").actions()
   local picker = current_picker(7)
   filter(picker, "Existing session", 1)
   press(picker, "<CR>", "n")
   local sessions = current_picker(1)
-  eq(sessions.prompt_title, "Agents: Sessions")
+  eq(sessions.prompt_title, "Gents: Sessions")
   eq(sessions.original_win_id, origin)
   press(sessions, "<CR>", "n")
   eq(vim.api.nvim_get_current_buf(), session.buf)
@@ -506,19 +506,19 @@ end
 T["context picker closes before sending the selected parts"] = function()
   local origin = vim.api.nvim_get_current_win()
   local parts = { { text = "Explain this" } }
-  require("agents.config").get().prompts = { buffer = parts }
-  ---@type agents.Part[]?
+  require("gents.config").get().prompts = { buffer = parts }
+  ---@type gents.Part[]?
   local received
   ---@type boolean?
   local closed_before_action
-  require("agents.picker").context(require("agents.context").capture(), function(selected)
+  require("gents.picker").context(require("gents.context").capture(), function(selected)
     received = selected
     closed_before_action = #tstate.get_existing_prompt_bufnrs() == 0
   end)
   local picker = current_picker()
-  eq(picker.prompt_title, "Agents: Send Context")
+  eq(picker.prompt_title, "Gents: Send Context")
   eq(ordered(picker)[1]:match("^buffer%s+· Saved prompt$") ~= nil, true)
-  eq(has_highlight(picker, "AgentsPickerDescription", "Saved prompt"), true)
+  eq(has_highlight(picker, "GentsPickerDescription", "Saved prompt"), true)
   filter(picker, "Copy entire buffer text", 1)
   filter(picker, "Saved prompt", 1)
   press(picker, "<CR>", "n")
@@ -529,18 +529,18 @@ end
 
 T["cancelling, empty matches, and native placement without an action do nothing"] = function()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   local windows = #vim.api.nvim_list_wins()
 
-  require("agents").pick()
+  require("gents").pick()
   press(current_picker(1), "<Esc>", "n")
   eq(vim.fn.win_findbuf(session.buf), {})
 
-  require("agents").pick()
+  require("gents").pick()
   press(current_picker(1), "<C-c>", "i")
   eq(vim.fn.win_findbuf(session.buf), {})
 
-  require("agents").pick()
+  require("gents").pick()
   local picker = current_picker(1)
   filter(picker, "no-such-row", 0)
   trigger(picker, "<CR>", "i")
@@ -548,7 +548,7 @@ T["cancelling, empty matches, and native placement without an action do nothing"
   press(picker, "<Esc>", "n")
   eq(vim.fn.win_findbuf(session.buf), {})
 
-  require("agents").actions()
+  require("gents").actions()
   picker = current_picker(7)
   trigger(picker, "<C-v>", "i")
   eq(tstate.get_status(picker.prompt_bufnr).picker ~= nil, true)
@@ -556,15 +556,15 @@ T["cancelling, empty matches, and native placement without an action do nothing"
   press(picker, "<Esc>", "n")
   eq(#vim.api.nvim_list_wins(), windows)
   eq(vim.fn.win_findbuf(session.buf), {})
-  eq(require("agents.session").get(session.id), session)
+  eq(require("gents.session").get(session.id), session)
 end
 
 T["multi selection and quickfix keys are disabled because menus act on one row"] = function()
   local first, second = H.new(), H.new()
-  require("agents").hide(first.id)
-  require("agents").hide(second.id)
+  require("gents").hide(first.id)
+  require("gents").hide(second.id)
   local quickfix = vim.fn.getqflist()
-  require("agents").pick()
+  require("gents").pick()
   local picker = current_picker(2)
   local mappings = registered(picker)
   for _, key in ipairs({ "<tab>", "<s-tab>", "<c-q>", "<m-q>" }) do
@@ -585,12 +585,12 @@ end
 T["duplicate display text resolves to the selected original item once"] = function()
   ---@type string[]
   local chosen = {}
-  require("agents.picker").open({
+  require("gents.picker").open({
     title = "Duplicates",
     items = { { text = "same", data = "first" }, { text = "same", data = "second" } },
     default = "pick",
     actions = {
-      ---@param item agents.PickerItem<string>
+      ---@param item gents.PickerItem<string>
       pick = function(item)
         chosen[#chosen + 1] = item.data
       end,
@@ -605,18 +605,18 @@ end
 
 T["native key hints list adapter mappings by name"] = function()
   local session = H.new()
-  require("agents").hide(session.id)
-  require("agents").pick()
+  require("gents").hide(session.id)
+  require("gents").pick()
   local picker = current_picker(1)
   local mappings = registered(picker)
   for _, mode in ipairs({ "i", "n" }) do
-    eq(mappings[mode .. " <c-v>"], "agents_open_in_vsplit")
-    eq(mappings[mode .. " <c-x>"], "agents_open_in_split")
-    eq(mappings[mode .. " <c-t>"], "agents_open_in_tab")
-    eq(mappings[mode .. " <c-f>"], "agents_open_in_float")
-    eq(mappings[mode .. " <c-cr>"], "agents_open_here")
-    eq(mappings[mode .. " <m-h>"], "agents_hide_session")
-    eq(mappings[mode .. " <c-d>"], "agents_close_session")
+    eq(mappings[mode .. " <c-v>"], "gents_open_in_vsplit")
+    eq(mappings[mode .. " <c-x>"], "gents_open_in_split")
+    eq(mappings[mode .. " <c-t>"], "gents_open_in_tab")
+    eq(mappings[mode .. " <c-f>"], "gents_open_in_float")
+    eq(mappings[mode .. " <c-cr>"], "gents_open_here")
+    eq(mappings[mode .. " <m-h>"], "gents_hide_session")
+    eq(mappings[mode .. " <c-d>"], "gents_close_session")
     eq(mappings[mode .. " <c-e>"], nil)
     eq(mappings[mode .. " <cr>"], "select_default")
   end
@@ -627,25 +627,25 @@ T["native key hints list adapter mappings by name"] = function()
   end
   eq(insert_help, true)
   local help = help_text(picker)
-  eq(help:find("agents_open_in_vsplit", 1, true) ~= nil, true)
-  eq(help:find("agents_close_session", 1, true) ~= nil, true)
+  eq(help:find("gents_open_in_vsplit", 1, true) ~= nil, true)
+  eq(help:find("gents_close_session", 1, true) ~= nil, true)
   eq(help:find("select_default", 1, true) ~= nil, true)
   press(picker, "<Esc>", "n")
 
-  require("agents").new()
+  require("gents").new()
   picker = current_picker(1)
   mappings = registered(picker)
-  eq(mappings["i <c-e>"], "agents_edit_command")
-  eq(mappings["n <c-e>"], "agents_edit_command")
+  eq(mappings["i <c-e>"], "gents_edit_command")
+  eq(mappings["n <c-e>"], "gents_edit_command")
   eq(mappings["i <m-h>"], nil)
   -- Without a close action the native preview mapping stays in place.
   eq(mappings["i <c-d>"], "preview_scrolling_down")
   press(picker, "<Esc>", "n")
 
-  require("agents").actions()
+  require("gents").actions()
   picker = current_picker(7)
   for _, desc in pairs(registered(picker)) do
-    eq(desc:find("^agents_") == nil, true)
+    eq(desc:find("^gents_") == nil, true)
   end
   press(picker, "<Esc>", "n")
 end
@@ -656,27 +656,27 @@ T["configured Telescope mappings take precedence over adapter bindings"] = funct
     n = { ["<c-t>"] = false, ["<Tab>"] = "move_selection_next" },
   }
   local session = H.new()
-  require("agents").hide(session.id)
-  require("agents").pick()
+  require("gents").hide(session.id)
+  require("gents").pick()
   local picker = current_picker(1)
   local mappings = registered(picker)
   eq(mappings["i <c-d>"], "preview_scrolling_down")
-  eq(mappings["n <c-d>"], "agents_close_session")
+  eq(mappings["n <c-d>"], "gents_close_session")
   eq(mappings["n <c-t>"], nil)
-  eq(mappings["i <c-t>"], "agents_open_in_tab")
+  eq(mappings["i <c-t>"], "gents_open_in_tab")
   eq(mappings["n <tab>"], "move_selection_next")
   eq(mappings["i <tab>"], "nop")
   trigger(picker, "<C-d>", "i")
   eq(tstate.get_status(picker.prompt_bufnr).picker ~= nil, true)
-  eq(require("agents.session").get(session.id), session)
+  eq(require("gents.session").get(session.id), session)
   press(picker, "<C-d>", "n")
-  eq(require("agents.session").get(session.id), nil)
+  eq(require("gents.session").get(session.id), nil)
 end
 
 T["replaced Telescope base mappings take precedence over adapter bindings"] = function()
   -- Telescope reads `defaults.default_mappings` once when its mappings module
   -- loads; the test applies the same table where Telescope keeps it.
-  ---@type table<string, table<string, agents.pickers.TelescopeMapping>>
+  ---@type table<string, table<string, gents.pickers.TelescopeMapping>>
   local replaced = {
     i = { ["<CR>"] = "select_default", ["<C-c>"] = "close", ["<C-d>"] = "move_selection_next" },
     n = { ["<CR>"] = "select_default", ["<esc>"] = "close", ["<C-d>"] = "move_selection_next" },
@@ -684,27 +684,27 @@ T["replaced Telescope base mappings take precedence over adapter bindings"] = fu
   tconfig.values.default_mappings = replaced
   tmappings.default_mappings = replaced
   local first, second = H.new(), H.new()
-  require("agents").hide(first.id)
-  require("agents").hide(second.id)
-  require("agents").pick()
+  require("gents").hide(first.id)
+  require("gents").hide(second.id)
+  require("gents").pick()
   local picker = current_picker(2)
   local mappings = registered(picker)
   eq(mappings["i <c-d>"], "move_selection_next")
   eq(mappings["n <c-d>"], "move_selection_next")
-  eq(mappings["i <m-h>"], "agents_hide_session")
-  eq(mappings["i <c-v>"], "agents_open_in_vsplit")
+  eq(mappings["i <m-h>"], "gents_hide_session")
+  eq(mappings["i <c-v>"], "gents_open_in_vsplit")
   local before = assert(picker:get_selection()).value
   trigger(picker, "<C-d>", "i")
   eq(tstate.get_status(picker.prompt_bufnr).picker ~= nil, true)
   eq(assert(picker:get_selection()).value ~= before, true)
   press(picker, "<Esc>", "n")
-  eq(require("agents.session").get(first.id), first)
-  eq(require("agents.session").get(second.id), second)
+  eq(require("gents.session").get(first.id), first)
+  eq(require("gents.session").get(second.id), second)
 end
 
 T["a menu requested from a Telescope mapping replaces that picker and keeps its window"] = function()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   local origin = vim.api.nvim_get_current_win()
   tpickers
     .new({}, {
@@ -714,8 +714,8 @@ T["a menu requested from a Telescope mapping replaces that picker and keeps its 
       previewer = false,
       attach_mappings = function(_, map)
         map({ "i", "n" }, "<F6>", function()
-          require("agents").pick()
-        end, { desc = "agents_pick" })
+          require("gents").pick()
+        end, { desc = "gents_pick" })
         return true
       end,
     })
@@ -727,7 +727,7 @@ T["a menu requested from a Telescope mapping replaces that picker and keeps its 
     return tstate.get_status(probe.prompt_bufnr).picker == nil
   end)
   local picker = current_picker(1)
-  eq(picker.prompt_title, "Agents: Sessions")
+  eq(picker.prompt_title, "Gents: Sessions")
   eq(picker.original_win_id, origin)
   press(picker, "<CR>", "n")
   eq(vim.api.nvim_get_current_buf(), session.buf)

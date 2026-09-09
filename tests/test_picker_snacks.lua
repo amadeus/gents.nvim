@@ -5,46 +5,46 @@ if not vim.env.SNACKS_DIR then
 end
 
 -- The optional integration uses this small surface of the real Snacks API.
----@class agents.test.SnacksWindow
+---@class gents.test.SnacksWindow
 ---@field win { win?: integer }
 
----@class agents.test.SnacksList: agents.test.SnacksWindow
----@field count fun(self: agents.test.SnacksList): integer
----@field get fun(self: agents.test.SnacksList, index: integer): agents.pickers.SnacksItem?
+---@class gents.test.SnacksList: gents.test.SnacksWindow
+---@field count fun(self: gents.test.SnacksList): integer
+---@field get fun(self: gents.test.SnacksList, index: integer): gents.pickers.SnacksItem?
 
----@class agents.test.SnacksInput: agents.test.SnacksWindow
----@field set fun(self: agents.test.SnacksInput, pattern: string)
+---@class gents.test.SnacksInput: gents.test.SnacksWindow
+---@field set fun(self: gents.test.SnacksInput, pattern: string)
 
----@class agents.test.SnacksPicker
+---@class gents.test.SnacksPicker
 ---@field shown boolean
 ---@field closed boolean
----@field input agents.test.SnacksInput
----@field list agents.test.SnacksList
----@field preview agents.test.SnacksWindow
----@field opts agents.pickers.SnacksOptions
----@field close fun(self: agents.test.SnacksPicker)
----@field find fun(self: agents.test.SnacksPicker, opts: { refresh: boolean })
----@field is_active fun(self: agents.test.SnacksPicker): boolean
+---@field input gents.test.SnacksInput
+---@field list gents.test.SnacksList
+---@field preview gents.test.SnacksWindow
+---@field opts gents.pickers.SnacksOptions
+---@field close fun(self: gents.test.SnacksPicker)
+---@field find fun(self: gents.test.SnacksPicker, opts: { refresh: boolean })
+---@field is_active fun(self: gents.test.SnacksPicker): boolean
 
----@class agents.test.SnacksLayoutNode: agents.pickers.SnacksLayoutNode
+---@class gents.test.SnacksLayoutNode: gents.pickers.SnacksLayoutNode
 ---@field box? string
 ---@field width? number
 ---@field min_width? integer
 ---@field height? number
 ---@field backdrop? boolean
----@field [integer] agents.test.SnacksLayoutNode
+---@field [integer] gents.test.SnacksLayoutNode
 
----@class agents.test.SnacksLayout
+---@class gents.test.SnacksLayout
 ---@field preset? string
----@field layout? agents.test.SnacksLayoutNode
----@field config? fun(opts: agents.test.SnacksLayout)
+---@field layout? gents.test.SnacksLayoutNode
+---@field config? fun(opts: gents.test.SnacksLayout)
 
----@class agents.test.SnacksPickerConfig
----@field layout? agents.test.SnacksLayout|fun(): agents.test.SnacksLayout
+---@class gents.test.SnacksPickerConfig
+---@field layout? gents.test.SnacksLayout|fun(): gents.test.SnacksLayout
 ---@field win? { list: { footer_keys?: boolean, min_width?: integer, max_width?: integer } }
 
 vim.opt.runtimepath:append(vim.env.SNACKS_DIR)
----@type { setup: fun(opts: { picker: { enabled: boolean, ui_select: boolean } }), picker: { get: fun(): agents.test.SnacksPicker[] }, config: { picker: agents.test.SnacksPickerConfig } }
+---@type { setup: fun(opts: { picker: { enabled: boolean, ui_select: boolean } }), picker: { get: fun(): gents.test.SnacksPicker[] }, config: { picker: gents.test.SnacksPickerConfig } }
 local snacks = require("snacks")
 snacks.setup({ picker = { enabled = true, ui_select = false } })
 
@@ -59,8 +59,8 @@ T = test.new_set({
   hooks = {
     pre_case = function()
       H.reset()
-      require("agents").setup({ picker = "snacks" })
-      require("agents.config").get().tools = {
+      require("gents").setup({ picker = "snacks" })
+      require("gents.config").get().tools = {
         cat = { name = "cat", cmd = { "cat" } },
       }
     end,
@@ -79,7 +79,7 @@ T = test.new_set({
   },
 })
 
----@return agents.test.SnacksPicker
+---@return gents.test.SnacksPicker
 local function current_picker()
   local picker = assert(snacks.picker.get()[1])
   H.wait(function()
@@ -88,7 +88,7 @@ local function current_picker()
   return picker
 end
 
----@param picker agents.test.SnacksPicker
+---@param picker gents.test.SnacksPicker
 ---@param key string
 ---@param mode string
 ---@param win "input"|"list"
@@ -110,15 +110,15 @@ local function set_input(callback)
   vim.ui.input = callback
 end
 
----@param picker agents.test.SnacksPicker
----@return agents.pickers.SnacksHighlight[]
+---@param picker gents.test.SnacksPicker
+---@return gents.pickers.SnacksHighlight[]
 local function footer_chunks(picker)
-  ---@type agents.pickers.SnacksHighlight[]
+  ---@type gents.pickers.SnacksHighlight[]
   local footer = vim.api.nvim_win_get_config(assert(picker.list.win.win)).footer or {}
   return footer
 end
 
----@param picker agents.test.SnacksPicker
+---@param picker gents.test.SnacksPicker
 ---@return string
 local function footer_text(picker)
   ---@type string[]
@@ -134,20 +134,20 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
   session.title = "Investigate flaky tests"
   local session_tab = vim.api.nvim_get_current_tabpage()
   vim.cmd.tabnew()
-  require("agents").pick()
+  require("gents").pick()
   local picker = current_picker()
   local item = picker.opts.items[1]
   local directory = vim.fn.fnamemodify(session.cwd, ":~")
   local text = "○  cat · Investigate flaky tests · " .. directory
   test.expect.equality(item.text, text)
   test.expect.equality(picker.opts.format(item), {
-    { "○", "AgentsPickerHidden" },
+    { "○", "GentsPickerHidden" },
     { "  cat" },
-    { " · ", "AgentsPickerSeparator" },
+    { " · ", "GentsPickerSeparator" },
     { "Investigate flaky tests" },
     { "" },
-    { " · ", "AgentsPickerSeparator" },
-    { directory, "AgentsPickerDirectory" },
+    { " · ", "GentsPickerSeparator" },
+    { directory, "GentsPickerDirectory" },
   })
   local buf = vim.api.nvim_win_get_buf(assert(picker.list.win.win))
   ---@type { [1]: integer, [2]: integer, [3]: integer, [4]: { hl_group?: string, end_col?: integer, end_row?: integer } }[]
@@ -157,9 +157,9 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
   for _, mark in ipairs(marks) do
     local details = mark[4]
     if
-      details.hl_group == "AgentsPickerDirectory"
-      or details.hl_group == "AgentsPickerHidden"
-      or details.hl_group == "AgentsPickerSeparator"
+      details.hl_group == "GentsPickerDirectory"
+      or details.hl_group == "GentsPickerHidden"
+      or details.hl_group == "GentsPickerSeparator"
     then
       local highlighted = vim.api.nvim_buf_get_text(
         buf,
@@ -169,10 +169,10 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
         assert(details.end_col),
         {}
       )
-      if details.hl_group == "AgentsPickerHidden" then
+      if details.hl_group == "GentsPickerHidden" then
         test.expect.equality(highlighted, { "○" })
         marker_highlighted = true
-      elseif details.hl_group == "AgentsPickerSeparator" then
+      elseif details.hl_group == "GentsPickerSeparator" then
         test.expect.equality(highlighted, { " · " })
         separators_highlighted = separators_highlighted + 1
       else
@@ -195,7 +195,7 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
     return not picker:is_active() and picker.list:count() == 1
   end)
   press(picker, "<CR>", "i", "input")
-  test.expect.equality(require("agents").current(), session)
+  test.expect.equality(require("gents").current(), session)
   test.expect.equality(session.label, "review")
   test.expect.equality(vim.api.nvim_get_current_tabpage(), session_tab)
 end
@@ -222,7 +222,7 @@ T["Snacks explicit placement"] = test.new_set({
     local win = vim.api.nvim_get_current_win()
     vim.cmd.tabnew()
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-    require("agents").pick()
+    require("gents").pick()
     press(current_picker(), key, mode, from)
     test.expect.equality(vim.api.nvim_get_current_win() == origin, layout == "current")
     test.expect.equality(vim.api.nvim_get_current_tabpage(), tab)
@@ -233,7 +233,7 @@ T["Snacks explicit placement"] = test.new_set({
     end
     test.expect.equality(vim.api.nvim_win_get_buf(win), session.buf)
     test.expect.equality(#vim.fn.win_findbuf(session.buf), 2)
-    test.expect.equality(require("agents").sessions(), { session })
+    test.expect.equality(require("gents").sessions(), { session })
     test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
   end,
 })
@@ -253,7 +253,7 @@ T["built-in tool shortcuts"] = test.new_set({
   ---@param layout string
   ["launch a real session from input and list mappings"] = function(key, layout)
     if layout == "float" then
-      require("agents.config").get().float = {
+      require("gents.config").get().float = {
         width = 0.5,
         height = 0.25,
         row = 1,
@@ -269,9 +269,9 @@ T["built-in tool shortcuts"] = test.new_set({
         test.expect.equality(assert(opts).default, "cat")
         callback("cat -u")
       end)
-      require("agents").new()
+      require("gents").new()
       press(current_picker(), key, from[2], from[1])
-      local session = assert(require("agents").current())
+      local session = assert(require("gents").current())
       test.expect.equality(vim.api.nvim_get_current_win() == origin, layout == "current")
       test.expect.equality(vim.api.nvim_get_current_tabpage() == tab, layout ~= "tabnew")
       test.expect.equality(session.cmd, key == "<C-e>" and { "cat", "-u" } or { "cat" })
@@ -287,7 +287,7 @@ T["built-in tool shortcuts"] = test.new_set({
           { "┌", "─", "┐", "│", "┘", "─", "└", "│" }
         )
       end
-      require("agents").close(session.id)
+      require("gents").close(session.id)
     end
   end,
 })
@@ -312,25 +312,25 @@ T["built-in session shortcuts"] = test.new_set({
     for _, from in ipairs(windows) do
       local session = H.new()
       if action ~= "hide" then
-        require("agents").hide(session.id)
+        require("gents").hide(session.id)
       end
       local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
-      require("agents").pick()
+      require("gents").pick()
       local picker = current_picker()
       if action == "hide" then
         test.expect.equality(picker.opts.format(picker.opts.items[1]), {
-          { "●", "AgentsPickerVisible" },
+          { "●", "GentsPickerVisible" },
           { "  " .. session.label },
-          { " · ", "AgentsPickerSeparator" },
-          { "Untitled", "AgentsPickerPlaceholder" },
+          { " · ", "GentsPickerSeparator" },
+          { "Untitled", "GentsPickerPlaceholder" },
           { "" },
-          { " · ", "AgentsPickerSeparator" },
-          { vim.fn.fnamemodify(session.cwd, ":~"), "AgentsPickerDirectory" },
+          { " · ", "GentsPickerSeparator" },
+          { vim.fn.fnamemodify(session.cwd, ":~"), "GentsPickerDirectory" },
         })
       end
       press(picker, key, from[2], from[1])
       if action == "close" then
-        test.expect.equality(require("agents.session").get(session.id), nil)
+        test.expect.equality(require("gents.session").get(session.id), nil)
         H.wait(function()
           return not vim.api.nvim_buf_is_valid(session.buf)
         end)
@@ -346,7 +346,7 @@ T["built-in session shortcuts"] = test.new_set({
         end
       end
       if action ~= "close" then
-        require("agents").close(session.id)
+        require("gents").close(session.id)
       end
     end
   end,
@@ -365,10 +365,10 @@ T["actions ordering"] = test.new_set({
     if context ~= "empty" then
       local session = H.new()
       if context == "editor" then
-        require("agents").hide(session.id)
+        require("gents").hide(session.id)
       end
     end
-    require("agents").actions()
+    require("gents").actions()
     local picker = current_picker()
     H.wait(function()
       return not picker:is_active()
@@ -386,16 +386,16 @@ T["actions ordering"] = test.new_set({
 T["actions picker runs the chosen command in the invoking window"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
-  require("agents").hide(session.id)
-  require("agents").actions()
+  require("gents").hide(session.id)
+  require("gents").actions()
   local picker = current_picker()
-  test.expect.equality(picker.opts.title, "Agents: Actions")
-  test.expect.equality(picker.opts.confirm, "agents_run")
+  test.expect.equality(picker.opts.title, "Gents: Actions")
+  test.expect.equality(picker.opts.confirm, "gents_run")
   test.expect.equality(picker.opts.items[1].text, "send   · Pick context to send to a session")
   test.expect.equality(picker.opts.format(picker.opts.items[1]), {
     { "send  " },
-    { " · ", "AgentsPickerSeparator" },
-    { "Pick context to send to a session", "AgentsPickerDescription" },
+    { " · ", "GentsPickerSeparator" },
+    { "Pick context to send to a session", "GentsPickerDescription" },
   })
   picker.input:set("and kill")
   picker:find({ refresh = false })
@@ -403,29 +403,29 @@ T["actions picker runs the chosen command in the invoking window"] = function()
     return not picker:is_active() and picker.list:count() == 1
   end)
   press(picker, "<CR>", "i", "input")
-  test.expect.equality(require("agents.session").get(session.id), nil)
+  test.expect.equality(require("gents.session").get(session.id), nil)
   test.expect.equality(vim.api.nvim_get_current_win(), origin)
 end
 
 T["context picker preserves previews and closes before sending the selected parts"] = function()
   local origin = vim.api.nvim_get_current_win()
   local parts = { { text = "Explain this" } }
-  require("agents.config").get().prompts = { buffer = parts }
-  ---@type agents.Part[]?
+  require("gents.config").get().prompts = { buffer = parts }
+  ---@type gents.Part[]?
   local received
   ---@type boolean?
   local closed_before_action
-  require("agents.picker").context(require("agents.context").capture(), function(selected)
+  require("gents.picker").context(require("gents.context").capture(), function(selected)
     received = selected
     closed_before_action = #snacks.picker.get() == 0
   end)
   local picker = current_picker()
-  test.expect.equality(picker.opts.confirm, "agents_send")
+  test.expect.equality(picker.opts.confirm, "gents_send")
   local item = picker.opts.items[1]
   local chunks = picker.opts.format(item)
   test.expect.equality(vim.trim(chunks[1][1]), "buffer")
-  test.expect.equality(chunks[2], { " · ", "AgentsPickerSeparator" })
-  test.expect.equality(chunks[3], { "Saved prompt", "AgentsPickerDescription" })
+  test.expect.equality(chunks[2], { " · ", "GentsPickerSeparator" })
+  test.expect.equality(chunks[3], { "Saved prompt", "GentsPickerDescription" })
   test.expect.equality(item.text, chunks[1][1] .. " · Saved prompt")
   test.expect.equality(item.preview, { text = "Explain this" })
   picker.input:set("Copy entire buffer text")
@@ -445,7 +445,7 @@ T["context picker preserves previews and closes before sending the selected part
 end
 
 T["item formatting preserves the suggested highlight"] = function()
-  require("agents.picker").open({
+  require("gents.picker").open({
     title = "Highlighted item",
     items = { { text = "Missing tool", data = 1, hl = "Comment" } },
     default = "new",
@@ -453,11 +453,11 @@ T["item formatting preserves the suggested highlight"] = function()
   })
   local picker = current_picker()
   test.expect.equality(picker.opts.format(picker.opts.items[1]), { { "Missing tool", "Comment" } })
-  test.expect.equality(picker.opts.actions.agents_vsplit, nil)
+  test.expect.equality(picker.opts.actions.gents_vsplit, nil)
 end
 
 T["chunk formatting preserves plain highlights and returns fresh arrays"] = function()
-  ---@type agents.PickerChunk[]
+  ---@type gents.PickerChunk[]
   local chunks = {
     { text = "v", kind = "visible" },
     { text = "  Example  " },
@@ -465,7 +465,7 @@ T["chunk formatting preserves plain highlights and returns fresh arrays"] = func
     { text = "  custom args" },
   }
   local original = vim.deepcopy(chunks)
-  require("agents.picker").open({
+  require("gents.picker").open({
     title = "Styled item",
     items = {
       { text = "v  Example  /tmp/project  custom args", data = 1, hl = "Comment", chunks = chunks },
@@ -476,9 +476,9 @@ T["chunk formatting preserves plain highlights and returns fresh arrays"] = func
   local picker = current_picker()
   local item = picker.opts.items[1]
   local expected = {
-    { "v", "AgentsPickerVisible" },
+    { "v", "GentsPickerVisible" },
     { "  Example  ", "Comment" },
-    { "/tmp/project", "AgentsPickerDirectory" },
+    { "/tmp/project", "GentsPickerDirectory" },
     { "  custom args", "Comment" },
   }
   local formatted = picker.opts.format(item)
@@ -516,15 +516,15 @@ T["binding footer"] = test.new_set({
       }
     end
     if kind == "tools" then
-      require("agents").new()
+      require("gents").new()
     elseif kind == "sessions" then
       H.new()
-      require("agents").pick()
+      require("gents").pick()
     elseif kind == "actions" then
-      require("agents").actions()
+      require("gents").actions()
     else
-      require("agents.config").get().prompts = { explain = { { text = "Explain this" } } }
-      require("agents.picker").context(require("agents.context").capture(), function() end)
+      require("gents.config").get().prompts = { explain = { { text = "Explain this" } } }
+      require("gents.picker").context(require("gents.context").capture(), function() end)
     end
     local picker = current_picker()
     local footer = footer_text(picker)
@@ -590,7 +590,7 @@ T["binding footer preserves wider dropdown sizing and borders across resizing"] 
     },
   }
   H.new()
-  require("agents").pick()
+  require("gents").pick()
   local picker = current_picker()
   local list_win, input_win = assert(picker.list.win.win), assert(picker.input.win.win)
   local footer = footer_text(picker)
@@ -626,7 +626,7 @@ T["binding footer widens a narrow dropdown and remains bounded across screen res
     },
   }
   H.new()
-  require("agents").pick()
+  require("gents").pick()
   local picker = current_picker()
   local footer = footer_text(picker)
   local required = vim.fn.strdisplaywidth(footer) + 2
@@ -671,7 +671,7 @@ T["binding footer with a horizontal preview"] = test.new_set({
       },
     }
     H.new()
-    require("agents").pick()
+    require("gents").pick()
     local picker = current_picker()
     local required = vim.fn.strdisplaywidth(footer_text(picker)) + 2
 
@@ -706,7 +706,7 @@ T["binding footer widens the sidebar preset while keeping the source editor"] = 
   vim.o.columns = 200
   local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
   snacks.config.picker.layout = { preset = "sidebar" }
-  require("agents").new()
+  require("gents").new()
   local picker = current_picker()
   test.expect.equality(
     vim.api.nvim_win_get_width(assert(picker.list.win.win))
@@ -731,7 +731,7 @@ T["binding footer lifts a conflicting list window width limit"] = function()
       { win = "list", border = "none" },
     },
   }
-  require("agents").new()
+  require("gents").new()
   local picker = current_picker()
   test.expect.equality(
     vim.api.nvim_win_get_width(assert(picker.list.win.win))
@@ -755,14 +755,14 @@ T["binding footer preserves a dynamic layout and runs its configuration hook onc
     resolved = resolved + 1
     return {
       layout = layout,
-      ---@param opts agents.test.SnacksLayout
+      ---@param opts gents.test.SnacksLayout
       config = function(opts)
         configured = configured + 1
         assert(opts.layout).width = 30
       end,
     }
   end
-  require("agents").new()
+  require("gents").new()
   local picker = current_picker()
   test.expect.equality({ resolved, configured }, { 1, 1 })
   test.expect.equality(
@@ -810,7 +810,7 @@ T["binding footer border"] = test.new_set({
         { win = "list", border = border },
       },
     }
-    require("agents").new()
+    require("gents").new()
     local picker = current_picker()
     test.expect.equality(
       footer_text(picker),
@@ -822,7 +822,7 @@ T["binding footer border"] = test.new_set({
 
 T["binding footer takes precedence over Snacks automatic key hints"] = function()
   snacks.config.picker.win = { list = { footer_keys = true } }
-  require("agents").new()
+  require("gents").new()
   test.expect.equality(
     footer_text(current_picker()),
     "  C-v  vsplit   C-x  split   C-t  tab   C-f  float   C-Ent  here   C-e  args  "
@@ -830,7 +830,7 @@ T["binding footer takes precedence over Snacks automatic key hints"] = function(
 end
 
 T["hidden binding hints preserve layout and shortcuts"] = function()
-  require("agents.config").get().picker_help = false
+  require("gents.config").get().picker_help = false
   snacks.config.picker.win = { list = { footer_keys = true } }
   snacks.config.picker.layout = {
     layout = {
@@ -843,7 +843,7 @@ T["hidden binding hints preserve layout and shortcuts"] = function()
     },
   }
   local session = H.new()
-  require("agents").pick()
+  require("gents").pick()
   local picker = current_picker()
   local config = vim.api.nvim_win_get_config(assert(picker.list.win.win))
   test.expect.equality(config.footer, nil)
@@ -868,8 +868,8 @@ T["hidden binding hints preserve layout and shortcuts"] = function()
   end
   test.expect.equality(vim.fn.maparg("?", "n", false, true).desc, "toggle_help_list")
   press(picker, "<C-h>", "i", "input")
-  test.expect.equality(require("agents.window").visible(session), false)
-  test.expect.equality(require("agents.session").get(session.id), session)
+  test.expect.equality(require("gents.window").visible(session), false)
+  test.expect.equality(require("gents.session").get(session.id), session)
 end
 
 return T

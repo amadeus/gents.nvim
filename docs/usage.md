@@ -1,4 +1,4 @@
-# Using agents.nvim
+# Using gents.nvim
 
 CLI sessions live in Neovim terminal buffers, so you can navigate and arrange
 them alongside your other buffers. Set up a few keymaps to start sessions, move
@@ -27,14 +27,14 @@ built-in behavior with just a few keymaps:
 We recommend [snacks.nvim](https://github.com/folke/snacks.nvim) picker because
 we've spent some time integrating additional functionality into it. It shows the
 available actions and their shortcuts, so you can discover how to place, hide,
-and close sessions as you use it. Install it alongside agents.nvim and enable it
+and close sessions as you use it. Install it alongside gents.nvim and enable it
 with `picker = "snacks"`, as shown below.
 
-Agents.nvim installs no keymaps by default. These four cover the everyday
+Gents.nvim installs no keymaps by default. These four cover the everyday
 flows; choose different keys if they fit your configuration better:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   -- Use our custom snack picker which shows additional picker based mappings
   -- for extended functionality, just make sure you've also installed
   -- https://github.com/folke/snacks.nvim
@@ -53,7 +53,7 @@ require("agents").setup({
 ```
 
 Each named action calls the matching Lua function: `new` calls
-`require("agents").new()`, for example. Here, new, actions, and toggle work
+`require("gents").new()`, for example. Here, new, actions, and toggle work
 in Normal mode and while typing in a session terminal. Send works in Normal
 and Visual modes, from the buffer whose context you want to share.
 
@@ -108,8 +108,8 @@ With none running, it offers new and send. As you find actions you use often,
 give them their own keymaps.
 
 The sections below cover window placement, pickers, and custom bindings.
-For every option, command, and API contract, see `:help agents.nvim` or the
-[complete help reference](../doc/agents.txt).
+For every option, command, and API contract, see `:help gents.nvim` or the
+[complete help reference](../doc/gents.txt).
 
 ## Choose where sessions open
 
@@ -120,7 +120,7 @@ or pass a layout to a Lua call to place just that session view.
 To open new session windows as floats:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   layout = "float",
   -- Optional: change the default 80% width and height.
   float = { width = 60, height = 0.8, border = "rounded" },
@@ -137,7 +137,7 @@ Floats update their size and position when Neovim resizes. Use functions for
 example, keep a 60-column float near the top-right corner:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   layout = "float",
   float = {
     width = 60,
@@ -174,10 +174,10 @@ Lua function. This uses the requested placement even if the session is
 already displayed elsewhere:
 
 ```lua
-local agents = require("agents")
-agents.new("claude", { layout = "split" })
-agents.show("claude", { layout = "current" })
-agents.show("claude", {
+local gents = require("gents")
+gents.new("claude", { layout = "split" })
+gents.show("claude", { layout = "current" })
+gents.show("claude", {
   layout = { width = 0.6, height = 0.5, border = "single" },
 })
 ```
@@ -198,10 +198,10 @@ move existing windows. Session pickers opened by `hide`, `close`, or `send`
 choose the target for that operation.
 
 If you need your own window placement logic, a layout callback can create or
-choose a window and return its ID. agents.nvim puts the session buffer there:
+choose a window and return its ID. gents.nvim puts the session buffer there:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   layout = function()
     vim.cmd("botright vsplit")
     return vim.api.nvim_get_current_win()
@@ -209,11 +209,11 @@ require("agents").setup({
 })
 ```
 
-See `:help agents-layouts` for placement rules and float options.
+See `:help gents-layouts` for placement rules and float options.
 
 ## Pickers and shortcuts
 
-agents.nvim opens its menus through `vim.ui.select` unless you choose a picker
+gents.nvim opens its menus through `vim.ui.select` unless you choose a picker
 adapter. With an adapter, the New Session and Sessions menus gain shortcuts to
 place a session in a split, tab, or float, to open it in the current window, to
 edit the launch command, and to hide or close a session. The adapters share
@@ -230,7 +230,7 @@ We recommend Snacks because its picker also shows the shortcuts while you
 choose, so you can discover the actions as you go:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   picker = "snacks",
 })
 ```
@@ -254,7 +254,7 @@ space permits and updates sizing when Neovim is resized.
 To hide the hints while keeping the shortcuts:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   picker = "snacks",
   picker_help = false,
 })
@@ -263,11 +263,11 @@ require("agents").setup({
 The other adapters bind the same actions to keys that fit their picker and list
 them in that picker's own help, leaving any key your picker configuration
 already uses untouched. See [use your preferred picker](recipes/pickers.md) for
-their setup and key tables, `:help agents-picker-adapters` for the complete
-comparison, and `:help agents-picker-highlights` for row highlight
+their setup and key tables, `:help gents-picker-adapters` for the complete
+comparison, and `:help gents-picker-highlights` for row highlight
 customization.
 
-Without a configured picker, agents.nvim uses `vim.ui.select`, including any
+Without a configured picker, gents.nvim uses `vim.ui.select`, including any
 replacement you have configured. To build your own adapter, see the [custom
 adapter notes](recipes/pickers.md#custom-adapters).
 
@@ -280,11 +280,11 @@ ask about the selected code:
 
 ```lua
 vim.keymap.set("n", "<leader>af", function()
-  require("agents").new(nil, { layout = "float" })
+  require("gents").new(nil, { layout = "float" })
 end, { desc = "Start a session in a float" })
 
 vim.keymap.set({ "n", "x" }, "<leader>ae", function()
-  require("agents").send({
+  require("gents").send({
     { text = "Explain this code:" },
     { any = { "selection", "line" } },
   })
@@ -301,12 +301,12 @@ That helper keeps Terminal-mode mappings local to session buffers. With
 
 For `setup().keys`, omitting `mode` uses Normal, Visual, and Terminal modes.
 Insert, Select, and combined Visual/Select modes are also supported. See
-`:help agents-keymaps` for callbacks, options, and action names.
+`:help gents-keymaps` for callbacks, options, and action names.
 
 Lua calls that immediately resolve a session return it where documented.
 Calls that open a picker return `nil`; the selection happens later through
 callbacks. Do not chain another operation onto an assumed picker result.
-See `:help agents-api` for each function's return value and
+See `:help gents-api` for each function's return value and
 [statusline integration](recipes/statusline.md) for reading session state.
 
 ## Call commands directly
@@ -315,33 +315,33 @@ The actions used by your keymaps also have Ex commands. Use them from the
 command line, or in a mapping when you want a fixed action:
 
 ```lua
-vim.keymap.set("n", "<leader>aa", "<cmd>Agents toggle<cr>", {
+vim.keymap.set("n", "<leader>aa", "<cmd>Gents toggle<cr>", {
   desc = "Show or hide a session",
 })
 ```
 
-| Command                                                     | What it does                                                                                                               |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `:Agents new [tool] [args...]`                              | Pick a CLI tool, or start the named tool with optional extra arguments.                                                    |
-| `:Agents` or `:Agents pick [target]`                        | Choose an existing session, or show an explicit target. With no sessions, pick a tool to start.                            |
-| `:Agents focus [target]`                                    | Focus a session. When called from a session without a target, return to the previous window and leave the session visible. |
-| `:Agents toggle [target]`                                   | Hide the selected session's views in the current tab, or show it if it is not visible there.                               |
-| `:Agents hide [target]`                                     | Hide every view of the selected session, across all tabs, and keep its CLI running.                                        |
-| `:Agents close [target]`                                    | Stop the selected CLI and delete its buffer.                                                                               |
-| `:Agents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or saved prompts.                                                              |
+| Command                                                    | What it does                                                                                                               |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `:Gents new [tool] [args...]`                              | Pick a CLI tool, or start the named tool with optional extra arguments.                                                    |
+| `:Gents` or `:Gents pick [target]`                         | Choose an existing session, or show an explicit target. With no sessions, pick a tool to start.                            |
+| `:Gents focus [target]`                                    | Focus a session. When called from a session without a target, return to the previous window and leave the session visible. |
+| `:Gents toggle [target]`                                   | Hide the selected session's views in the current tab, or show it if it is not visible there.                               |
+| `:Gents hide [target]`                                     | Hide every view of the selected session, across all tabs, and keep its CLI running.                                        |
+| `:Gents close [target]`                                    | Stop the selected CLI and delete its buffer.                                                                               |
+| `:Gents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or saved prompts.                                                              |
 
 The `actions` prefix also accepts a command and its arguments. These pairs
 perform the same action:
 
 ```vim
-:Agents hide
-:Agents actions hide
+:Gents hide
+:Gents actions hide
 
-:Agents new claude
-:Agents actions new claude
+:Gents new claude
+:Gents actions new claude
 ```
 
-See `:help agents-commands` for command syntax and completion.
+See `:help gents-commands` for command syntax and completion.
 
 ## Choose a session
 
@@ -362,13 +362,13 @@ error. Labels such as `claude #2` are stable targets; conversation titles are
 display text and cannot be used as targets.
 
 ```vim
-:Agents hide claude #2
-:Agents focus 3
+:Gents hide claude #2
+:Gents focus 3
 ```
 
 ```lua
-require("agents").show("claude #2")
-require("agents").hide(3)
+require("gents").show("claude #2")
+require("gents").hide(3)
 ```
 
 There are a few differences between commands:
@@ -382,19 +382,19 @@ There are a few differences between commands:
   the context to send.
 
 Lua calls also accept a predicate to narrow the candidates. See
-`:help agents.Target` for examples.
+`:help gents.Target` for examples.
 
 ## Send context directly
 
 Send file references, selected code, or diagnostic messages from the buffer
 you want to discuss. `line` and `file` send references; `selection` and
-`buffer` copy text, including unsaved edits. Calling send from an agents.nvim
+`buffer` copy text, including unsaved edits. Calling send from a gents.nvim
 session buffer shows a warning and sends nothing.
 
 ```vim
-:Agents send
-:Agents send file diagnostics
-:Agents send selection --no-focus --target claude #2
+:Gents send
+:Gents send file diagnostics
+:Gents send selection --no-focus --target claude #2
 ```
 
 The first command opens the context picker. The others choose context
@@ -407,19 +407,19 @@ showing the destination. With `layout = "current"`, that window displays
 the session buffer.
 
 ```lua
-require("agents").send({ "selection" }, { focus = false })
+require("gents").send({ "selection" }, { focus = false })
 ```
 
 Ranges let you choose between copying lines and sending a reference to them:
 
 ```vim
-:2,5Agents send
-:2,5Agents send line
+:2,5Gents send
+:2,5Gents send line
 ```
 
 The first copies lines 2–5 using `selection`; the second sends a file
 reference to that range. Ranges also work through `actions send`. Calling
-`:2,5Agents actions` retains the range for send; other actions reject ranges.
+`:2,5Gents actions` retains the range for send; other actions reject ranges.
 
 See [sending context](recipes/context.md) for all providers, saved prompts,
 custom providers, and optional message submission.
@@ -431,7 +431,7 @@ use. A tool's `cmd` is an argument list, so it can also point to a wrapper
 script. For example, if you have a CLI named `mycli` with a `chat` command:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   tools = {
     mycli = { cmd = { "mycli", "chat" } },
     qwen = false,
@@ -451,13 +451,13 @@ command. Ex commands split on whitespace and treat quotes and shell
 expressions literally. Lua preserves spaces within individual arguments:
 
 ```lua
-require("agents").new("claude", { args = { "Explain this project" } })
+require("gents").new("claude", { args = { "Explain this project" } })
 ```
 
 Tool configuration changes affect newly created sessions. Each `setup()` call
 starts from defaults, so collect your options in one call. See
-`:help agents-tools` for built-in tools and environment examples, and
-`:help agents-config` for configuration merging and timing.
+`:help gents-tools` for built-in tools and environment examples, and
+`:help gents-config` for configuration merging and timing.
 
 ## When a CLI exits
 
@@ -469,23 +469,23 @@ not restart the CLI.
 To remove the buffer automatically when the process exits successfully:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   on_exit = "close",
 })
 ```
 
 An unsuccessful exit still keeps the output so you can read the error.
-`:Agents close` always stops the CLI and deletes its buffer, regardless of
-`on_exit`. Use `hide` to keep a session running. See `:help agents-on-exit`.
+`:Gents close` always stops the CLI and deletes its buffer, regardless of
+`on_exit`. Use `hide` to keep a session running. See `:help gents-on-exit`.
 
 ## Ordinary buffer pickers
 
-Use `:Agents pick` to browse sessions and choose their placement. If you need
+Use `:Gents pick` to browse sessions and choose their placement. If you need
 session buffers in ordinary buffer lists instead, `buflisted = true` is an
 advanced escape hatch:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   buflisted = true,
 })
 ```
@@ -498,7 +498,7 @@ See [conversation titles](recipes/titles.md) for buffer names.
 
 ## Session restoration
 
-agents.nvim sessions cannot be restored by `:mksession`. If you use it, we
+gents.nvim sessions cannot be restored by `:mksession`. If you use it, we
 recommend excluding terminal buffers from saved sessions:
 
 ```lua

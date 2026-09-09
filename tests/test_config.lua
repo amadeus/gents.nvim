@@ -1,7 +1,7 @@
 local test = require("mini.test")
 local expect = test.expect.equality
-local config = require("agents.config")
-local tools = require("agents.tools")
+local config = require("gents.config")
+local tools = require("gents.tools")
 local T = test.new_set({ hooks = {
   post_case = function()
     config.setup()
@@ -26,8 +26,8 @@ local builtin_names = {
 }
 
 T["defaults work without setup"] = function()
-  ---@type { get: fun(): agents.Config }
-  local fresh = dofile("lua/agents/config.lua")
+  ---@type { get: fun(): gents.Config }
+  local fresh = dofile("lua/gents/config.lua")
   local result = fresh.get()
   expect(result.layout, "botright vsplit")
   expect(result.float, { width = 0.8, height = 0.8, border = "rounded" })

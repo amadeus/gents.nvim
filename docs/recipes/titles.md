@@ -1,7 +1,7 @@
 # Conversation titles
 
 Conversation titles help you find the right session when several CLIs are open.
-When a CLI emits a terminal title, agents.nvim shows it in the session picker
+When a CLI emits a terminal title, gents.nvim shows it in the session picker
 and native buffer name. For example:
 
 ```text
@@ -19,16 +19,16 @@ Use the session's ID or label in commands and mappings. A conversation title can
 change as the work develops without breaking a command such as:
 
 ```vim
-:Agents focus claude #2
+:Gents focus claude #2
 ```
 
 For a label you choose yourself, name the session when you create it:
 
 ```lua
-require("agents").new("claude", { label = "review" })
+require("gents").new("claude", { label = "review" })
 ```
 
-You can then use `:Agents focus review` regardless of its displayed title.
+You can then use `:Gents focus review` regardless of its displayed title.
 Conversation titles are display text and are not command targets.
 
 ## Built-in title handling
@@ -36,7 +36,7 @@ Conversation titles are display text and are not command targets.
 Built-in parsers remove tool-specific wrappers so the picker can show the useful
 part of a title. Custom tools use their cleaned terminal title automatically.
 
-| Tool                    | How agents.nvim handles its terminal title                                                                        |
+| Tool                    | How gents.nvim handles its terminal title                                                                         |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `claude`                | Removes a leading activity marker (`✳`, `◐`, or `◑` followed by a space). `Claude Code` clears the title.         |
 | `codex`                 | The built-in command requests `tui.terminal_title=["thread"]`. The parser omits `Codex` and unnamed thread UUIDs. |
@@ -60,7 +60,7 @@ format. This example turns `MyCLI: Fix terminal navigation` into `Fix terminal
 navigation`:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   tools = {
     mycli = {
       cmd = { "mycli" },
@@ -76,12 +76,12 @@ The callback receives the cleaned title and session object, and returns a string
 or `nil`. Returning `nil` clears the title rather than falling back to the raw
 text. Control characters become spaces, surrounding whitespace is trimmed, and
 empty titles or titles equal to the session's working directory or its basename
-are omitted. See `:help agents.TitleParser` for the full contract.
+are omitted. See `:help gents.TitleParser` for the full contract.
 
 Set `title = false` when you prefer stable labels in the picker and buffer names:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   tools = {
     claude = { title = false },
     codex = { title = false },
@@ -93,7 +93,7 @@ This changes title reporting for new sessions without changing the CLI's own
 output. To also stop requesting Codex title output, replace its launch command:
 
 ```lua
-require("agents").setup({
+require("gents").setup({
   tools = {
     codex = {
       cmd = { "codex", "-c", "tui.terminal_title=[]" },
@@ -107,52 +107,52 @@ A `cmd` override replaces the whole command. To append an override for just one
 session:
 
 ```lua
-require("agents").new("codex", { args = { "-c", "tui.terminal_title=[]" } })
+require("gents").new("codex", { args = { "-c", "tui.terminal_title=[]" } })
 ```
 
 ## Find sessions through native buffer tools
 
 Readable buffer names help you recognize sessions in Neovim's own buffer tools.
-A titled session is named `agents://2/claude · Fix terminal navigation`; without
-a title, it uses a name such as `agents://2/claude #2`. The ID distinguishes
+A titled session is named `gents://2/claude · Fix terminal navigation`; without
+a title, it uses a name such as `gents://2/claude #2`. The ID distinguishes
 sessions that have the same title. Names follow title changes, with path
 separators, control characters, and whitespace sanitized.
 
-Use the agents.nvim session picker for normal navigation. Session buffers are
+Use the gents.nvim session picker for normal navigation. Session buffers are
 unlisted by default; `:ls!` includes them. If you want your usual buffer tools
 to list new sessions, opt in with:
 
 ```lua
-require("agents").setup({ buflisted = true })
+require("gents").setup({ buflisted = true })
 ```
 
 This is an advanced escape hatch: buffer tools may still exclude terminals, and
-deleting a session buffer stops its CLI. Use `:Agents hide` to keep it running.
-See `:help agents-buffer-listing` for existing buffers and native navigation.
+deleting a session buffer stops its CLI. Use `:Gents hide` to keep it running.
+See `:help gents-buffer-listing` for existing buffers and native navigation.
 
-agents.nvim sessions cannot be restored by `:mksession`. We recommend
+gents.nvim sessions cannot be restored by `:mksession`. We recommend
 [excluding terminal buffers from saved sessions](../usage.md#session-restoration).
 
 ## Use titles in a statusline
 
 You can show the current conversation in your statusline as well as the picker.
-Session objects and `agents.status()` snapshots expose the full optional
+Session objects and `gents.status()` snapshots expose the full optional
 `title`. See [statusline integration](statusline.md) for complete examples that
 use the title when present and fall back to the session label.
 
-`User AgentsSessionTitle` fires when the normalized title changes. Its event
+`User GentsSessionTitle` fires when the normalized title changes. Its event
 data contains `id` and optional `title`; an absent title means it was cleared.
-Read `agents.status()` again when refreshing a cached statusline. See `:help
-AgentsSessionTitle` for the event contract.
+Read `gents.status()` again when refreshing a cached statusline. See `:help
+GentsSessionTitle` for the event contract.
 
 ## When a title is missing or stale
 
 Titles reflect the signals the CLI sends. Generic signals may describe a
-project, status, or screen rather than a conversation, and agents.nvim cannot
+project, status, or screen rather than a conversation, and gents.nvim cannot
 recover text the CLI omitted. Recognized reset titles clear the previous title;
 empty signals may not reach the plugin, so a reset without a usable signal can
 leave it stale. Exited sessions retain their last title and ignore later
 updates.
 
-The complete title behavior is documented in `:help agents-tool-titles` in the
-[full help file](../../doc/agents.txt).
+The complete title behavior is documented in `:help gents-tool-titles` in the
+[full help file](../../doc/gents.txt).

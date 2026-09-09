@@ -1,8 +1,8 @@
 # Agent ready notifications
 
 Ready notifications let you keep editing while a CLI works and return when it
-needs your attention. agents.nvim emits an `AgentsReady` event when the CLI
-sends a supported terminal notification or a hook calls `agents.ready(id)`.
+needs your attention. gents.nvim emits a `GentsReady` event when the CLI
+sends a supported terminal notification or a hook calls `gents.ready(id)`.
 Your Neovim configuration decides how to present that event: a popup, a sound,
 or a statusline update.
 
@@ -15,7 +15,7 @@ Notify when a session needs attention and is not visible in your current tab:
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
-  pattern = "AgentsReady",
+  pattern = "GentsReady",
   callback = function(ev)
     if not ev.data.visible then
       vim.notify(ev.data.label .. " is waiting")
@@ -24,12 +24,12 @@ vim.api.nvim_create_autocmd("User", {
 })
 ```
 
-Sessions shown only in another tab count as hidden. See `:help AgentsReady`
-in the [help reference](../../doc/agents.txt) for the full event details.
+Sessions shown only in another tab count as hidden. See `:help GentsReady`
+in the [help reference](../../doc/gents.txt) for the full event details.
 
 ## CLI setup
 
-Some CLIs, including Codex, can notify agents.nvim without any additional CLI
+Some CLIs, including Codex, can notify gents.nvim without any additional CLI
 configuration. Start with the Neovim callback above. If it already receives
 notifications, no further setup is needed.
 
@@ -37,21 +37,21 @@ If it does not, or you want to change when it notifies, use the recipes below.
 Some adjust built-in terminal notifications; others add a hook that tells
 Neovim when the CLI needs attention.
 
-| Tool                                      | Example setup                       | When it notifies                                  |
-| ----------------------------------------- | ----------------------------------- | ------------------------------------------------- |
-| [Codex](#codex)                           | Optional notification settings      | Completed turns with the filter shown below       |
-| [Claude Code](#claude-code)               | `Stop` hook                         | Main response finished                            |
-| [OpenCode](#opencode)                     | `session.idle` handler              | Session became idle, including cancellation       |
-| [Amp](#amp)                               | `agent.end` handler                 | Turn finished without error or cancellation       |
-| [Gemini CLI](#gemini-cli)                 | `AfterAgent` hook                   | Final response generated                          |
-| [Pi](#pi)                                 | Extension                           | Automatic work settled after a completed response |
-| [Qwen Code](#qwen-code)                   | `Stop` hook                         | Main response finished                            |
-| [GitHub Copilot CLI](#github-copilot-cli) | `agentStop` hook                    | Main agent finished a turn                        |
-| [Grok CLI](#grok-cli)                     | `Stop` hook                         | Response finished                                 |
-| [Amazon Q CLI](#amazon-q-cli)             | `stop` hook                         | Assistant response finished                       |
-| [Cursor Agent](#cursor-agent)             | `afterAgentResponse` hook           | Assistant message finished                        |
-| [Aider](#aider)                           | Notification command                | Input requested after work starts                 |
-| [Crush](#crush)                           | Enable terminal notifications       | Turn finished or attention needed                 |
+| Tool                                      | Example setup                  | When it notifies                                  |
+| ----------------------------------------- | ------------------------------ | ------------------------------------------------- |
+| [Codex](#codex)                           | Optional notification settings | Completed turns with the filter shown below       |
+| [Claude Code](#claude-code)               | `Stop` hook                    | Main response finished                            |
+| [OpenCode](#opencode)                     | `session.idle` handler         | Session became idle, including cancellation       |
+| [Amp](#amp)                               | `agent.end` handler            | Turn finished without error or cancellation       |
+| [Gemini CLI](#gemini-cli)                 | `AfterAgent` hook              | Final response generated                          |
+| [Pi](#pi)                                 | Extension                      | Automatic work settled after a completed response |
+| [Qwen Code](#qwen-code)                   | `Stop` hook                    | Main response finished                            |
+| [GitHub Copilot CLI](#github-copilot-cli) | `agentStop` hook               | Main agent finished a turn                        |
+| [Grok CLI](#grok-cli)                     | `Stop` hook                    | Response finished                                 |
+| [Amazon Q CLI](#amazon-q-cli)             | `stop` hook                    | Assistant response finished                       |
+| [Cursor Agent](#cursor-agent)             | `afterAgentResponse` hook      | Assistant message finished                        |
+| [Aider](#aider)                           | Notification command           | Input requested after work starts                 |
+| [Crush](#crush)                           | Enable terminal notifications  | Turn finished or attention needed                 |
 
 ## Codex
 
@@ -70,14 +70,14 @@ decide whether to show them, merge these settings into `~/.codex/config.toml`:
 [tui]
 # Notify only when a turn finishes.
 notifications = ["agent-turn-complete"]
-# Use a terminal notification format that agents.nvim receives.
+# Use a terminal notification format that gents.nvim receives.
 notification_method = "osc9"
 # Let the Neovim callback handle the visibility check.
 notification_condition = "always"
 ```
 
 Codex's automatic method can fall back to a terminal bell, which does not
-trigger `AgentsReady`. Setting `notification_method = "osc9"` makes the
+trigger `GentsReady`. Setting `notification_method = "osc9"` makes the
 notification format explicit. These settings apply to the interactive CLI.
 See the [Codex defaults](https://learn.chatgpt.com/docs/config-file/config-sample)
 and [notification settings](https://learn.chatgpt.com/docs/config-file/config-advanced#notifications).
@@ -86,14 +86,14 @@ and [notification settings](https://learn.chatgpt.com/docs/config-file/config-ad
 
 Use a hook if your CLI does not send supported terminal notifications, or you
 want to notify on a specific event. A hook runs a command that calls
-`agents.ready(id)` in Neovim. Avoid adding one for an event you already receive
+`gents.ready(id)` in Neovim. Avoid adding one for an event you already receive
 through terminal notifications, or you may get duplicate notifications.
 
-Start the CLI through agents.nvim so the hook can identify its session. The
-examples use the `NVIM` server address and `AGENTS_SESSION` ID provided to that
+Start the CLI through gents.nvim so the hook can identify its session. The
+examples use the `NVIM` server address and `GENTS_SESSION` ID provided to that
 process; you do not need to set them yourself. Shell examples assume a POSIX
 shell and `nvim` on `PATH`. Merge the hook settings with your existing CLI
-configuration; agents.nvim does not install them for you.
+configuration; gents.nvim does not install them for you.
 
 ## Claude Code
 
@@ -110,7 +110,7 @@ do not trigger this recipe. Add a `Stop` command to `.claude/settings.json`
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"$NVIM\" ] && [ -n \"$AGENTS_SESSION\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null 2>&1; fi"
+            "command": "if [ -n \"$NVIM\" ] && [ -n \"$GENTS_SESSION\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'gents'.ready($GENTS_SESSION)\" >/dev/null 2>&1; fi"
           }
         ]
       }
@@ -129,20 +129,20 @@ It can also fire after cancellation or another idle transition, and this
 handler does not filter child sessions. Use this recipe with the default TUI;
 OpenCode 2 has a separate plugin API and cannot use this recipe.
 
-Create `.opencode/plugins/agents-ready.js`:
+Create `.opencode/plugins/gents-ready.js`:
 
 ```js
 import { execFileSync } from "node:child_process";
 
-export const AgentsReady = async () => ({
+export const GentsReady = async () => ({
   event: async ({ event }) => {
     const server = process.env.NVIM;
-    const id = process.env.AGENTS_SESSION;
+    const id = process.env.GENTS_SESSION;
     if (event.type !== "session.idle" || !server || !/^\d+$/.test(id ?? "")) return;
 
     execFileSync(
       "nvim",
-      ["--server", server, "--remote-expr", `v:lua.require'agents'.ready(${id})`],
+      ["--server", server, "--remote-expr", `v:lua.require'gents'.ready(${id})`],
       { stdio: "ignore" },
     );
   },
@@ -157,7 +157,7 @@ See the
 
 Amp reports the outcome of each turn through `agent.end`. This handler notifies
 only for status `done`, excluding errors and cancellation. It does not filter
-side threads hosted by the same client. Create `.amp/plugins/agents-ready.js`:
+side threads hosted by the same client. Create `.amp/plugins/gents-ready.js`:
 
 ```js
 import { execFileSync } from "node:child_process";
@@ -165,12 +165,12 @@ import { execFileSync } from "node:child_process";
 export default function (amp) {
   amp.on("agent.end", (event) => {
     const server = process.env.NVIM;
-    const id = process.env.AGENTS_SESSION;
+    const id = process.env.GENTS_SESSION;
     if (event.status !== "done" || !server || !/^\d+$/.test(id ?? "")) return;
 
     execFileSync(
       "nvim",
-      ["--server", server, "--remote-expr", `v:lua.require'agents'.ready(${id})`],
+      ["--server", server, "--remote-expr", `v:lua.require'gents'.ready(${id})`],
       { stdio: "ignore" },
     );
   });
@@ -187,13 +187,13 @@ for plugin initialization. See
 
 Gemini's `AfterAgent` hook runs after it generates a final response. This recipe
 notifies Neovim while returning an empty JSON object to leave the response alone.
-Save this as an absolute path such as `/path/to/agents-ready.sh`:
+Save this as an absolute path such as `/path/to/gents-ready.sh`:
 
 ```sh
 #!/bin/sh
 cat >/dev/null
-if [ -n "$NVIM" ] && [ -n "$AGENTS_SESSION" ]; then
-  nvim --server "$NVIM" --remote-expr "v:lua.require'agents'.ready($AGENTS_SESSION)" >/dev/null 2>&1
+if [ -n "$NVIM" ] && [ -n "$GENTS_SESSION" ]; then
+  nvim --server "$NVIM" --remote-expr "v:lua.require'gents'.ready($GENTS_SESSION)" >/dev/null 2>&1
 fi
 printf '{}\n'
 ```
@@ -209,8 +209,8 @@ Add to `.gemini/settings.json`, replacing the script path:
         "hooks": [
           {
             "type": "command",
-            "name": "agents-ready",
-            "command": "sh /path/to/agents-ready.sh"
+            "name": "gents-ready",
+            "command": "sh /path/to/gents-ready.sh"
           }
         ]
       }
@@ -226,7 +226,7 @@ See the [Gemini hooks reference](https://geminicli.com/docs/hooks/reference/).
 Pi can continue automatically after a model run through retries, compaction,
 or queued follow-ups. `agent_settled` waits until that work settles; checking the
 last assistant's stop reason excludes failed or aborted responses. Create
-`.pi/extensions/agents-ready.ts`:
+`.pi/extensions/gents-ready.ts`:
 
 ```ts
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -243,12 +243,12 @@ export default function (pi: ExtensionAPI) {
   });
   pi.on("agent_settled", () => {
     const server = process.env.NVIM;
-    const id = process.env.AGENTS_SESSION;
+    const id = process.env.GENTS_SESSION;
     if (stopReason !== "stop" || !server || !/^\d+$/.test(id ?? "")) return;
 
     execFileSync(
       "nvim",
-      ["--server", server, "--remote-expr", `v:lua.require'agents'.ready(${id})`],
+      ["--server", server, "--remote-expr", `v:lua.require'gents'.ready(${id})`],
       { stdio: "ignore" },
     );
   });
@@ -256,7 +256,7 @@ export default function (pi: ExtensionAPI) {
 ```
 
 Restart Pi or use `/reload` in a trusted project. You can also load the file
-explicitly with `pi -e /absolute/path/agents-ready.ts`.
+explicitly with `pi -e /absolute/path/gents-ready.ts`.
 
 See the
 [Pi extension lifecycle](https://github.com/earendil-works/pi/blob/v0.85.1/packages/coding-agent/docs/extensions.md#agent_start--agent_end--agent_settled).
@@ -274,7 +274,7 @@ separate `StopFailure` hook. Add to `.qwen/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"$NVIM\" ] && [ -n \"$AGENTS_SESSION\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null 2>&1; fi"
+            "command": "if [ -n \"$NVIM\" ] && [ -n \"$GENTS_SESSION\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'gents'.ready($GENTS_SESSION)\" >/dev/null 2>&1; fi"
           }
         ]
       }
@@ -290,7 +290,7 @@ See the
 
 `agentStop` reports the main agent finishing a turn with `stopReason: "end_turn"`.
 Use it to notify after a response; `sessionEnd` reports the session closing.
-Create `.github/hooks/agents-ready.json`, then restart Copilot. See the
+Create `.github/hooks/gents-ready.json`, then restart Copilot. See the
 [Copilot hooks reference](https://docs.github.com/en/copilot/reference/hooks-reference)
 and [configuration locations](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/use-hooks).
 
@@ -301,7 +301,7 @@ and [configuration locations](https://docs.github.com/en/copilot/how-tos/copilot
     "agentStop": [
       {
         "type": "command",
-        "bash": "if [ -n \"${NVIM:-}\" ] && [ -n \"${AGENTS_SESSION:-}\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null; fi",
+        "bash": "if [ -n \"${NVIM:-}\" ] && [ -n \"${GENTS_SESSION:-}\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'gents'.ready($GENTS_SESSION)\" >/dev/null; fi",
         "timeoutSec": 5
       }
     ]
@@ -324,7 +324,7 @@ to `~/.grok/user-settings.json`, as described in its
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -n \"${NVIM:-}\" ] && [ -n \"${AGENTS_SESSION:-}\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null; fi",
+            "command": "if [ -n \"${NVIM:-}\" ] && [ -n \"${GENTS_SESSION:-}\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'gents'.ready($GENTS_SESSION)\" >/dev/null; fi",
             "timeout": 5
           }
         ]
@@ -348,7 +348,7 @@ and [agent selection](https://github.com/aws/amazon-q-developer-cli/blob/main/do
   "hooks": {
     "stop": [
       {
-        "command": "if [ -n \"${NVIM:-}\" ] && [ -n \"${AGENTS_SESSION:-}\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null; fi",
+        "command": "if [ -n \"${NVIM:-}\" ] && [ -n \"${GENTS_SESSION:-}\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'gents'.ready($GENTS_SESSION)\" >/dev/null; fi",
         "timeout_ms": 5000
       }
     ]
@@ -370,7 +370,7 @@ to `.cursor/hooks.json`. See the
   "hooks": {
     "afterAgentResponse": [
       {
-        "command": "if [ -n \"${NVIM:-}\" ] && [ -n \"${AGENTS_SESSION:-}\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'agents'.ready($AGENTS_SESSION)\" >/dev/null; fi"
+        "command": "if [ -n \"${NVIM:-}\" ] && [ -n \"${GENTS_SESSION:-}\" ]; then nvim --server \"$NVIM\" --remote-expr \"v:lua.require'gents'.ready($GENTS_SESSION)\" >/dev/null; fi"
       }
     ]
   }
@@ -393,7 +393,7 @@ broader behavior, add this to `.aider.conf.yml`:
 ```yaml
 notifications: true
 notifications-command: >-
-  if [ -n "${NVIM:-}" ] && [ -n "${AGENTS_SESSION:-}" ]; then nvim --server "$NVIM" --remote-expr "v:lua.require'agents'.ready($AGENTS_SESSION)" >/dev/null; fi
+  if [ -n "${NVIM:-}" ] && [ -n "${GENTS_SESSION:-}" ]; then nvim --server "$NVIM" --remote-expr "v:lua.require'gents'.ready($GENTS_SESSION)" >/dev/null; fi
 ```
 
 Aider captures command output, so printing OSC to the hook's stdout is insufficient;

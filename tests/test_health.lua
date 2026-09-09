@@ -1,6 +1,6 @@
 local test = require("mini.test")
 local expect = test.expect.equality
-local config = require("agents.config")
+local config = require("gents.config")
 local helpers = require("tests.helpers")
 local autoread = vim.o.autoread
 local T = test.new_set({
@@ -15,7 +15,7 @@ local T = test.new_set({
 
 ---@return string
 local function report()
-  vim.cmd("checkhealth agents")
+  vim.cmd("checkhealth gents")
   expect(vim.bo.filetype, "checkhealth")
   return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
 end
@@ -27,12 +27,12 @@ local function contains(value, text)
   return value:find(text, 1, true) ~= nil
 end
 
----@param overrides? table<string, agents.ToolOverride|false>
----@return agents.Config
+---@param overrides? table<string, gents.ToolOverride|false>
+---@return gents.Config
 local function only_tools(overrides)
-  ---@type table<string, agents.ToolOverride|false>
+  ---@type table<string, gents.ToolOverride|false>
   local tools = {}
-  for name in pairs(require("agents.tools").defaults) do
+  for name in pairs(require("gents.tools").defaults) do
     tools[name] = false
   end
   return config.setup({ tools = vim.tbl_extend("force", tools, overrides or {}) })
@@ -50,23 +50,23 @@ T["executable checks use configured argv and provide installation advice"] = fun
   only_tools({
     available = { cmd = { vim.v.progpath, "--version" } },
     missing = {
-      cmd = { "agents-test-nonexistent-executable" },
+      cmd = { "gents-test-nonexistent-executable" },
       url = "https://example.com/install-missing",
     },
-    no_url = { cmd = { "agents-test-nonexistent-without-url" } },
-    disabled = { cmd = { "agents-test-disabled" }, enabled = false },
+    no_url = { cmd = { "gents-test-nonexistent-without-url" } },
+    disabled = { cmd = { "gents-test-disabled" }, enabled = false },
   })
   local output = report()
   expect(contains(output, "available: executable found (" .. vim.v.progpath .. ")"), true)
   expect(
-    contains(output, "missing: executable not found (agents-test-nonexistent-executable)"),
+    contains(output, "missing: executable not found (gents-test-nonexistent-executable)"),
     true
   )
   expect(contains(output, "Install: https://example.com/install-missing"), true)
-  expect(contains(output, "Install agents-test-nonexistent-without-url"), true)
+  expect(contains(output, "Install gents-test-nonexistent-without-url"), true)
   expect(contains(output, "disabled:"), false)
   expect(contains(output, "claude:"), false)
-  expect(require("agents").sessions(), {})
+  expect(require("gents").sessions(), {})
 end
 
 T["report handles no enabled tools"] = function()

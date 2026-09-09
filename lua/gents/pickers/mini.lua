@@ -2,36 +2,36 @@ local M = {}
 
 -- Only the mini.pick surface used by this adapter is described here, so
 -- mini.pick remains optional and its type definitions are not required by LuaLS.
----@class agents.pickers.MiniItem
+---@class gents.pickers.MiniItem
 ---@field text string
----@field agents_index integer
+---@field gents_index integer
 
----@class agents.pickers.MiniMapping
+---@class gents.pickers.MiniMapping
 ---@field char string
 ---@field func fun(): boolean?
 
----@alias agents.pickers.MiniMappings table<string, string|agents.pickers.MiniMapping>
+---@alias gents.pickers.MiniMappings table<string, string|gents.pickers.MiniMapping>
 
----@class agents.pickers.MiniSource
+---@class gents.pickers.MiniSource
 ---@field name string
----@field items agents.pickers.MiniItem[]
----@field show fun(buf: integer, items: agents.pickers.MiniItem[], query: string[])
----@field choose fun(item: agents.pickers.MiniItem): boolean?
+---@field items gents.pickers.MiniItem[]
+---@field show fun(buf: integer, items: gents.pickers.MiniItem[], query: string[])
+---@field choose fun(item: gents.pickers.MiniItem): boolean?
 
----@class agents.pickers.MiniOptions
----@field source agents.pickers.MiniSource
----@field mappings agents.pickers.MiniMappings
+---@class gents.pickers.MiniOptions
+---@field source gents.pickers.MiniSource
+---@field mappings gents.pickers.MiniMappings
 
----@class agents.pickers.MiniPick
----@field config { mappings: agents.pickers.MiniMappings }
----@field start fun(opts: agents.pickers.MiniOptions)
----@field default_show fun(buf: integer, items: agents.pickers.MiniItem[], query: string[])
----@field get_picker_matches fun(): { current?: agents.pickers.MiniItem }?
+---@class gents.pickers.MiniPick
+---@field config { mappings: gents.pickers.MiniMappings }
+---@field start fun(opts: gents.pickers.MiniOptions)
+---@field default_show fun(buf: integer, items: gents.pickers.MiniItem[], query: string[])
+---@field get_picker_matches fun(): { current?: gents.pickers.MiniItem }?
 ---@field get_picker_state fun(): { windows: { target: integer } }?
 ---@field is_picker_active fun(): boolean
 
----Built-in mini.pick placement actions replaced by agents.nvim placement, keyed
----by the agents.nvim action that takes over their key.
+---Built-in mini.pick placement actions replaced by gents.nvim placement, keyed
+---by the gents.nvim action that takes over their key.
 ---@type table<string, string>
 local native = {
   vsplit = "choose_in_vsplit",
@@ -39,27 +39,27 @@ local native = {
   tabnew = "choose_in_tabpage",
 }
 
----Adapter actions in binding order: agents.nvim action, the mapping name shown
+---Adapter actions in binding order: gents.nvim action, the mapping name shown
 ---in the info view, and the key for actions without a mini.pick counterpart.
 ---Names carry a prefix so they never replace a user's own custom mappings.
 ---@type { [1]: string, [2]: string, [3]?: string }[]
 local bindings = {
-  { "vsplit", "agents_open_in_vsplit" },
-  { "split", "agents_open_in_split" },
-  { "tabnew", "agents_open_in_tabpage" },
-  { "float", "agents_open_in_float", "<M-f>" },
-  { "current", "agents_open_here", "<C-CR>" },
-  { "edit_args", "agents_edit_command", "<C-e>" },
-  { "hide", "agents_hide_session", "<M-h>" },
-  { "close", "agents_close_session", "<C-d>" },
+  { "vsplit", "gents_open_in_vsplit" },
+  { "split", "gents_open_in_split" },
+  { "tabnew", "gents_open_in_tabpage" },
+  { "float", "gents_open_in_float", "<M-f>" },
+  { "current", "gents_open_here", "<C-CR>" },
+  { "edit_args", "gents_edit_command", "<C-e>" },
+  { "hide", "gents_hide_session", "<M-h>" },
+  { "close", "gents_close_session", "<C-d>" },
 }
 
-local namespace = vim.api.nvim_create_namespace("agents.pickers.mini")
+local namespace = vim.api.nvim_create_namespace("gents.pickers.mini")
 
 ---mini.pick must be set up before use, as its integration guide recommends.
----@return agents.pickers.MiniPick?
+---@return gents.pickers.MiniPick?
 function M.instance()
-  ---@type agents.pickers.MiniPick?
+  ---@type gents.pickers.MiniPick?
   local mini = rawget(_G, "MiniPick")
   return mini
 end
@@ -82,7 +82,7 @@ local function termcodes(key)
   return vim.api.nvim_replace_termcodes(key, true, true, true)
 end
 
----@param mapping string|agents.pickers.MiniMapping
+---@param mapping string|gents.pickers.MiniMapping
 ---@return string
 local function mapping_key(mapping)
   if type(mapping) == "string" then
@@ -92,10 +92,10 @@ local function mapping_key(mapping)
 end
 
 ---The mappings mini.pick resolves for a picker started from the current buffer.
----@param mini agents.pickers.MiniPick
----@return agents.pickers.MiniMappings
+---@param mini gents.pickers.MiniPick
+---@return gents.pickers.MiniMappings
 local function configured_mappings(mini)
-  ---@type { mappings?: agents.pickers.MiniMappings }?
+  ---@type { mappings?: gents.pickers.MiniMappings }?
   local buffer = vim.b.minipick_config
   return vim.tbl_deep_extend("force", mini.config.mappings, buffer and buffer.mappings or {})
 end
@@ -109,12 +109,12 @@ local function rendered_length(text)
 end
 
 ---@generic T
----@param spec agents.PickerSpec<T>
+---@param spec gents.PickerSpec<T>
 function M.open(spec)
   local mini = M.instance()
   if not mini then
     vim.notify(
-      'agents.nvim: picker = "mini" requires mini.pick; install mini.nvim or mini.pick and call require("mini.pick").setup()',
+      'gents.nvim: picker = "mini" requires mini.pick; install mini.nvim or mini.pick and call require("mini.pick").setup()',
       vim.log.levels.ERROR
     )
     return
@@ -131,25 +131,25 @@ function M.open(spec)
     return
   end
 
-  local shared = require("agents.picker")
-  ---@type agents.pickers.MiniItem[]
+  local shared = require("gents.picker")
+  ---@type gents.pickers.MiniItem[]
   local items = {}
   for index, item in ipairs(spec.items) do
-    items[index] = { text = item.text, agents_index = index }
+    items[index] = { text = item.text, gents_index = index }
   end
   ---@type { action: string, index: integer }?
   local pending
 
   ---@param action string
-  ---@param item? agents.pickers.MiniItem
+  ---@param item? gents.pickers.MiniItem
   local function request(action, item)
     if item then
-      pending = { action = action, index = item.agents_index }
+      pending = { action = action, index = item.gents_index }
     end
   end
 
   -- Keys used by the configured mini.pick mappings stay theirs, except the
-  -- placement actions that agents.nvim provides itself.
+  -- placement actions that gents.nvim provides itself.
   local configured = configured_mappings(mini)
   ---@type table<string, boolean>
   local rerouted = {}
@@ -164,7 +164,7 @@ function M.open(spec)
     end
   end
   -- Menus act on one row and have no preview, so marking and previews are off.
-  ---@type agents.pickers.MiniMappings
+  ---@type gents.pickers.MiniMappings
   local mappings = {
     choose_in_split = "",
     choose_in_tabpage = "",
@@ -204,7 +204,7 @@ function M.open(spec)
         mini.default_show(buf, shown, query)
         vim.api.nvim_buf_clear_namespace(buf, namespace, 0, -1)
         for row, item in ipairs(shown) do
-          local source = spec.items[item.agents_index]
+          local source = spec.items[item.gents_index]
           local col = 0
           for _, chunk in ipairs(source.chunks or { { text = source.text } }) do
             local length = rendered_length(chunk.text)

@@ -1,13 +1,13 @@
 local M = {}
 
----@alias agents.Target integer|string|fun(session: agents.Session): boolean
+---@alias gents.Target integer|string|fun(session: gents.Session): boolean
 
 ---@generic T
----@param target? agents.Target
----@param callback fun(session: agents.Session): T|nil
+---@param target? gents.Target
+---@param callback fun(session: gents.Session): T|nil
 ---@return T|nil
 function M.with(target, callback)
-  local registry = require("agents.session")
+  local registry = require("gents.session")
   local candidates = registry.list()
   if type(target) == "number" or type(target) == "string" then
     for _, session in ipairs(candidates) do
@@ -15,14 +15,14 @@ function M.with(target, callback)
         return callback(session)
       end
     end
-    error("agents.nvim: no session matches target " .. tostring(target), 2)
+    error("gents.nvim: no session matches target " .. tostring(target), 2)
   elseif type(target) == "function" then
     candidates = vim.tbl_filter(target, candidates)
     if #candidates == 0 then
-      error("agents.nvim: no session matches target filter", 2)
+      error("gents.nvim: no session matches target filter", 2)
     end
   elseif target ~= nil then
-    error("agents.nvim: target must be a session id, label, or filter", 2)
+    error("gents.nvim: target must be a session id, label, or filter", 2)
   end
 
   if #candidates == 0 then
@@ -40,7 +40,7 @@ function M.with(target, callback)
     return callback(candidates[1])
   end
 
-  require("agents.picker").sessions(candidates, callback)
+  require("gents.picker").sessions(candidates, callback)
 end
 
 return M

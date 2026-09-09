@@ -3,9 +3,9 @@ local cwd = vim.fn.getcwd()
 
 ---@return nil
 function M.reset()
-  local agents = require("agents")
-  for _, session in ipairs(agents.sessions()) do
-    agents.close(session.id)
+  local gents = require("gents")
+  for _, session in ipairs(gents.sessions()) do
+    gents.close(session.id)
   end
   -- Live terminal buffers are deleted only after their PTY streams close.
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
@@ -29,18 +29,18 @@ function M.reset()
     end
   end
   vim.cmd.cd(cwd)
-  agents.setup({ tools = { cat = { cmd = { "cat" }, url = "https://example.com/cat" } } })
+  gents.setup({ tools = { cat = { cmd = { "cat" }, url = "https://example.com/cat" } } })
 end
 
----@class agents.test.Session: agents.Session
+---@class gents.test.Session: gents.Session
 ---@field job integer
 
----@param opts? agents.NewOptions
----@return agents.test.Session
+---@param opts? gents.NewOptions
+---@return gents.test.Session
 function M.new(opts)
-  local session = assert(require("agents").new("cat", opts))
+  local session = assert(require("gents").new("cat", opts))
   assert(session.job and session.job > 0, "Expected a started terminal job")
-  ---@cast session agents.test.Session
+  ---@cast session gents.test.Session
   return session
 end
 

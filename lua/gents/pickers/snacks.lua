@@ -2,71 +2,71 @@ local M = {}
 
 -- Only the Snacks surface used by this adapter is described here, so Snacks
 -- remains optional and its type definitions are not required by LuaLS.
----@class agents.pickers.SnacksItem
+---@class gents.pickers.SnacksItem
 ---@field text string
----@field agents_index integer
+---@field gents_index integer
 ---@field preview? { text: string }
 
----@class agents.pickers.SnacksPicker
----@field close fun(self: agents.pickers.SnacksPicker)
+---@class gents.pickers.SnacksPicker
+---@field close fun(self: gents.pickers.SnacksPicker)
 
----@alias agents.pickers.SnacksAction fun(picker: agents.pickers.SnacksPicker, item?: agents.pickers.SnacksItem)
----@alias agents.pickers.SnacksKey { [1]: string, mode: string[], desc: string }
----@alias agents.pickers.SnacksHighlight { [1]: string, [2]?: string }
----@alias agents.pickers.SnacksBinding { [1]: string, [2]: string, [3]: string }
----@alias agents.pickers.SnacksBorderChar string|{ [1]: string, [2]?: string }
----@alias agents.pickers.SnacksBorder string|boolean|agents.pickers.SnacksBorderChar[]
+---@alias gents.pickers.SnacksAction fun(picker: gents.pickers.SnacksPicker, item?: gents.pickers.SnacksItem)
+---@alias gents.pickers.SnacksKey { [1]: string, mode: string[], desc: string }
+---@alias gents.pickers.SnacksHighlight { [1]: string, [2]?: string }
+---@alias gents.pickers.SnacksBinding { [1]: string, [2]: string, [3]: string }
+---@alias gents.pickers.SnacksBorderChar string|{ [1]: string, [2]?: string }
+---@alias gents.pickers.SnacksBorder string|boolean|gents.pickers.SnacksBorderChar[]
 
----@class agents.pickers.SnacksWindowOptions
----@field keys table<string, agents.pickers.SnacksKey>
----@field border? agents.pickers.SnacksBorder
+---@class gents.pickers.SnacksWindowOptions
+---@field keys table<string, gents.pickers.SnacksKey>
+---@field border? gents.pickers.SnacksBorder
 ---@field min_width? number
 ---@field max_width? number
----@field footer? agents.pickers.SnacksHighlight[]
+---@field footer? gents.pickers.SnacksHighlight[]
 ---@field footer_pos? "left"|"center"|"right"
 ---@field footer_keys? boolean
 
----@class agents.pickers.SnacksLayoutNode
+---@class gents.pickers.SnacksLayoutNode
 ---@field win? string
----@field border? agents.pickers.SnacksBorder
+---@field border? gents.pickers.SnacksBorder
 ---@field box? "horizontal"|"vertical"
----@field width? number|fun(win: agents.pickers.SnacksMeasure): number?
+---@field width? number|fun(win: gents.pickers.SnacksMeasure): number?
 ---@field min_width? number
 ---@field max_width? number
 ---@field position? string
----@field [integer] agents.pickers.SnacksLayoutNode
+---@field [integer] gents.pickers.SnacksLayoutNode
 
----@class agents.pickers.SnacksMeasure
----@field opts agents.pickers.SnacksLayoutNode
----@field dim fun(self: agents.pickers.SnacksMeasure, parent: { width: number, height: number }): { width: number, height: number }
----@field border_size fun(self: agents.pickers.SnacksMeasure): { left: number, right: number }
----@field parent_size fun(self: agents.pickers.SnacksMeasure): { width: number, height: number }
+---@class gents.pickers.SnacksMeasure
+---@field opts gents.pickers.SnacksLayoutNode
+---@field dim fun(self: gents.pickers.SnacksMeasure, parent: { width: number, height: number }): { width: number, height: number }
+---@field border_size fun(self: gents.pickers.SnacksMeasure): { left: number, right: number }
+---@field parent_size fun(self: gents.pickers.SnacksMeasure): { width: number, height: number }
 
----@class agents.pickers.SnacksLayout
----@field layout? agents.pickers.SnacksLayoutNode
+---@class gents.pickers.SnacksLayout
+---@field layout? gents.pickers.SnacksLayoutNode
 ---@field hidden? string[]
 ---@field preview? string
----@field config? fun(layout: agents.pickers.SnacksLayout): agents.pickers.SnacksLayout?
+---@field config? fun(layout: gents.pickers.SnacksLayout): gents.pickers.SnacksLayout?
 
----@alias agents.pickers.SnacksLayoutResolver fun(source?: string): agents.pickers.SnacksLayout|string
+---@alias gents.pickers.SnacksLayoutResolver fun(source?: string): gents.pickers.SnacksLayout|string
 
----@class agents.pickers.SnacksLayoutOptions
----@field layout? agents.pickers.SnacksLayout|string|agents.pickers.SnacksLayoutResolver
----@field layouts? table<string, agents.pickers.SnacksLayout>
+---@class gents.pickers.SnacksLayoutOptions
+---@field layout? gents.pickers.SnacksLayout|string|gents.pickers.SnacksLayoutResolver
+---@field layouts? table<string, gents.pickers.SnacksLayout>
 ---@field source? string
 
----@class agents.pickers.SnacksOptions: agents.pickers.SnacksLayoutOptions
+---@class gents.pickers.SnacksOptions: gents.pickers.SnacksLayoutOptions
 ---@field title string
----@field items agents.pickers.SnacksItem[]
----@field format fun(item: agents.pickers.SnacksItem): agents.pickers.SnacksHighlight[]
+---@field items gents.pickers.SnacksItem[]
+---@field format fun(item: gents.pickers.SnacksItem): gents.pickers.SnacksHighlight[]
 ---@field preview string
 ---@field confirm string
----@field actions table<string, agents.pickers.SnacksAction>
----@field win { input: agents.pickers.SnacksWindowOptions, list: agents.pickers.SnacksWindowOptions }
----@field config? fun(opts: agents.pickers.SnacksOptions)
+---@field actions table<string, gents.pickers.SnacksAction>
+---@field win { input: gents.pickers.SnacksWindowOptions, list: gents.pickers.SnacksWindowOptions }
+---@field config? fun(opts: gents.pickers.SnacksOptions)
 
----@param border? agents.pickers.SnacksBorder
----@return agents.pickers.SnacksBorder
+---@param border? gents.pickers.SnacksBorder
+---@return gents.pickers.SnacksBorder
 local function footer_border(border)
   if border == true and vim.o.winborder:find(",") then
     border = vim.split(vim.o.winborder, ",", { plain = true })
@@ -74,7 +74,7 @@ local function footer_border(border)
   if not border or border == "" or border == "none" then
     return "bottom"
   end
-  ---@type table<string, agents.pickers.SnacksBorderChar[]>
+  ---@type table<string, gents.pickers.SnacksBorderChar[]>
   local edges = {
     top = { "", "─", "", "", "", "─", "", "" },
     left = { "", "", "", "", "", "─", " ", "│" },
@@ -90,7 +90,7 @@ local function footer_border(border)
   end
   local bottom = border[5 % #border + 1]
   if bottom == "" or (type(bottom) == "table" and bottom[1] == "") then
-    ---@type agents.pickers.SnacksBorderChar[]
+    ---@type gents.pickers.SnacksBorderChar[]
     local expanded = {}
     for i = 1, 8 do
       expanded[i] = border[(i - 1) % #border + 1]
@@ -114,8 +114,8 @@ local function footer_border(border)
   return border
 end
 
----@param node? agents.pickers.SnacksLayoutNode
----@param inherited? agents.pickers.SnacksBorder
+---@param node? gents.pickers.SnacksLayoutNode
+---@param inherited? gents.pickers.SnacksBorder
 local function list_border(node, inherited)
   if not node then
     return
@@ -129,24 +129,24 @@ local function list_border(node, inherited)
   end
 end
 
----@param layout agents.pickers.SnacksLayout
+---@param layout gents.pickers.SnacksLayout
 ---@param cells integer
----@param defaults table<string, agents.pickers.SnacksWindowOptions>
+---@param defaults table<string, gents.pickers.SnacksWindowOptions>
 local function help_width(layout, cells, defaults)
   local root = layout.layout
   if not root then
     return
   end
-  ---@type agents.pickers.SnacksMeasure
+  ---@type gents.pickers.SnacksMeasure
   local native = require("snacks.win")
   local available = vim.o.columns
-  ---@type table<agents.pickers.SnacksLayoutNode, agents.pickers.SnacksMeasure>
+  ---@type table<gents.pickers.SnacksLayoutNode, gents.pickers.SnacksMeasure>
   local windows = {}
-  ---@type table<agents.pickers.SnacksLayoutNode, number>
+  ---@type table<gents.pickers.SnacksLayoutNode, number>
   local minimums = {}
 
-  ---@param node agents.pickers.SnacksLayoutNode
-  ---@return agents.pickers.SnacksMeasure
+  ---@param node gents.pickers.SnacksLayoutNode
+  ---@return gents.pickers.SnacksMeasure
   local function measure(node)
     if not windows[node] then
       local opts = vim.deepcopy(node)
@@ -160,13 +160,13 @@ local function help_width(layout, cells, defaults)
       end
       -- Snacks uses the same options-only measurement for its layout boxes.
       local win = setmetatable({ opts = opts }, native)
-      ---@cast win agents.pickers.SnacksMeasure
+      ---@cast win gents.pickers.SnacksMeasure
       windows[node] = win
     end
     return windows[node]
   end
 
-  ---@param node agents.pickers.SnacksLayoutNode
+  ---@param node gents.pickers.SnacksLayoutNode
   ---@return boolean
   local function included(node)
     return not node.win
@@ -176,7 +176,7 @@ local function help_width(layout, cells, defaults)
       )
   end
 
-  ---@param node agents.pickers.SnacksLayoutNode
+  ---@param node gents.pickers.SnacksLayoutNode
   ---@return number? Required outer width, only for the path containing the list.
   local function required(node)
     if not included(node) then
@@ -184,7 +184,7 @@ local function help_width(layout, cells, defaults)
     end
     ---@type number?
     local needed = node.win == "list" and cells or nil
-    ---@type agents.pickers.SnacksLayoutNode?
+    ---@type gents.pickers.SnacksLayoutNode?
     local target
     for _, child in ipairs(node) do
       local width = required(child)
@@ -273,27 +273,27 @@ local function help_width(layout, cells, defaults)
 end
 
 ---@generic T
----@param spec agents.PickerSpec<T>
+---@param spec gents.PickerSpec<T>
 function M.open(spec)
-  ---@type boolean, { picker: fun(opts: agents.pickers.SnacksOptions) }
+  ---@type boolean, { picker: fun(opts: gents.pickers.SnacksOptions) }
   local ok, snacks = pcall(require, "snacks")
   if not ok then
     vim.notify(
-      'agents.nvim: picker = "snacks" requires snacks.nvim; install and configure Snacks with picker.enabled = true',
+      'gents.nvim: picker = "snacks" requires snacks.nvim; install and configure Snacks with picker.enabled = true',
       vim.log.levels.ERROR
     )
     return
   end
 
-  ---@type agents.pickers.SnacksItem[]
+  ---@type gents.pickers.SnacksItem[]
   local items = {}
-  ---@type table<string, agents.pickers.SnacksAction>
+  ---@type table<string, gents.pickers.SnacksAction>
   local actions = {}
-  ---@type table<string, agents.pickers.SnacksKey>
+  ---@type table<string, gents.pickers.SnacksKey>
   local keys = {}
   ---@type table<string, string>
   local labels = { new = "start", show = "show", run = "run", send = "send" }
-  ---@type agents.pickers.SnacksBinding[]
+  ---@type gents.pickers.SnacksBinding[]
   local bindings = {
     { spec.default, "<CR>", labels[spec.default] or spec.default },
     { "vsplit", "<C-v>", "vsplit" },
@@ -308,29 +308,29 @@ function M.open(spec)
   for index, item in ipairs(spec.items) do
     items[index] = {
       text = item.text,
-      agents_index = index,
+      gents_index = index,
       preview = item.preview and { text = item.preview } or nil,
     }
   end
   for name, action in pairs(spec.actions) do
-    local id = "agents_" .. name
+    local id = "gents_" .. name
     actions[id] = function(picker, item)
       if not item then
         return
       end
       picker:close()
       vim.schedule(function()
-        action(spec.items[item.agents_index])
+        action(spec.items[item.gents_index])
       end)
     end
   end
-  ---@type agents.pickers.SnacksHighlight[]
+  ---@type gents.pickers.SnacksHighlight[]
   local footer = {}
-  local help = require("agents.config").get().picker_help
+  local help = require("gents.config").get().picker_help
   for _, binding in ipairs(bindings) do
     local name, key, label = binding[1], binding[2], binding[3]
     if spec.actions[name] then
-      keys[key] = { "agents_" .. name, mode = { "n", "i" }, desc = label }
+      keys[key] = { "gents_" .. name, mode = { "n", "i" }, desc = label }
       if help and key ~= "<CR>" then
         if #footer > 0 then
           footer[#footer + 1] = { " ", "SnacksFooter" }
@@ -354,28 +354,28 @@ function M.open(spec)
     title = spec.title,
     items = items,
     format = function(item)
-      local source = spec.items[item.agents_index]
+      local source = spec.items[item.gents_index]
       if not source.chunks then
         return { { item.text, source.hl } }
       end
-      ---@type agents.pickers.SnacksHighlight[]
+      ---@type gents.pickers.SnacksHighlight[]
       local chunks = {}
       for _, chunk in ipairs(source.chunks) do
         chunks[#chunks + 1] = {
           chunk.text,
-          chunk.kind and require("agents.picker").chunk_highlights[chunk.kind] or source.hl,
+          chunk.kind and require("gents.picker").chunk_highlights[chunk.kind] or source.hl,
         }
       end
       return chunks
     end,
     preview = "preview",
-    confirm = "agents_" .. spec.default,
+    confirm = "gents_" .. spec.default,
     actions = actions,
     config = function(opts)
-      ---@type agents.pickers.SnacksLayoutOptions
+      ---@type gents.pickers.SnacksLayoutOptions
       local original = { layout = opts.layout, layouts = opts.layouts, source = opts.source }
       opts.layout = function()
-        ---@type { layout: fun(opts: agents.pickers.SnacksLayoutOptions): agents.pickers.SnacksLayout }
+        ---@type { layout: fun(opts: gents.pickers.SnacksLayoutOptions): gents.pickers.SnacksLayout }
         local config = require("snacks.picker.config")
         local layout = vim.deepcopy(config.layout(original))
         if #footer > 0 then

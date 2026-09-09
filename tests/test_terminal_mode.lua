@@ -46,7 +46,7 @@ local function stop()
 end
 
 local function setup()
-  lua([[require("agents").setup({ tools = { cat = { cmd = { "cat" } } } })]])
+  lua([[require("gents").setup({ tools = { cat = { cmd = { "cat" } } } })]])
 end
 
 ---@param expected string
@@ -58,7 +58,7 @@ local function mode(expected)
 end
 
 local function spawn()
-  lua([[_G.session = require("agents").new("cat")]])
+  lua([[_G.session = require("gents").new("cat")]])
   mode("t")
 end
 
@@ -75,11 +75,11 @@ local T = test.new_set({
       local ok, err = pcall(
         lua,
         [[
-        local agents = require("agents")
+        local gents = require("gents")
         local jobs = {}
-        for _, session in ipairs(agents.sessions()) do
+        for _, session in ipairs(gents.sessions()) do
           jobs[#jobs + 1] = session.job
-          agents.close(session.id)
+          gents.close(session.id)
         end
         if #jobs > 0 then
           vim.fn.jobwait(jobs, 2000)
@@ -99,11 +99,11 @@ local T = test.new_set({
 T["new enters terminal input after returning to the event loop"] = function()
   spawn()
   eq(get("vim.fn.jobwait({ session.job }, 0)"), { -1 })
-  input("agents input<CR>")
+  input("gents input<CR>")
   eq(
     vim.wait(2000, function()
       return get([[table.concat(vim.api.nvim_buf_get_lines(session.buf, 0, -1, false), "\n")]]):find(
-        "agents input",
+        "gents input",
         1,
         true
       ) ~= nil
@@ -117,7 +117,7 @@ T["float resizing"] = test.new_set({ parametrize = { { "t" }, { "nt" }, { "n" },
   ["preserves the current window, mode, buffer, and job"] = function(expected)
     lua([[
       _G.source_win = vim.api.nvim_get_current_win()
-      _G.session = require("agents").new("cat", {
+      _G.session = require("gents").new("cat", {
         layout = {
           width = function() return 0.5 end,
           height = function() return 0.5 end,
@@ -158,14 +158,14 @@ T["explicit show enters terminal input for hidden and visible sessions"] = funct
   spawn()
   input([[<C-\><C-n>]])
   mode("nt")
-  lua([[require("agents").hide(session.id)]])
+  lua([[require("gents").hide(session.id)]])
   mode("n")
-  lua([[require("agents").show(session.id)]])
+  lua([[require("gents").show(session.id)]])
   mode("t")
 
   input([[<C-\><C-n>]])
   mode("nt")
-  lua([[require("agents").show(session.id)]])
+  lua([[require("gents").show(session.id)]])
   mode("t")
 end
 
@@ -173,7 +173,7 @@ T["focus mappings leave terminal input and refocus the visible session"] = funct
   lua([[
     _G.source_win = vim.api.nvim_get_current_win()
     vim.keymap.set({ "n", "t" }, "<F5>", function()
-      require("agents").focus()
+      require("gents").focus()
     end)
   ]])
   spawn()
@@ -188,7 +188,7 @@ T["focus mappings leave terminal input and refocus the visible session"] = funct
   input("<F5>")
   mode("t")
   eq(get("vim.api.nvim_get_current_win() == terminal_win"), true)
-  eq(get("#require('agents').sessions()"), 1)
+  eq(get("#require('gents').sessions()"), 1)
 end
 
 T["focus returns to a previous terminal window in normal mode"] = function()
@@ -199,12 +199,12 @@ T["focus returns to a previous terminal window in normal mode"] = function()
   ]])
   spawn()
 
-  lua([[require("agents").focus()]])
+  lua([[require("gents").focus()]])
 
   mode("nt")
   eq(get("vim.api.nvim_get_current_win() == previous_win"), true)
-  eq(get("require('agents').current() == previous"), true)
-  eq(get("require('agents.window').visible(session)"), true)
+  eq(get("require('gents').current() == previous"), true)
+  eq(get("require('gents.window').visible(session)"), true)
   eq(get("vim.fn.jobwait({ previous.job, session.job }, 0)"), { -1, -1 })
 end
 
@@ -241,7 +241,7 @@ end
 
 T["same-window buffer reentry restores input only when left during input"] = function()
   lua([[
-    require("agents").setup({ layout = "current", tools = { cat = { cmd = { "cat" } } } })
+    require("gents").setup({ layout = "current", tools = { cat = { cmd = { "cat" } } } })
     _G.source_buf = vim.api.nvim_get_current_buf()
     vim.keymap.set("t", "<F6>", "<C-\\><C-n><C-^>")
   ]])
@@ -268,23 +268,23 @@ T["sending focuses terminal input once without stealing focus during queued deli
     _G.source_win = vim.api.nvim_get_current_win()
     _G.sent = 0
     vim.api.nvim_create_autocmd("User", {
-      pattern = "AgentsSend",
+      pattern = "GentsSend",
       callback = function()
         sent = sent + 1
       end,
     })
-    require("agents").setup({
+    require("gents").setup({
       tools = { cat = { cmd = { "sh", "-c", "printf '1\\n2\\n3\\n4\\n5\\n6\\n'; exec cat" } } },
     })
   ]])
   spawn()
-  lua([[require("agents").hide(session.id)]])
+  lua([[require("gents").hide(session.id)]])
   mode("n")
 
-  lua([[require("agents").send({ { text = "first send" } }, { target = session.id })]])
+  lua([[require("gents").send({ { text = "first send" } }, { target = session.id })]])
   mode("t")
   eq(get("vim.api.nvim_get_current_buf() == session.buf"), true)
-  lua([[require("agents").focus()]])
+  lua([[require("gents").focus()]])
   mode("n")
   eq(get("vim.api.nvim_get_current_win() == source_win"), true)
   eq(
@@ -296,7 +296,7 @@ T["sending focuses terminal input once without stealing focus during queued deli
   mode("n")
   eq(get("vim.api.nvim_get_current_win() == source_win"), true)
 
-  lua([[require("agents").send({ { text = "second send" } }, { target = session.id })]])
+  lua([[require("gents").send({ { text = "second send" } }, { target = session.id })]])
   mode("t")
   eq(get("vim.api.nvim_get_current_buf() == session.buf"), true)
 end
@@ -305,17 +305,17 @@ T["sending without focus preserves editor normal mode when reopening a session"]
   lua([[
     _G.source_win = vim.api.nvim_get_current_win()
     vim.keymap.set("n", "<F7>", function()
-      require("agents").send({ { text = "test" } }, { target = session.id, focus = false })
+      require("gents").send({ { text = "test" } }, { target = session.id, focus = false })
     end)
   ]])
   spawn()
-  lua([[require("agents").hide(session.id)]])
+  lua([[require("gents").hide(session.id)]])
   mode("n")
 
   input("<F7>")
   mode("n")
   eq(get("vim.api.nvim_get_current_win() == source_win"), true)
-  eq(get("require('agents.window').visible(session)"), true)
+  eq(get("require('gents.window').visible(session)"), true)
 end
 
 T["sending to a new session"] = test.new_set({ parametrize = { { true }, { false } } }, {
@@ -324,14 +324,14 @@ T["sending to a new session"] = test.new_set({ parametrize = { { true }, { false
     lua(
       [[
       _G.source_win = vim.api.nvim_get_current_win()
-      require("agents.config").get().picker = function(spec)
+      require("gents.config").get().picker = function(spec)
         _G.picker = spec
       end
-      require("agents").send({ { text = "test" } }, { focus = ... })
+      require("gents").send({ { text = "test" } }, { focus = ... })
     ]],
       { focus }
     )
-    eq(get("picker.title"), "Agents: New Session")
+    eq(get("picker.title"), "Gents: New Session")
     lua([[
       for _, item in ipairs(picker.items) do
         if item.data.name == "cat" then
@@ -339,11 +339,11 @@ T["sending to a new session"] = test.new_set({ parametrize = { { true }, { false
           break
         end
       end
-      _G.session = assert(require("agents").sessions()[1])
+      _G.session = assert(require("gents").sessions()[1])
     ]])
     mode(focus and "t" or "n")
     eq(get("vim.api.nvim_get_current_win() == source_win"), not focus)
-    eq(get("require('agents.window').visible(session)"), true)
+    eq(get("require('gents.window').visible(session)"), true)
   end,
 })
 
@@ -351,11 +351,11 @@ T["sending without focus preserves editor insert mode when reopening a session"]
   lua([[
     _G.source_win = vim.api.nvim_get_current_win()
     vim.keymap.set("i", "<F7>", function()
-      require("agents").send({ { text = "test" } }, { target = session.id, focus = false })
+      require("gents").send({ { text = "test" } }, { target = session.id, focus = false })
     end)
   ]])
   spawn()
-  lua([[require("agents").hide(session.id)]])
+  lua([[require("gents").hide(session.id)]])
   mode("n")
   input("i")
   mode("i")
@@ -363,7 +363,7 @@ T["sending without focus preserves editor insert mode when reopening a session"]
   input("<F7>")
   mode("i")
   eq(get("vim.api.nvim_get_current_win() == source_win"), true)
-  eq(get("require('agents.window').visible(session)"), true)
+  eq(get("require('gents.window').visible(session)"), true)
 end
 
 T["window reentry does not resume input after the session exits"] = function()
@@ -430,7 +430,7 @@ T["loading setup and new install no global or terminal buffer keymaps"] = functi
     vim.fn.jobwait({ job }, 2000)
     vim.api.nvim_buf_delete(0, { force = true })
   ]])
-  lua([[vim.cmd("runtime plugin/agents.lua")]])
+  lua([[vim.cmd("runtime plugin/gents.lua")]])
   setup()
   spawn()
   eq(
@@ -456,8 +456,8 @@ T["TermOpen and a real ftplugin retain their window customizations after current
     "vim.wo.relativenumber = true",
     "vim.wo.signcolumn = 'yes:3'",
     "vim.wo.wrap = false",
-    "vim.b.agents_test_ftplugin = true",
-  }, fixture_dir .. "/ftplugin/agents_terminal.lua")
+    "vim.b.gents_test_ftplugin = true",
+  }, fixture_dir .. "/ftplugin/gents_terminal.lua")
   lua("vim.opt.runtimepath:append(...)", { fixture_dir })
   lua([[vim.cmd("filetype plugin on")]])
   lua([[
@@ -473,7 +473,7 @@ T["TermOpen and a real ftplugin retain their window customizations after current
     vim.wo.winfixwidth, vim.wo.wrap = false, true
     _G.source_options = window_options()
     vim.api.nvim_create_autocmd("TermOpen", { callback = function(ev)
-      _G.termopen_session = vim.b[ev.buf].agents_session
+      _G.termopen_session = vim.b[ev.buf].gents_session
       vim.wo.number = true
       vim.wo.foldcolumn = "3"
       vim.wo.winfixwidth = true
@@ -481,7 +481,7 @@ T["TermOpen and a real ftplugin retain their window customizations after current
   ]])
   spawn()
   eq(get("termopen_session == session.id"), true)
-  eq(get("vim.b.agents_test_ftplugin"), true)
+  eq(get("vim.b.gents_test_ftplugin"), true)
   local expected = { true, "3", true, true, "yes:3", false }
   eq(get("window_options()"), expected)
   lua([[_G.terminal_win = vim.api.nvim_get_current_win()]])
@@ -491,20 +491,20 @@ T["TermOpen and a real ftplugin retain their window customizations after current
   lua([[vim.api.nvim_set_current_win(source_win)]])
   mode("n")
   eq(get("window_options()"), get("source_options"))
-  lua([[require("agents").show(session.id, { layout = "current" })]])
+  lua([[require("gents").show(session.id, { layout = "current" })]])
   mode("t")
   eq(get("vim.api.nvim_get_current_win() == source_win"), true)
   -- winfixwidth belongs to a window; display options belong to its buffer view.
   eq(get("window_options()"), { true, "3", false, true, "yes:3", false })
   eq(get("vim.wo[terminal_win].winfixwidth"), true)
-  eq(get("vim.b.agents_test_ftplugin"), true)
+  eq(get("vim.b.gents_test_ftplugin"), true)
 
   input([[<C-\><C-n>]])
   mode("nt")
   lua([[vim.api.nvim_set_current_buf(source_buf)]])
   mode("n")
   eq(get("window_options()"), get("source_options"))
-  eq(get("#require('agents').sessions()"), 1)
+  eq(get("#require('gents').sessions()"), 1)
   eq(get("vim.fn.jobwait({ session.job }, 0)"), { -1 })
 end
 

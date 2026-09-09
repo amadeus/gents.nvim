@@ -1,16 +1,16 @@
 local M = {}
 
----@class agents.keys.Mapping
----@field mode agents.KeyMode
+---@class gents.keys.Mapping
+---@field mode gents.KeyMode
 ---@field callback fun()
 
----@type agents.Keymap[]
+---@type gents.Keymap[]
 local keys = {}
----@type agents.keys.Mapping[]
+---@type gents.keys.Mapping[]
 local global_maps = {}
----@type table<integer, agents.keys.Mapping[]>
+---@type table<integer, gents.keys.Mapping[]>
 local buffer_maps = {}
----@type table<agents.KeyAction, boolean>
+---@type table<gents.KeyAction, boolean>
 local actions = {
   actions = true,
   new = true,
@@ -21,21 +21,21 @@ local actions = {
   close = true,
   send = true,
 }
----@type table<agents.KeyMode, boolean>
+---@type table<gents.KeyMode, boolean>
 local allowed_modes = { n = true, i = true, x = true, s = true, v = true, t = true }
 
----@param key agents.Keymap
----@return agents.KeyMode[]
+---@param key gents.Keymap
+---@return gents.KeyMode[]
 local function modes(key)
   local mode = key.mode
-  ---@type agents.KeyMode[]
+  ---@type gents.KeyMode[]
   local configured
   if type(mode) == "string" then
     configured = { mode }
   else
     configured = mode or { "n", "x", "t" }
   end
-  ---@type agents.KeyMode[]
+  ---@type gents.KeyMode[]
   local resolved = {}
   for _, entry in ipairs(configured) do
     if entry == "v" then
@@ -48,11 +48,11 @@ local function modes(key)
   return resolved
 end
 
----@param entries agents.Keymap[]
+---@param entries gents.Keymap[]
 function M.validate(entries)
-  assert(type(entries) == "table" and vim.islist(entries), "agents: keys must be a list")
+  assert(type(entries) == "table" and vim.islist(entries), "gents: keys must be a list")
   for index, key in ipairs(entries) do
-    local prefix = "agents: keys[" .. index .. "]"
+    local prefix = "gents: keys[" .. index .. "]"
     assert(type(key) == "table", prefix .. " must be a keymap table")
     assert(type(key[1]) == "string" and key[1] ~= "", prefix .. " requires a non-empty key")
     assert(
@@ -72,7 +72,7 @@ function M.validate(entries)
   end
 end
 
----@param mappings agents.keys.Mapping[]
+---@param mappings gents.keys.Mapping[]
 ---@param buf? integer
 local function remove(mappings, buf)
   if buf and not vim.api.nvim_buf_is_valid(buf) then
@@ -90,28 +90,28 @@ local function remove(mappings, buf)
   end
 end
 
----@param action agents.KeyAction|fun()
+---@param action gents.KeyAction|fun()
 ---@return fun()
 local function callback(action)
   return function()
     if type(action) == "function" then
       action()
     else
-      require("agents")[action]()
+      require("gents")[action]()
     end
   end
 end
 
----@param key agents.Keymap
----@param mode agents.KeyMode
+---@param key gents.Keymap
+---@param mode gents.KeyMode
 ---@param buf? integer
----@return agents.keys.Mapping
+---@return gents.keys.Mapping
 local function install(key, mode, buf)
   local run = callback(key[2])
   vim.keymap.set(mode, key[1], run, {
     buffer = buf,
     silent = true,
-    desc = type(key[2]) == "string" and "Agents " .. key[2] or "Agents callback",
+    desc = type(key[2]) == "string" and "Gents " .. key[2] or "Gents callback",
   })
   return { mode = mode, callback = run }
 end
@@ -130,7 +130,7 @@ function M.attach(buf)
       end,
     })
   end
-  ---@type agents.keys.Mapping[]
+  ---@type gents.keys.Mapping[]
   local mappings = {}
   for _, key in ipairs(keys) do
     for _, mode in ipairs(modes(key)) do
@@ -142,7 +142,7 @@ function M.attach(buf)
   buffer_maps[buf] = mappings
 end
 
----@param entries agents.Keymap[]
+---@param entries gents.Keymap[]
 function M.setup(entries)
   remove(global_maps)
   keys = vim.deepcopy(entries)
@@ -154,7 +154,7 @@ function M.setup(entries)
       end
     end
   end
-  for _, session in ipairs(require("agents.session").list()) do
+  for _, session in ipairs(require("gents.session").list()) do
     M.attach(session.buf)
   end
 end

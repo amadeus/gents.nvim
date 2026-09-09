@@ -2,10 +2,12 @@ local test = require("mini.test")
 local T = test.new_set()
 
 T["plugin and module load"] = function()
-  test.expect.equality(vim.g.loaded_agents, true)
-  test.expect.equality(type(require("agents")), "table")
-  test.expect.equality(vim.fn.exists(":Agents"), 2)
-  require("agents").setup()
+  test.expect.equality(vim.g.loaded_gents, true)
+  test.expect.equality(type(require("gents")), "table")
+  test.expect.equality(vim.fn.exists(":Gents"), 2)
+  test.expect.equality(vim.fn.exists(":Agents"), 0)
+  test.expect.equality(vim.g.loaded_agents, nil)
+  require("gents").setup()
 end
 
 ---@return string
@@ -15,12 +17,12 @@ end
 
 T["picker highlight defaults preserve overrides on colorscheme changes"] = function()
   local links = {
-    AgentsPickerDirectory = "AgentsPickerDirectoryDefault",
-    AgentsPickerVisible = "DiagnosticInfo",
-    AgentsPickerHidden = "Comment",
-    AgentsPickerPlaceholder = "Comment",
-    AgentsPickerSeparator = "Comment",
-    AgentsPickerDescription = "Comment",
+    GentsPickerDirectory = "GentsPickerDirectoryDefault",
+    GentsPickerVisible = "DiagnosticInfo",
+    GentsPickerHidden = "Comment",
+    GentsPickerPlaceholder = "Comment",
+    GentsPickerSeparator = "Comment",
+    GentsPickerDescription = "Comment",
   }
   test.finally(function()
     for name, link in pairs(links) do
@@ -32,31 +34,31 @@ T["picker highlight defaults preserve overrides on colorscheme changes"] = funct
   for name, link in pairs(links) do
     test.expect.equality(vim.api.nvim_get_hl(0, { name = name }).link, link)
   end
-  local default = vim.api.nvim_get_hl(0, { name = "AgentsPickerDirectoryDefault" })
+  local default = vim.api.nvim_get_hl(0, { name = "GentsPickerDirectoryDefault" })
   test.expect.equality(default.link, directory_link())
   vim.cmd.colorscheme("default")
   for name, link in pairs(links) do
     test.expect.equality(vim.api.nvim_get_hl(0, { name = name }).link, link)
   end
-  default = vim.api.nvim_get_hl(0, { name = "AgentsPickerDirectoryDefault" })
+  default = vim.api.nvim_get_hl(0, { name = "GentsPickerDirectoryDefault" })
   test.expect.equality(default.link, directory_link())
 
-  vim.api.nvim_set_hl(0, "AgentsPickerVisible", { fg = 0x123456, bold = true })
-  local custom = vim.api.nvim_get_hl(0, { name = "AgentsPickerVisible" })
-  vim.api.nvim_set_hl(0, "AgentsPickerSeparator", {})
-  test.expect.equality(vim.api.nvim_get_hl(0, { name = "AgentsPickerSeparator" }).link, nil)
+  vim.api.nvim_set_hl(0, "GentsPickerVisible", { fg = 0x123456, bold = true })
+  local custom = vim.api.nvim_get_hl(0, { name = "GentsPickerVisible" })
+  vim.api.nvim_set_hl(0, "GentsPickerSeparator", {})
+  test.expect.equality(vim.api.nvim_get_hl(0, { name = "GentsPickerSeparator" }).link, nil)
   vim.api.nvim_exec_autocmds("ColorScheme", { pattern = "default", modeline = false })
-  test.expect.equality(vim.api.nvim_get_hl(0, { name = "AgentsPickerVisible" }), custom)
-  test.expect.equality(vim.api.nvim_get_hl(0, { name = "AgentsPickerSeparator" }), {})
+  test.expect.equality(vim.api.nvim_get_hl(0, { name = "GentsPickerVisible" }), custom)
+  test.expect.equality(vim.api.nvim_get_hl(0, { name = "GentsPickerSeparator" }), {})
 end
 
 T["directory highlight follows Snacks styling once its group exists"] = function()
-  local define = require("agents.picker").define_highlights
+  local define = require("gents.picker").define_highlights
   test.finally(function()
     vim.api.nvim_set_hl(
       0,
-      "AgentsPickerDirectory",
-      { default = true, force = true, link = "AgentsPickerDirectoryDefault" }
+      "GentsPickerDirectory",
+      { default = true, force = true, link = "GentsPickerDirectoryDefault" }
     )
     define()
   end)
@@ -65,20 +67,17 @@ T["directory highlight follows Snacks styling once its group exists"] = function
   end
   -- The plugin-owned default defined before Snacks was available follows it
   -- afterwards, while a user's own definitions are kept, even a NonText link.
-  vim.api.nvim_set_hl(0, "AgentsPickerDirectoryDefault", { link = "NonText" })
-  vim.api.nvim_set_hl(0, "AgentsPickerDirectory", { link = "NonText" })
+  vim.api.nvim_set_hl(0, "GentsPickerDirectoryDefault", { link = "NonText" })
+  vim.api.nvim_set_hl(0, "GentsPickerDirectory", { link = "NonText" })
   define()
   test.expect.equality(
-    vim.api.nvim_get_hl(0, { name = "AgentsPickerDirectoryDefault" }).link,
+    vim.api.nvim_get_hl(0, { name = "GentsPickerDirectoryDefault" }).link,
     "SnacksPickerDir"
   )
-  test.expect.equality(vim.api.nvim_get_hl(0, { name = "AgentsPickerDirectory" }).link, "NonText")
-  vim.api.nvim_set_hl(0, "AgentsPickerDirectory", { fg = 0x123456 })
+  test.expect.equality(vim.api.nvim_get_hl(0, { name = "GentsPickerDirectory" }).link, "NonText")
+  vim.api.nvim_set_hl(0, "GentsPickerDirectory", { fg = 0x123456 })
   define()
-  test.expect.equality(
-    vim.api.nvim_get_hl(0, { name = "AgentsPickerDirectory" }),
-    { fg = 0x123456 }
-  )
+  test.expect.equality(vim.api.nvim_get_hl(0, { name = "GentsPickerDirectory" }), { fg = 0x123456 })
 end
 
 return T

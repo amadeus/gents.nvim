@@ -1,14 +1,14 @@
-if vim.g.loaded_agents then
+if vim.g.loaded_gents then
   return
 end
-vim.g.loaded_agents = true
+vim.g.loaded_gents = true
 
-local highlights = require("agents.picker").define_highlights
+local highlights = require("gents.picker").define_highlights
 highlights()
 vim.api.nvim_create_autocmd("ColorScheme", {
-  group = vim.api.nvim_create_augroup("AgentsHighlights", { clear = true }),
-  desc = "Set default Agents picker highlights",
+  group = vim.api.nvim_create_augroup("GentsHighlights", { clear = true }),
+  desc = "Set default Gents picker highlights",
   callback = highlights,
 })
 
-require("agents.commands").setup()
+require("gents.commands").setup()

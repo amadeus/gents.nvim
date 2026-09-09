@@ -1,8 +1,8 @@
 local M = {}
-local titles = require("agents.titles")
+local titles = require("gents.titles")
 
 ---@param path string
----@param range? agents.Range
+---@param range? gents.Range
 ---@return string
 local function claude_location(path, range)
   if not range then
@@ -31,20 +31,20 @@ local function escape_path(path, escape_backslash)
 end
 
 ---@param path string
----@param range? agents.Range
+---@param range? gents.Range
 ---@return string
 local function gemini_location(path, range)
-  return require("agents.render").location(escape_path(path, true), range)
+  return require("gents.render").location(escape_path(path, true), range)
 end
 
 ---@param path string
----@param range? agents.Range
+---@param range? gents.Range
 ---@return string
 local function qwen_location(path, range)
-  return require("agents.render").location(escape_path(path, false), range)
+  return require("gents.render").location(escape_path(path, false), range)
 end
 
----@type agents.Tool[]
+---@type gents.Tool[]
 local builtins = {
   {
     name = "claude",
@@ -125,13 +125,13 @@ local builtins = {
   },
 }
 
----@type table<string, agents.Tool>
+---@type table<string, gents.Tool>
 M.defaults = {}
 for _, tool in ipairs(builtins) do
   M.defaults[tool.name] = tool
 end
 
----@param configured_tools table<string, agents.Tool>
+---@param configured_tools table<string, gents.Tool>
 ---@return string[]
 function M.names(configured_tools)
   ---@type string[]

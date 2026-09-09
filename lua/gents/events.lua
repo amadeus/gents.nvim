@@ -32,21 +32,21 @@ local function is_notification(sequence)
   return complete and (kind == "title" or kind == "body")
 end
 
----@alias agents.EventName "AgentsSessionStart"|"AgentsSessionExit"|"AgentsSessionShow"|"AgentsSessionHide"|"AgentsSessionTitle"|"AgentsReady"|"AgentsSend"
+---@alias gents.EventName "GentsSessionStart"|"GentsSessionExit"|"GentsSessionShow"|"GentsSessionHide"|"GentsSessionTitle"|"GentsReady"|"GentsSend"
 
----@param name agents.EventName
----@param data agents.SessionEvent|agents.ReadyEvent|agents.SendEvent|agents.TitleEvent
+---@param name gents.EventName
+---@param data gents.SessionEvent|gents.ReadyEvent|gents.SendEvent|gents.TitleEvent
 function M.emit(name, data)
   vim.api.nvim_exec_autocmds("User", { pattern = name, data = data, modeline = false })
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param source "osc"|"hook"
----@return agents.ReadyEvent
+---@return gents.ReadyEvent
 function M.ready(session, source)
   local focused = vim.api.nvim_get_current_buf() == session.buf
-  local win = focused and vim.api.nvim_get_current_win() or require("agents.window").find(session)
-  ---@type agents.ReadyEvent
+  local win = focused and vim.api.nvim_get_current_win() or require("gents.window").find(session)
+  ---@type gents.ReadyEvent
   local data = {
     id = session.id,
     label = session.label,
@@ -57,11 +57,11 @@ function M.ready(session, source)
     focused = focused,
     source = source,
   }
-  M.emit("AgentsReady", data)
+  M.emit("GentsReady", data)
   return data
 end
 
----@param session agents.Session
+---@param session gents.Session
 function M.attach(session)
   vim.api.nvim_create_autocmd("TermRequest", {
     buffer = session.buf,
@@ -74,13 +74,13 @@ function M.attach(session)
       -- Neovim does not report empty titles; tool placeholders signal resets.
       local title = data.sequence:match("^\027%][02];(.+)$")
       if title then
-        require("agents.titles").update(session, title)
+        require("gents.titles").update(session, title)
         return
       end
       if not is_notification(data.sequence) then
         return
       end
-      if require("agents.session").get(session.id) == session then
+      if require("gents.session").get(session.id) == session then
         M.ready(session, "osc")
       end
     end,

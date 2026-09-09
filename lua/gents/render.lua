@@ -1,25 +1,25 @@
 local M = {}
 
----@param part agents.Item
+---@param part gents.Item
 local function validate_part(part)
-  assert(type(part) == "table", "agents: a part must be a text, path, or code table")
+  assert(type(part) == "table", "gents: a part must be a text, path, or code table")
   local count = (part.text ~= nil and 1 or 0)
     + (part.path ~= nil and 1 or 0)
     + (part.code ~= nil and 1 or 0)
-  assert(count == 1, "agents: a part must have exactly one of text, path, or code")
+  assert(count == 1, "gents: a part must have exactly one of text, path, or code")
   if part.text ~= nil then
-    assert(type(part.text) == "string", "agents: part.text must be a string")
+    assert(type(part.text) == "string", "gents: part.text must be a string")
   elseif part.path ~= nil then
     assert(
       type(part.path) == "string" and part.path ~= "",
-      "agents: part.path must be a non-empty string"
+      "gents: part.path must be a non-empty string"
     )
     if part.range ~= nil then
       local range = part.range
-      assert(type(range) == "table", "agents: part.range must be a range table")
+      assert(type(range) == "table", "gents: part.range must be a range table")
       assert(
         range.kind == "char" or range.kind == "line" or range.kind == "block",
-        "agents: range.kind must be char, line, or block"
+        "gents: range.kind must be char, line, or block"
       )
       for _, pos in ipairs({ range.start, range.finish }) do
         assert(
@@ -30,32 +30,32 @@ local function validate_part(part)
             and type(pos[2]) == "number"
             and pos[2] >= 0
             and pos[2] % 1 == 0,
-          "agents: range endpoints must contain a positive row and non-negative column"
+          "gents: range endpoints must contain a positive row and non-negative column"
         )
       end
-      assert(range.start and range.finish, "agents: a range requires start and finish")
+      assert(range.start and range.finish, "gents: a range requires start and finish")
     end
   else
-    assert(type(part.code) == "string", "agents: part.code must be a string")
-    assert(part.ft == nil or type(part.ft) == "string", "agents: part.ft must be a string")
+    assert(type(part.code) == "string", "gents: part.code must be a string")
+    assert(part.ft == nil or type(part.ft) == "string", "gents: part.ft must be a string")
   end
 end
 
----@param items agents.Item[]
+---@param items gents.Item[]
 local function validate_items(items)
-  assert(type(items) == "table" and vim.islist(items), "agents: send items must be a list")
+  assert(type(items) == "table" and vim.islist(items), "gents: send items must be a list")
   for _, item in ipairs(items) do
     if type(item) == "string" then
-      assert(require("agents.providers").get(item), "agents: unknown provider: " .. item)
+      assert(require("gents.providers").get(item), "gents: unknown provider: " .. item)
     elseif type(item) ~= "function" then
       assert(
         type(item) == "table",
-        "agents: an item must be a provider name, part, fallback, or function"
+        "gents: an item must be a provider name, part, fallback, or function"
       )
       if item.any ~= nil then
         assert(
           item.text == nil and item.path == nil and item.code == nil,
-          "agents: a fallback cannot also be a part"
+          "gents: a fallback cannot also be a part"
         )
         validate_items(item.any)
       else
@@ -65,15 +65,15 @@ local function validate_items(items)
   end
 end
 
----@param parts agents.Item[]?
----@return agents.Part[]?
+---@param parts gents.Item[]?
+---@return gents.Part[]?
 local function snapshot(parts)
   if parts == nil then
     return nil
   end
   assert(
     type(parts) == "table" and vim.islist(parts),
-    "agents: a provider must return a list of parts or nil"
+    "gents: a provider must return a list of parts or nil"
   )
   if #parts == 0 then
     return nil
@@ -81,16 +81,16 @@ local function snapshot(parts)
   for _, part in ipairs(parts) do
     validate_part(part)
   end
-  ---@cast parts agents.Part[]
+  ---@cast parts gents.Part[]
   return vim.deepcopy(parts)
 end
 
----@param item agents.Item
----@param ctx agents.Context
----@return agents.Part[]?
+---@param item gents.Item
+---@param ctx gents.Context
+---@return gents.Part[]?
 local function resolve_item(item, ctx)
   if type(item) == "string" then
-    return snapshot(assert(require("agents.providers").get(item)).render(ctx))
+    return snapshot(assert(require("gents.providers").get(item)).render(ctx))
   elseif type(item) == "function" then
     return snapshot(item(ctx))
   elseif item.any ~= nil then
@@ -106,13 +106,13 @@ local function resolve_item(item, ctx)
 end
 
 ---Resolve providers immediately; the returned parts own their data across pickers.
----@param items agents.Item[]
----@param ctx agents.Context
----@return agents.Part[]?
+---@param items gents.Item[]
+---@param ctx gents.Context
+---@return gents.Part[]?
 function M.resolve(items, ctx)
   -- Validate all names before running providers, including unused fallbacks.
   validate_items(items)
-  ---@type agents.Part[]
+  ---@type gents.Part[]
   local result = {}
   for _, item in ipairs(items) do
     local parts = resolve_item(item, ctx)
@@ -125,7 +125,7 @@ function M.resolve(items, ctx)
 end
 
 ---@param path string
----@param range? agents.Range
+---@param range? gents.Range
 ---@return string
 function M.location(path, range)
   if not range then
@@ -166,9 +166,9 @@ local function code_block(code, ft)
   return fence .. language .. "\n" .. code .. trailing .. fence
 end
 
----@param parts agents.Part[]
----@param ctx agents.Context
----@param tool? agents.Tool
+---@param parts gents.Part[]
+---@param ctx gents.Context
+---@param tool? gents.Tool
 ---@return string
 function M.text(parts, ctx, tool)
   ---@type string[]

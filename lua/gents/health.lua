@@ -2,11 +2,11 @@ local M = {}
 
 ---@return nil
 function M.check()
-  local config = require("agents.config").get()
+  local config = require("gents.config").get()
 
   vim.health.start("Tools")
   local enabled = 0
-  for _, name in ipairs(require("agents.tools").names(config.tools)) do
+  for _, name in ipairs(require("gents.tools").names(config.tools)) do
     local tool = config.tools[name]
     if tool.enabled ~= false then
       enabled = enabled + 1
@@ -47,7 +47,7 @@ function M.check()
       )
     end
   elseif config.picker == "mini" then
-    if require("agents.pickers.mini").instance() then
+    if require("gents.pickers.mini").instance() then
       vim.health.ok("Using mini.pick picker")
     else
       vim.health.error(
@@ -56,7 +56,7 @@ function M.check()
       )
     end
   elseif config.picker == "telescope" then
-    if require("agents.pickers.telescope").instance() then
+    if require("gents.pickers.telescope").instance() then
       vim.health.ok("Using Telescope picker")
     else
       vim.health.error(
@@ -65,7 +65,7 @@ function M.check()
       )
     end
   elseif config.picker == "fzf-lua" then
-    local fzf = require("agents.pickers.fzf")
+    local fzf = require("gents.pickers.fzf")
     local modules = fzf.instance()
     local binary = modules and fzf.binary(modules)
     if not modules then

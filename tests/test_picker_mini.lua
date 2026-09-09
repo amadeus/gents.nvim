@@ -5,30 +5,30 @@ if not vim.env.MINI_PICK_DIR then
 end
 
 -- The optional integration uses this small surface of the real mini.pick API.
----@class agents.test.MiniPickState
+---@class gents.test.MiniPickState
 ---@field buffers { main: integer, preview?: integer, info?: integer }
 ---@field windows { main: integer, target: integer }
 ---@field is_busy boolean
 
----@class agents.test.MiniPickMatches
----@field all? agents.pickers.MiniItem[]
----@field current? agents.pickers.MiniItem
----@field marked? agents.pickers.MiniItem[]
+---@class gents.test.MiniPickMatches
+---@field all? gents.pickers.MiniItem[]
+---@field current? gents.pickers.MiniItem
+---@field marked? gents.pickers.MiniItem[]
 
----@class agents.test.MiniPick
----@field config { mappings: agents.pickers.MiniMappings }
+---@class gents.test.MiniPick
+---@field config { mappings: gents.pickers.MiniMappings }
 ---@field setup fun(config?: table)
 ---@field stop fun()
 ---@field is_picker_active fun(): boolean
----@field get_picker_state fun(): agents.test.MiniPickState?
----@field get_picker_items fun(): agents.pickers.MiniItem[]?
----@field get_picker_matches fun(): agents.test.MiniPickMatches?
+---@field get_picker_state fun(): gents.test.MiniPickState?
+---@field get_picker_items fun(): gents.pickers.MiniItem[]?
+---@field get_picker_matches fun(): gents.test.MiniPickMatches?
 ---@field get_picker_query fun(): string[]?
 ---@field get_picker_opts fun(): { source: { name: string } }?
 
 vim.opt.runtimepath:append(vim.env.MINI_PICK_DIR)
 local original_select = vim.ui.select
----@type agents.test.MiniPick
+---@type gents.test.MiniPick
 local mini = require("mini.pick")
 mini.setup()
 -- mini.pick replaces vim.ui.select during setup; the other suites use the original.
@@ -39,13 +39,13 @@ local eq = test.expect.equality
 local original_input = vim.ui.input
 local original_mappings = vim.deepcopy(mini.config.mappings)
 local original_showmode = vim.o.showmode
-local namespace = vim.api.nvim_create_namespace("agents.pickers.mini")
+local namespace = vim.api.nvim_create_namespace("gents.pickers.mini")
 -- mini.pick creates its namespaces by name, so the same call returns its id.
 local ranges = vim.api.nvim_create_namespace("MiniPickRanges")
 
----@alias agents.test.MiniStep string|fun(): boolean?
+---@alias gents.test.MiniStep string|fun(): boolean?
 
----@type agents.test.MiniStep[]
+---@type gents.test.MiniStep[]
 local steps = {}
 ---@type string?
 local failure
@@ -55,7 +55,7 @@ local timer = assert(vim.uv.new_timer())
 ---ready picker, functions run every tick until they return true. A failing or
 ---stalled step stops the picker so MiniPick.start() returns and finish() can
 ---report the failure.
----@param list agents.test.MiniStep[]
+---@param list gents.test.MiniStep[]
 local function drive(list)
   steps, failure = list, nil
   local waited = 0
@@ -114,8 +114,8 @@ T = test.new_set({
     end,
     pre_case = function()
       H.reset()
-      require("agents").setup({ picker = "mini" })
-      require("agents.config").get().tools = {
+      require("gents").setup({ picker = "mini" })
+      require("gents.config").get().tools = {
         cat = { name = "cat", cmd = { "cat" } },
       }
     end,
@@ -187,7 +187,7 @@ local function typed(query)
   return table.concat(assert(mini.get_picker_query())) == query
 end
 
----@return agents.pickers.MiniItem[]
+---@return gents.pickers.MiniItem[]
 local function matches()
   return assert(assert(mini.get_picker_matches()).all)
 end
@@ -225,13 +225,13 @@ T["shows other-tab sessions as hidden with their titles and preserves selection"
   local text = "○  cat · Investigate flaky tests · " .. directory
   drive({
     function()
-      eq(assert(mini.get_picker_opts()).source.name, "Agents: Sessions")
+      eq(assert(mini.get_picker_opts()).source.name, "Gents: Sessions")
       eq(rows(), { text })
       eq(row_highlights(), {
-        { "AgentsPickerHidden", "○" },
-        { "AgentsPickerSeparator", " · " },
-        { "AgentsPickerSeparator", " · " },
-        { "AgentsPickerDirectory", directory },
+        { "GentsPickerHidden", "○" },
+        { "GentsPickerSeparator", " · " },
+        { "GentsPickerSeparator", " · " },
+        { "GentsPickerDirectory", directory },
       })
       eq(match_highlights(), {})
       ---@type { [1]: integer, [2]: integer, [3]: integer, [4]: { priority?: integer } }[]
@@ -261,14 +261,14 @@ T["shows other-tab sessions as hidden with their titles and preserves selection"
       eq(#matches(), 1)
       eq(rows(), { text })
       eq(match_highlights(), { "f", "l", "a", "k", "y" })
-      eq(row_highlights()[4], { "AgentsPickerDirectory", directory })
+      eq(row_highlights()[4], { "GentsPickerDirectory", directory })
       return true
     end,
     "<CR>",
   })
-  require("agents").pick()
+  require("gents").pick()
   finish()
-  eq(require("agents").current(), session)
+  eq(require("gents").current(), session)
   eq(session.label, "review")
   eq(vim.api.nvim_get_current_tabpage(), session_tab)
 end
@@ -284,7 +284,7 @@ T["explicit placement"] = test.new_set({
     vim.cmd.tabnew()
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
     drive({ key })
-    require("agents").pick()
+    require("gents").pick()
     finish()
     eq(vim.api.nvim_get_current_win() == origin, layout == "current")
     eq(vim.api.nvim_get_current_tabpage(), tab)
@@ -295,7 +295,7 @@ T["explicit placement"] = test.new_set({
     end
     eq(vim.api.nvim_win_get_buf(win), session.buf)
     eq(#vim.fn.win_findbuf(session.buf), 2)
-    eq(require("agents").sessions(), { session })
+    eq(require("gents").sessions(), { session })
     eq(vim.fn.jobwait({ session.job }, 0), { -1 })
   end,
 })
@@ -315,7 +315,7 @@ T["built-in tool shortcuts"] = test.new_set({
   ---@param layout string
   ["launch a real session"] = function(key, layout)
     if layout == "float" then
-      require("agents.config").get().float = {
+      require("gents.config").get().float = {
         width = 0.5,
         height = 0.25,
         row = 1,
@@ -329,9 +329,9 @@ T["built-in tool shortcuts"] = test.new_set({
       callback("cat -u")
     end)
     drive({ key })
-    require("agents").new()
+    require("gents").new()
     finish()
-    local session = assert(require("agents").current())
+    local session = assert(require("gents").current())
     eq(vim.api.nvim_get_current_win() == origin, layout == "current")
     eq(vim.api.nvim_get_current_tabpage() == tab, layout ~= "tabnew")
     eq(session.cmd, key == "<C-e>" and { "cat", "-u" } or { "cat" })
@@ -364,28 +364,28 @@ T["built-in session shortcuts"] = test.new_set({
   ["show hide or close a real session"] = function(key, action)
     local session = H.new()
     if action ~= "hide" then
-      require("agents").hide(session.id)
+      require("gents").hide(session.id)
     end
     local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
     drive({
       function()
         if action == "hide" then
           eq(row_highlights(), {
-            { "AgentsPickerVisible", "●" },
-            { "AgentsPickerSeparator", " · " },
-            { "AgentsPickerPlaceholder", "Untitled" },
-            { "AgentsPickerSeparator", " · " },
-            { "AgentsPickerDirectory", vim.fn.fnamemodify(session.cwd, ":~") },
+            { "GentsPickerVisible", "●" },
+            { "GentsPickerSeparator", " · " },
+            { "GentsPickerPlaceholder", "Untitled" },
+            { "GentsPickerSeparator", " · " },
+            { "GentsPickerDirectory", vim.fn.fnamemodify(session.cwd, ":~") },
           })
         end
         return true
       end,
       key,
     })
-    require("agents").pick()
+    require("gents").pick()
     finish()
     if action == "close" then
-      eq(require("agents.session").get(session.id), nil)
+      eq(require("gents.session").get(session.id), nil)
       H.wait(function()
         return not vim.api.nvim_buf_is_valid(session.buf)
       end)
@@ -416,7 +416,7 @@ T["actions ordering"] = test.new_set({
     if context ~= "empty" then
       local session = H.new()
       if context == "editor" then
-        require("agents").hide(session.id)
+        require("gents").hide(session.id)
       end
     end
     drive({
@@ -431,7 +431,7 @@ T["actions ordering"] = test.new_set({
       end,
       "<Esc>",
     })
-    require("agents").actions()
+    require("gents").actions()
     finish()
   end,
 })
@@ -439,13 +439,13 @@ T["actions ordering"] = test.new_set({
 T["actions picker runs the chosen command in the invoking window"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   drive({
     function()
-      eq(assert(mini.get_picker_opts()).source.name, "Agents: Actions")
+      eq(assert(mini.get_picker_opts()).source.name, "Gents: Actions")
       eq(rows()[1], "send   · Pick context to send to a session")
-      eq(row_highlights()[1], { "AgentsPickerSeparator", " · " })
-      eq(row_highlights()[2], { "AgentsPickerDescription", "Pick context to send to a session" })
+      eq(row_highlights()[1], { "GentsPickerSeparator", " · " })
+      eq(row_highlights()[2], { "GentsPickerDescription", "Pick context to send to a session" })
       return true
     end,
     "and kill",
@@ -458,16 +458,16 @@ T["actions picker runs the chosen command in the invoking window"] = function()
     end,
     "<CR>",
   })
-  require("agents").actions()
+  require("gents").actions()
   finish()
-  eq(require("agents.session").get(session.id), nil)
+  eq(require("gents.session").get(session.id), nil)
   eq(vim.api.nvim_get_current_win(), origin)
 end
 
 T["actions chain into the session picker from the invoking window"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   drive({
     "^pick",
     function()
@@ -479,13 +479,13 @@ T["actions chain into the session picker from the invoking window"] = function()
     end,
     "<CR>",
     function()
-      eq(assert(mini.get_picker_opts()).source.name, "Agents: Sessions")
+      eq(assert(mini.get_picker_opts()).source.name, "Gents: Sessions")
       eq(assert(mini.get_picker_state()).windows.target, origin)
       return true
     end,
     "<CR>",
   })
-  require("agents").actions()
+  require("gents").actions()
   finish()
   eq(vim.api.nvim_get_current_buf(), session.buf)
   eq(vim.api.nvim_win_get_buf(origin) == session.buf, false)
@@ -494,16 +494,16 @@ end
 T["context picker closes before sending the selected parts"] = function()
   local origin = vim.api.nvim_get_current_win()
   local parts = { { text = "Explain this" } }
-  require("agents.config").get().prompts = { buffer = parts }
-  ---@type agents.Part[]?
+  require("gents.config").get().prompts = { buffer = parts }
+  ---@type gents.Part[]?
   local received
   ---@type boolean?
   local closed_before_action
   drive({
     function()
-      eq(assert(mini.get_picker_opts()).source.name, "Agents: Send Context")
+      eq(assert(mini.get_picker_opts()).source.name, "Gents: Send Context")
       eq(rows()[1]:match("^buffer%s+· Saved prompt$") ~= nil, true)
-      eq(row_highlights()[2], { "AgentsPickerDescription", "Saved prompt" })
+      eq(row_highlights()[2], { "GentsPickerDescription", "Saved prompt" })
       return true
     end,
     "Copy entire buffer text",
@@ -524,7 +524,7 @@ T["context picker closes before sending the selected parts"] = function()
     end,
     "<CR>",
   })
-  require("agents.picker").context(require("agents.context").capture(), function(selected)
+  require("gents.picker").context(require("gents.context").capture(), function(selected)
     received = selected
     closed_before_action = not mini.is_picker_active()
   end)
@@ -536,10 +536,10 @@ end
 
 T["cancelling, empty matches, and disabled native placement invoke no action"] = function()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   local windows = #vim.api.nvim_list_wins()
   drive({ "<Esc>" })
-  require("agents").pick()
+  require("gents").pick()
   finish()
   eq(vim.fn.win_findbuf(session.buf), {})
 
@@ -554,7 +554,7 @@ T["cancelling, empty matches, and disabled native placement invoke no action"] =
     end,
     "<CR>",
   })
-  require("agents").pick()
+  require("gents").pick()
   finish()
   eq(vim.fn.win_findbuf(session.buf), {})
 
@@ -567,17 +567,17 @@ T["cancelling, empty matches, and disabled native placement invoke no action"] =
     end,
     "<Esc>",
   })
-  require("agents").actions()
+  require("gents").actions()
   finish()
   eq(#vim.api.nvim_list_wins(), windows)
   eq(vim.fn.win_findbuf(session.buf), {})
-  eq(require("agents.session").get(session.id), session)
+  eq(require("gents.session").get(session.id), session)
 end
 
 T["marking keys are disabled because menus act on one row"] = function()
   local first, second = H.new(), H.new()
-  require("agents").hide(first.id)
-  require("agents").hide(second.id)
+  require("gents").hide(first.id)
+  require("gents").hide(second.id)
   drive({
     "<C-n>",
     "<C-x>",
@@ -593,7 +593,7 @@ T["marking keys are disabled because menus act on one row"] = function()
     end,
     "<Esc>",
   })
-  require("agents").pick()
+  require("gents").pick()
   finish()
   eq(vim.fn.win_findbuf(first.buf), {})
   eq(vim.fn.win_findbuf(second.buf), {})
@@ -603,12 +603,12 @@ T["duplicate display text resolves to the selected original item once"] = functi
   ---@type string[]
   local chosen = {}
   drive({ "<C-n>", "<CR>" })
-  require("agents.picker").open({
+  require("gents.picker").open({
     title = "Duplicates",
     items = { { text = "same", data = "first" }, { text = "same", data = "second" } },
     default = "pick",
     actions = {
-      ---@param item agents.PickerItem<string>
+      ---@param item gents.PickerItem<string>
       pick = function(item)
         chosen[#chosen + 1] = item.data
       end,
@@ -620,7 +620,7 @@ end
 
 T["native info view lists adapter mappings and previews stay disabled"] = function()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   drive({
     "<Tab>",
     function()
@@ -635,14 +635,14 @@ T["native info view lists adapter mappings and previews stay disabled"] = functi
         return false
       end
       eq(vim.list_contains(lines, "Mappings (custom)"), true)
-      eq(mapping_key(lines, "Agents open in vsplit"), "<C-v>")
-      eq(mapping_key(lines, "Agents open in split"), "<C-s>")
-      eq(mapping_key(lines, "Agents open in tabpage"), "<C-t>")
-      eq(mapping_key(lines, "Agents open in float"), "<M-f>")
-      eq(mapping_key(lines, "Agents open here"), "<C-CR>")
-      eq(mapping_key(lines, "Agents hide session"), "<M-h>")
-      eq(mapping_key(lines, "Agents close session"), "<C-d>")
-      eq(mapping_key(lines, "Agents edit command"), nil)
+      eq(mapping_key(lines, "Gents open in vsplit"), "<C-v>")
+      eq(mapping_key(lines, "Gents open in split"), "<C-s>")
+      eq(mapping_key(lines, "Gents open in tabpage"), "<C-t>")
+      eq(mapping_key(lines, "Gents open in float"), "<M-f>")
+      eq(mapping_key(lines, "Gents open here"), "<C-CR>")
+      eq(mapping_key(lines, "Gents hide session"), "<M-h>")
+      eq(mapping_key(lines, "Gents close session"), "<C-d>")
+      eq(mapping_key(lines, "Gents edit command"), nil)
       eq(mapping_key(lines, "Choose"), "<CR>")
       eq(mapping_key(lines, "Toggle info"), "<S-Tab>")
       eq(mapping_key(lines, "Choose in vsplit"), nil)
@@ -658,7 +658,7 @@ T["native info view lists adapter mappings and previews stay disabled"] = functi
     end,
     "<Esc>",
   })
-  require("agents").pick()
+  require("gents").pick()
   finish()
   eq(vim.fn.win_findbuf(session.buf), {})
 
@@ -669,17 +669,17 @@ T["native info view lists adapter mappings and previews stay disabled"] = functi
       if not lines then
         return false
       end
-      eq(mapping_key(lines, "Agents edit command"), "<C-e>")
-      eq(mapping_key(lines, "Agents open in vsplit"), "<C-v>")
-      eq(mapping_key(lines, "Agents hide session"), nil)
-      eq(mapping_key(lines, "Agents close session"), nil)
+      eq(mapping_key(lines, "Gents edit command"), "<C-e>")
+      eq(mapping_key(lines, "Gents open in vsplit"), "<C-v>")
+      eq(mapping_key(lines, "Gents hide session"), nil)
+      eq(mapping_key(lines, "Gents close session"), nil)
       return true
     end,
     "<Esc>",
   })
-  require("agents").new()
+  require("gents").new()
   finish()
-  eq(#require("agents").sessions(), 1)
+  eq(#require("gents").sessions(), 1)
 
   drive({
     "<S-Tab>",
@@ -694,7 +694,7 @@ T["native info view lists adapter mappings and previews stay disabled"] = functi
     end,
     "<Esc>",
   })
-  require("agents").actions()
+  require("gents").actions()
   finish()
 end
 
@@ -704,9 +704,9 @@ T["configured mini.pick keys take precedence over adapter bindings"] = test.new_
   ---@param scope string
   ["from global or buffer-local configuration"] = function(scope)
     local session = H.new()
-    require("agents").hide(session.id)
+    require("gents").hide(session.id)
     local origin = vim.api.nvim_get_current_win()
-    ---@type agents.pickers.MiniMappings
+    ---@type gents.pickers.MiniMappings
     local overrides = { scroll_down = "<C-d>", choose_in_vsplit = "<C-o>", choose_in_split = "" }
     if scope == "global" then
       mini.config.mappings = vim.tbl_extend("force", mini.config.mappings, overrides)
@@ -721,10 +721,10 @@ T["configured mini.pick keys take precedence over adapter bindings"] = test.new_
           return false
         end
         eq(mapping_key(lines, "Scroll down"), "<C-d>")
-        eq(mapping_key(lines, "Agents close session"), nil)
-        eq(mapping_key(lines, "Agents open in vsplit"), "<C-o>")
-        eq(mapping_key(lines, "Agents open in split"), nil)
-        eq(mapping_key(lines, "Agents open in tabpage"), "<C-t>")
+        eq(mapping_key(lines, "Gents close session"), nil)
+        eq(mapping_key(lines, "Gents open in vsplit"), "<C-o>")
+        eq(mapping_key(lines, "Gents open in split"), nil)
+        eq(mapping_key(lines, "Gents open in tabpage"), "<C-t>")
         return true
       end,
       "<S-Tab>",
@@ -736,9 +736,9 @@ T["configured mini.pick keys take precedence over adapter bindings"] = test.new_
       end,
       "<C-o>",
     })
-    require("agents").pick()
+    require("gents").pick()
     finish()
-    eq(require("agents.session").get(session.id), session)
+    eq(require("gents.session").get(session.id), session)
     eq(vim.api.nvim_get_current_buf(), session.buf)
     eq(vim.api.nvim_win_get_buf(origin) == session.buf, false)
     eq(#vim.fn.win_findbuf(session.buf), 1)
@@ -754,7 +754,7 @@ T["adapter mapping names leave user custom mappings intact"] = function()
     end,
   }
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   drive({
     "<S-Tab>",
     function()
@@ -763,7 +763,7 @@ T["adapter mapping names leave user custom mappings intact"] = function()
         return false
       end
       eq(mapping_key(lines, "Open in float"), "<F6>")
-      eq(mapping_key(lines, "Agents open in float"), "<M-f>")
+      eq(mapping_key(lines, "Gents open in float"), "<M-f>")
       return true
     end,
     "<S-Tab>",
@@ -775,25 +775,25 @@ T["adapter mapping names leave user custom mappings intact"] = function()
     end,
     "<Esc>",
   })
-  require("agents").pick()
+  require("gents").pick()
   finish()
   eq(vim.fn.win_findbuf(session.buf), {})
 end
 
 T["marker overrides and Unicode titles keep highlights aligned"] = function()
-  require("agents.config").get().icons = { visible = "v", hidden = "h" }
+  require("gents.config").get().icons = { visible = "v", hidden = "h" }
   local session = H.new()
   session.title = "Ünïcödé — títle"
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   local directory = vim.fn.fnamemodify(session.cwd, ":~")
   drive({
     function()
       eq(rows(), { "h  cat · Ünïcödé — títle · " .. directory })
       eq(row_highlights(), {
-        { "AgentsPickerHidden", "h" },
-        { "AgentsPickerSeparator", " · " },
-        { "AgentsPickerSeparator", " · " },
-        { "AgentsPickerDirectory", directory },
+        { "GentsPickerHidden", "h" },
+        { "GentsPickerSeparator", " · " },
+        { "GentsPickerSeparator", " · " },
+        { "GentsPickerDirectory", directory },
       })
       return true
     end,
@@ -808,35 +808,35 @@ T["marker overrides and Unicode titles keep highlights aligned"] = function()
     end,
     "<Esc>",
   })
-  require("agents").pick()
+  require("gents").pick()
   finish()
 end
 
 T["a menu requested from a mini.pick action opens afterwards with that picker's target"] = function()
   local session = H.new()
-  require("agents").hide(session.id)
+  require("gents").hide(session.id)
   local origin = vim.api.nvim_get_current_win()
   ---@type boolean?
   local deferred
   drive({
     "<F6>",
     function()
-      eq(assert(mini.get_picker_opts()).source.name, "Agents: Sessions")
+      eq(assert(mini.get_picker_opts()).source.name, "Gents: Sessions")
       eq(assert(mini.get_picker_state()).windows.target, origin)
       return true
     end,
     "<CR>",
   })
-  ---@type { start: fun(opts: { source: { name: string, items: string[] }, mappings: agents.pickers.MiniMappings }) }
+  ---@type { start: fun(opts: { source: { name: string, items: string[] }, mappings: gents.pickers.MiniMappings }) }
   local raw = require("mini.pick")
   raw.start({
     source = { name = "Probe", items = { "one" } },
     mappings = {
-      agents = {
+      gents = {
         char = "<F6>",
         func = function()
           -- The menu must wait for this picker instead of interrupting it.
-          require("agents").pick()
+          require("gents").pick()
           deferred = mini.is_picker_active()
           return true
         end,
@@ -857,31 +857,31 @@ T["sending without focus from a mini.pick action returns to that picker's target
   drive({
     "<F6>",
     function()
-      eq(assert(mini.get_picker_opts()).source.name, "Agents: New Session")
+      eq(assert(mini.get_picker_opts()).source.name, "Gents: New Session")
       return true
     end,
     "<CR>",
   })
-  ---@type { start: fun(opts: { source: { name: string, items: string[] }, mappings: agents.pickers.MiniMappings }) }
+  ---@type { start: fun(opts: { source: { name: string, items: string[] }, mappings: gents.pickers.MiniMappings }) }
   local raw = require("mini.pick")
   raw.start({
     source = { name = "Probe", items = { "one" } },
     mappings = {
-      agents = {
+      gents = {
         char = "<F6>",
         func = function()
-          require("agents").send({ { text = "test" } }, { focus = false })
+          require("gents").send({ { text = "test" } }, { focus = false })
           return true
         end,
       },
     },
   })
   H.wait(function()
-    return not mini.is_picker_active() and #require("agents").sessions() == 1
+    return not mini.is_picker_active() and #require("gents").sessions() == 1
   end)
   finish()
-  local session = assert(require("agents").sessions()[1])
-  eq(require("agents.window").visible(session), true)
+  local session = assert(require("gents").sessions()[1])
+  eq(require("gents.window").visible(session), true)
   eq(vim.api.nvim_get_current_win(), origin)
   eq(vim.api.nvim_get_mode().mode, "n")
 end

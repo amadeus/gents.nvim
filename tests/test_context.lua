@@ -1,6 +1,6 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local context = require("agents.context")
+local context = require("gents.context")
 local eq = test.expect.equality
 local original_selection = vim.o.selection
 local original_virtualedit = vim.o.virtualedit
@@ -29,7 +29,7 @@ local T = test.new_set({
 ---@param mode string
 ---@param first [integer, integer]
 ---@param last [integer, integer]
----@return agents.Context
+---@return gents.Context
 local function selection(lines, mode, first, last)
   vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
   vim.api.nvim_win_set_cursor(0, first)

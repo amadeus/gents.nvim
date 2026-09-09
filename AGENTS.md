@@ -1,6 +1,6 @@
-# Contributing to agents.nvim
+# Contributing to gents.nvim
 
-agents.nvim runs CLI agents in native Neovim terminal buffers. It provides
+gents.nvim runs CLI agents in native Neovim terminal buffers. It provides
 session management, pickers, context sharing, and composable commands and Lua
 APIs. The CLI owns the conversation; the plugin integrates it into the editor.
 The supported baseline is Neovim 0.12+ with LuaJIT.
@@ -22,17 +22,17 @@ The supported baseline is Neovim 0.12+ with LuaJIT.
 
 ## Code map
 
-- `lua/agents/init.lua`: public Lua API; `plugin/agents.lua` and
-  `lua/agents/commands.lua`: command registration, dispatch, and completion.
-- `lua/agents/config.lua`, `tools.lua`, and `types.lua`: configuration,
+- `lua/gents/init.lua`: public Lua API; `plugin/gents.lua` and
+  `lua/gents/commands.lua`: command registration, dispatch, and completion.
+- `lua/gents/config.lua`, `tools.lua`, and `types.lua`: configuration,
   CLI definitions, and shared LuaLS contracts.
-- `lua/agents/session.lua`, `window.lua`, and `target.lua`: session/job
+- `lua/gents/session.lua`, `window.lua`, and `target.lua`: session/job
   lifetime, window placement, and target selection.
-- `lua/agents/picker.lua` and `pickers/`: picker specifications and adapters;
+- `lua/gents/picker.lua` and `pickers/`: picker specifications and adapters;
   `keys.lua`: optional session keymaps.
-- `lua/agents/context.lua`, `providers.lua`, `render.lua`, and `send.lua`:
+- `lua/gents/context.lua`, `providers.lua`, `render.lua`, and `send.lua`:
   capture source context, build content, and deliver it to a CLI.
-- `lua/agents/events.lua`, `titles.lua`, and `buffer_names.lua`: lifecycle
+- `lua/gents/events.lua`, `titles.lua`, and `buffer_names.lua`: lifecycle
   events, terminal signals, conversation titles, and buffer names.
 - `tests/test_*.lua`: mini.test suites; `tests/helpers.lua`: shared runtime
   helpers; `tests/meta/`: test-library type definitions.
@@ -46,7 +46,7 @@ The supported baseline is Neovim 0.12+ with LuaJIT.
   existing Neovim APIs over custom state, layout enforcement, or workarounds.
 - Keep picker actions available through commands or Lua APIs. Keep optional
   integrations optional and keymaps opt-in.
-- Use the plural `agents` namespace for plugin identifiers. A tool is a CLI
+- Use the `gents` namespace for plugin identifiers. A tool is a CLI
   definition; a session is one running instance or its retained terminal buffer.
 - Follow `stylua.toml`: LuaJIT syntax, two-space indentation, 100-column
   formatting, and double quotes where appropriate.
@@ -93,7 +93,7 @@ Report checks that could not run and remove temporary investigation artifacts.
 
 ## Documentation
 
-- Keep README a quick start. `doc/agents.txt` is the complete public reference;
+- Keep README a quick start. `doc/gents.txt` is the complete public reference;
   `docs/usage.md` explains everyday workflows; `docs/recipes/` shows practical
   integrations. Keep overlapping descriptions and links consistent.
 - Introduce what a feature does and why someone would use it before listing
@@ -101,8 +101,8 @@ Report checks that could not run and remove temporary investigation artifacts.
   actions and visible results.
 - Document the plugin as it works now. Omit phase tracking, migration notes
   about unreleased development changes, abandoned approaches, and test history.
-- Call the plugin `agents.nvim`; use "agents" for actual CLI agents. Preserve
-  names such as `:Agents`, `require("agents")`, and `AgentsReady`.
+- Call the plugin `gents.nvim`; use "agents" for actual CLI agents. Preserve
+  names such as `:Gents`, `require("gents")`, and `GentsReady`.
 - Verify behavior against current source. Update relevant docs alongside public
   API changes, and verify external API examples against upstream references.
   Investigate tool-specific readiness or title issues when requested; do not

@@ -1,15 +1,15 @@
 local test = require("mini.test")
 local helpers = require("tests.helpers")
-local agents = require("agents")
+local gents = require("gents")
 local eq = test.expect.equality
 local T = test.new_set()
 
----@param keys agents.Keymap[]
+---@param keys gents.Keymap[]
 local function setup(keys)
-  agents.setup({ tools = { cat = { cmd = { "cat" } } }, keys = keys })
+  gents.setup({ tools = { cat = { cmd = { "cat" } } }, keys = keys })
 end
 
----@param mode agents.KeyMode
+---@param mode gents.KeyMode
 ---@param lhs string
 ---@param buf? integer
 ---@return vim.api.keyset.get_keymap?
@@ -66,7 +66,7 @@ config["mode overrides support a single mode and a mode list"] = function()
 end
 
 config["visual-select mappings preserve replacements in either mode"] = function()
-  ---@type agents.KeyMode[]
+  ---@type gents.KeyMode[]
   local selection_modes = { "x", "s" }
   test.finally(function()
     for _, mode in ipairs(selection_modes) do
@@ -112,7 +112,7 @@ end
 
 config["invalid keys leave configuration and installed mappings intact"] = function()
   setup({ { "<F6>", "toggle" } })
-  local original = require("agents.config").get()
+  local original = require("gents.config").get()
   local callback = assert(mapping("n", "<F6>")).callback
   local invalid = {
     { named = { "<F6>", "toggle" } },
@@ -127,8 +127,8 @@ config["invalid keys leave configuration and installed mappings intact"] = funct
   for _, keys in ipairs(invalid) do
     local ok, err = pcall(setup, keys)
     eq(ok, false)
-    eq(tostring(err):find("agents: keys", 1, true) ~= nil, true)
-    eq(require("agents.config").get(), original)
+    eq(tostring(err):find("gents: keys", 1, true) ~= nil, true)
+    eq(require("gents.config").get(), original)
     eq(assert(mapping("n", "<F6>")).callback, callback)
   end
 end
@@ -136,29 +136,29 @@ end
 config["send opens the context picker"] = function()
   ---@type string?
   local title
-  agents.setup({
+  gents.setup({
     keys = { { "<F6>", "send", mode = "n" } },
-    ---@param spec agents.PickerSpec<agents.Part[]>
+    ---@param spec gents.PickerSpec<gents.Part[]>
     picker = function(spec)
       title = spec.title
     end,
   })
   assert(assert(mapping("n", "<F6>")).callback)()
-  eq(title, "Agents: Send Context")
+  eq(title, "Gents: Send Context")
 end
 
 config["actions opens the command picker"] = function()
   ---@type string?
   local title
-  agents.setup({
+  gents.setup({
     keys = { { "<F6>", "actions", mode = "n" } },
-    ---@param spec agents.PickerSpec<agents.CommandName>
+    ---@param spec gents.PickerSpec<gents.CommandName>
     picker = function(spec)
       title = spec.title
     end,
   })
   assert(assert(mapping("n", "<F6>")).callback)()
-  eq(title, "Agents: Actions")
+  eq(title, "Gents: Actions")
 end
 
 config["focus keys move between the editor and a visible session"] = function()
@@ -180,7 +180,7 @@ config["FileType mappings can override configured terminal keys"] = function()
   setup({ { "<F6>", "hide" } })
   local replacement = function() end
   local autocmd = vim.api.nvim_create_autocmd("FileType", {
-    pattern = "agents_terminal",
+    pattern = "gents_terminal",
     once = true,
     callback = function(event)
       vim.keymap.set("t", "<F6>", replacement, { buffer = event.buf })
@@ -233,11 +233,11 @@ local input_tests = test.new_set({
       }, { rpc = true })
       assert(channel > 0, "Could not start child Neovim")
       lua([[
-      require("agents").setup({
+      require("gents").setup({
         tools = { cat = { cmd = { "cat" } } },
         keys = { { "<F6>", "toggle" } },
       })
-      _G.session = require("agents").new("cat")
+      _G.session = require("gents").new("cat")
     ]])
       wait([[vim.api.nvim_get_mode().mode == "t"]])
     end,
@@ -248,8 +248,8 @@ local input_tests = test.new_set({
       pcall(
         lua,
         [[
-      for _, session in ipairs(require("agents").sessions()) do
-        require("agents").close(session.id)
+      for _, session in ipairs(require("gents").sessions()) do
+        require("gents").close(session.id)
       end
     ]]
       )
@@ -277,7 +277,7 @@ input_tests["toggle works in normal, visual, and session terminal modes"] = func
   wait([[vim.api.nvim_get_mode().mode == "t" and vim.api.nvim_get_current_buf() == session.buf]])
 end
 
-input_tests["plain terminals receive the key without toggling an agents session"] = function()
+input_tests["plain terminals receive the key without toggling a gents session"] = function()
   input("<F6>")
   wait([[#vim.fn.win_findbuf(session.buf) == 0]])
   lua([[
@@ -304,7 +304,7 @@ input_tests["send captures an active selection and does not reuse it on later in
   input("<F6>")
   wait([[vim.api.nvim_get_mode().mode == "n"]])
   lua([[
-    require("agents").setup({
+    require("gents").setup({
       tools = { cat = { cmd = { "cat" } } },
       keys = { { "<F7>", "send" } },
       picker = function(spec)
@@ -329,7 +329,7 @@ input_tests["send captures an active selection and does not reuse it on later in
   wait([[_G.previews ~= nil]])
   eq(lua([[return previews.selection]]), vim.NIL)
   eq(lua([[return previews.file]]), "@key-context.lua")
-  lua([[_G.previews = nil; require("agents").show(session.id)]])
+  lua([[_G.previews = nil; require("gents").show(session.id)]])
   wait([[vim.api.nvim_get_mode().mode == "t"]])
   lua([[
     _G.notifications = {}
@@ -341,7 +341,7 @@ input_tests["send captures an active selection and does not reuse it on later in
   input("<F7>")
   wait([[#notifications == 1]])
   eq(lua([[return notifications]]), {
-    { "agents.nvim: send context from a non-session buffer", vim.log.levels.WARN },
+    { "gents.nvim: send context from a non-session buffer", vim.log.levels.WARN },
   })
   eq(lua([[return previews]]), vim.NIL)
   eq(lua([[return vim.api.nvim_get_current_win()]]), lua([[return session_win]]))
@@ -353,15 +353,15 @@ input_tests["actions preserves the visual selection when choosing send after pic
   input("<F6>")
   wait([[vim.api.nvim_get_mode().mode == "n"]])
   lua([[
-    require("agents").setup({
+    require("gents").setup({
       tools = { cat = { cmd = { "cat" } } },
       keys = { { "<F7>", "actions" } },
       picker = function(spec)
-        if spec.title == "Agents: Actions" then
+        if spec.title == "Gents: Actions" then
           _G.actions_spec = spec
           vim.cmd.vnew()
           vim.api.nvim_buf_set_lines(0, 0, -1, false, { "Picker buffer" })
-        elseif spec.title == "Agents: Send Context" then
+        elseif spec.title == "Gents: Send Context" then
           _G.previews = {}
           for _, item in ipairs(spec.items) do
             _G.previews[item.text:match("^%S+")] = item.preview
@@ -400,7 +400,7 @@ input_tests["actions can hide a visually selected session without a source windo
   wait([[vim.api.nvim_get_mode().mode == "nt"]])
   lua([[
     vim.cmd.only()
-    require("agents").setup({
+    require("gents").setup({
       tools = { cat = { cmd = { "cat" } } },
       keys = { { "<F7>", "actions" } },
       picker = function(spec)
@@ -411,7 +411,7 @@ input_tests["actions can hide a visually selected session without a source windo
   eq(lua([[return #vim.api.nvim_tabpage_list_wins(0)]]), 1)
   input("ggv<F7>")
   wait([[_G.actions_spec ~= nil and vim.api.nvim_get_mode().mode == "nt"]])
-  eq(lua([[return actions_spec.title]]), "Agents: Actions")
+  eq(lua([[return actions_spec.title]]), "Gents: Actions")
   lua([[
     for _, item in ipairs(actions_spec.items) do
       if item.data == "hide" then

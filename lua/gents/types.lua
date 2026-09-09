@@ -1,108 +1,108 @@
 ---@meta
 
 ---Normalize a CLI terminal title; nil means the current conversation is unnamed.
----@alias agents.TitleParser fun(title: string, session: agents.Session): string?
+---@alias gents.TitleParser fun(title: string, session: gents.Session): string?
 
----@class agents.Tool
+---@class gents.Tool
 ---@field name string
 ---@field cmd string[]
 ---@field env? table<string, string|false>
 ---@field url? string
----@field location? fun(path: string, range?: agents.Range): string
----@field title? agents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
+---@field location? fun(path: string, range?: gents.Range): string
+---@field title? gents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
 ---@field enabled? boolean
 
 ---Tool fields supplied to setup; the table key supplies the name.
----@class agents.ToolOverride
+---@class gents.ToolOverride
 ---@field cmd? string[]
 ---@field env? table<string, string|false>
 ---@field url? string
----@field location? fun(path: string, range?: agents.Range): string
----@field title? agents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
+---@field location? fun(path: string, range?: gents.Range): string
+---@field title? gents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
 ---@field enabled? boolean
 
 ---Evaluated when a float opens and on VimResized.
----@alias agents.FloatValue number|fun(): number
+---@alias gents.FloatValue number|fun(): number
 
 ---Partial float defaults. Width/height in (0, 1] are screen proportions; cell sizes round down.
----@class agents.FloatOptions: vim.api.keyset.win_config
----@field width? agents.FloatValue
----@field height? agents.FloatValue
----@field row? agents.FloatValue
----@field col? agents.FloatValue
+---@class gents.FloatOptions: vim.api.keyset.win_config
+---@field width? gents.FloatValue
+---@field height? gents.FloatValue
+---@field row? gents.FloatValue
+---@field col? gents.FloatValue
 
 ---An inline float layout, or the complete floating-window defaults after setup.
----@class agents.FloatConfig: agents.FloatOptions
----@field width agents.FloatValue
----@field height agents.FloatValue
+---@class gents.FloatConfig: gents.FloatOptions
+---@field width gents.FloatValue
+---@field height gents.FloatValue
 
 ---An Ex command that creates a window, "float", "current", inline float options,
 ---or a callback that creates or chooses a window; the plugin assigns its buffer.
----@alias agents.Layout string|agents.FloatConfig|fun(): integer
+---@alias gents.Layout string|gents.FloatConfig|fun(): integer
 
----@class agents.NewOptions
+---@class gents.NewOptions
 ---@field cmd? string[] Complete argv override; mutually exclusive with args.
 ---@field args? string[]
----@field layout? agents.Layout
+---@field layout? gents.Layout
 ---@field label? string
 
----@class agents.ShowOptions
----@field layout? agents.Layout Explicit placement; preserves existing session views.
+---@class gents.ShowOptions
+---@field layout? gents.Layout Explicit placement; preserves existing session views.
 
----@class agents.SendOptions
----@field target? agents.Target
+---@class gents.SendOptions
+---@field target? gents.Target
 ---@field submit? boolean Send Enter after pasting; defaults to false.
 ---@field focus? boolean Focus the destination and enter terminal input; defaults to true.
 
 ---Session picker markers; override either value to use different glyphs or ASCII.
----@class agents.IconsOptions
+---@class gents.IconsOptions
 ---@field visible? string
 ---@field hidden? string
 
----@class agents.Icons: agents.IconsOptions
+---@class gents.Icons: gents.IconsOptions
 ---@field visible string
 ---@field hidden string
 
----@class agents.SetupOptions
----@field layout? agents.Layout
----@field float? agents.FloatOptions
+---@class gents.SetupOptions
+---@field layout? gents.Layout
+---@field float? gents.FloatOptions
 ---@field buflisted? boolean List newly created session buffers in normal buffer lists; defaults to false.
----@field picker? agents.Picker
+---@field picker? gents.Picker
 ---@field picker_help? boolean Show binding hints in the built-in Snacks picker; defaults to true.
----@field icons? agents.IconsOptions
+---@field icons? gents.IconsOptions
 ---@field on_exit? "keep"|"close"
----@field tools? table<string, agents.ToolOverride|false>
----@field prompts? table<string, agents.Item[]>
----@field keys? agents.Keymap[]
+---@field tools? table<string, gents.ToolOverride|false>
+---@field prompts? table<string, gents.Item[]>
+---@field keys? gents.Keymap[]
 
----@class agents.Config
----@field layout agents.Layout
----@field float agents.FloatConfig
+---@class gents.Config
+---@field layout gents.Layout
+---@field float gents.FloatConfig
 ---@field buflisted boolean
----@field picker? agents.Picker
+---@field picker? gents.Picker
 ---@field picker_help boolean
----@field icons agents.Icons
+---@field icons gents.Icons
 ---@field on_exit "keep"|"close"
----@field tools table<string, agents.Tool>
----@field prompts table<string, agents.Item[]>
----@field keys agents.Keymap[]
+---@field tools table<string, gents.Tool>
+---@field prompts table<string, gents.Item[]>
+---@field keys gents.Keymap[]
 
----@alias agents.SessionState "starting"|"ready"|"exited"
+---@alias gents.SessionState "starting"|"ready"|"exited"
 
----@class agents.SessionEvent
+---@class gents.SessionEvent
 ---@field id integer
 ---@field win? integer
 ---@field exit_code? integer
 
----@class agents.SendEvent
+---@class gents.SendEvent
 ---@field id integer
 ---@field submit boolean
 
----@class agents.TitleEvent
+---@class gents.TitleEvent
 ---@field id integer
 ---@field title? string Absent when the conversation becomes unnamed.
 
----@class agents.ReadyEvent
+---@class gents.ReadyEvent
 ---@field id integer
 ---@field label string
 ---@field tool string
@@ -112,39 +112,39 @@
 ---@field focused boolean
 ---@field source "osc"|"hook"
 
----@class agents.Status
+---@class gents.Status
 ---@field id integer
 ---@field tool string
 ---@field label string
 ---@field title? string Conversation title; does not change the targeting label.
 ---@field visible boolean Shown in a window in the current tab.
----@field state agents.SessionState
+---@field state gents.SessionState
 ---@field cwd string
 
 ---Inclusive endpoints: one-based rows and zero-based byte columns.
----@class agents.Range
+---@class gents.Range
 ---@field kind "char"|"line"|"block"
 ---@field start { [1]: integer, [2]: integer }
 ---@field finish { [1]: integer, [2]: integer }
 
----@class agents.Context
+---@class gents.Context
 ---@field win integer
 ---@field buf integer
 ---@field cwd string
 ---@field cursor { [1]: integer, [2]: integer }
----@field range? agents.Range
+---@field range? gents.Range
 
----@class agents.Provider
+---@class gents.Provider
 ---@field desc string
----@field render fun(ctx: agents.Context): agents.Part[]|nil
+---@field render fun(ctx: gents.Context): gents.Part[]|nil
 
----@alias agents.Part { text: string }|{ path: string, range?: agents.Range }|{ code: string, ft?: string }
----@alias agents.Item string|agents.Part|{ any: agents.Item[] }|fun(ctx: agents.Context): agents.Part[]|nil
----@alias agents.CommandName "actions"|"close"|"focus"|"hide"|"new"|"pick"|"send"|"toggle"
----@alias agents.KeyAction agents.CommandName
----@alias agents.KeyMode "n"|"i"|"x"|"s"|"v"|"t"
+---@alias gents.Part { text: string }|{ path: string, range?: gents.Range }|{ code: string, ft?: string }
+---@alias gents.Item string|gents.Part|{ any: gents.Item[] }|fun(ctx: gents.Context): gents.Part[]|nil
+---@alias gents.CommandName "actions"|"close"|"focus"|"hide"|"new"|"pick"|"send"|"toggle"
+---@alias gents.KeyAction gents.CommandName
+---@alias gents.KeyMode "n"|"i"|"x"|"s"|"v"|"t"
 
----@class agents.Keymap
+---@class gents.Keymap
 ---@field [1] string
----@field [2] agents.KeyAction|fun()
----@field mode? agents.KeyMode|agents.KeyMode[]
+---@field [2] gents.KeyAction|fun()
+---@field mode? gents.KeyMode|gents.KeyMode[]

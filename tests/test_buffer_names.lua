@@ -1,12 +1,12 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local agents = require("agents")
+local gents = require("gents")
 local eq = test.expect.equality
 local T = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
 
 ---@param buflisted? boolean
 local function setup(buflisted)
-  agents.setup({
+  gents.setup({
     buflisted = buflisted or false,
     tools = {
       cat = {
@@ -19,7 +19,7 @@ local function setup(buflisted)
   })
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param title string
 local function update(session, title)
   -- Exercise the title event path with a live terminal; OSC transport has its
@@ -30,11 +30,11 @@ local function update(session, title)
   })
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param display string
 ---@return string
 local function name(session, display)
-  return "agents://" .. session.id .. "/" .. display
+  return "gents://" .. session.id .. "/" .. display
 end
 
 ---@return string[]
@@ -45,7 +45,7 @@ local function terminal_names()
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_valid(buf) then
       local value = vim.api.nvim_buf_get_name(buf)
-      if value:match("^agents://") or value:match("^term://") then
+      if value:match("^gents://") or value:match("^term://") then
         names[#names + 1] = value
       end
     end
@@ -71,7 +71,7 @@ T["buffer listing and naming"] = test.new_set({
     eq(vim.bo[buf].channel, job)
     eq(vim.bo[buf].buflisted, buflisted)
     eq(vim.bo[buf].buftype, "terminal")
-    eq(vim.bo[buf].filetype, "agents_terminal")
+    eq(vim.bo[buf].filetype, "gents_terminal")
     eq(vim.fn.jobwait({ job }, 0), { -1 })
     vim.fn.chansend(job, "still-alive-after-rename\n")
     H.wait(function()
@@ -94,7 +94,7 @@ end
 T["hidden renames and resets preserve focus, cursor, and the alternate buffer"] = function()
   setup()
   local session = H.new({ label = "Custom label" })
-  agents.hide(session.id)
+  gents.hide(session.id)
   local alternate = vim.api.nvim_get_current_buf()
   vim.api.nvim_buf_set_name(alternate, vim.fn.tempname())
   vim.cmd.enew()
@@ -142,7 +142,7 @@ T["names sanitize path separators and controls while retaining full title metada
     name(session, [[cat · Inspect src main.lua tests · café 日本語 🔍 % # | "quotes"]])
   )
   eq(session.title, title)
-  eq(agents.status()[1].title, title)
+  eq(gents.status()[1].title, title)
   update(session, "reset")
   eq(session.title, nil)
   eq(vim.api.nvim_buf_get_name(session.buf), name(session, "review branch work café 日本語"))
@@ -166,7 +166,7 @@ T["real OSC output renames a hidden terminal without leaving buffer aliases"] = 
       [[while IFS= read -r title; do printf '\033]2;%s\007' "$title"; done]],
     },
   })
-  agents.hide(session.id)
+  gents.hide(session.id)
   local current, win = vim.api.nvim_get_current_buf(), vim.api.nvim_get_current_win()
   for _, title in ipairs({ "First real title", "Renamed real title", "reset" }) do
     vim.fn.chansend(session.job, title .. "\n")
@@ -185,7 +185,7 @@ end
 T["rename cleanup preserves unrelated loaded and unloaded buffers"] = function()
   setup()
   local unrelated = vim.api.nvim_create_buf(true, false)
-  vim.api.nvim_buf_set_name(unrelated, "agents://unrelated/Notes")
+  vim.api.nvim_buf_set_name(unrelated, "gents://unrelated/Notes")
   vim.api.nvim_buf_set_lines(unrelated, 0, -1, false, { "Keep these notes" })
   local unloaded = vim.fn.bufadd("term://unrelated")
   eq(vim.api.nvim_buf_is_loaded(unloaded), false)
@@ -198,7 +198,7 @@ T["rename cleanup preserves unrelated loaded and unloaded buffers"] = function()
   eq(vim.bo[unrelated].modified, true)
   eq(vim.api.nvim_buf_is_valid(unloaded), true)
   eq(vim.api.nvim_buf_is_loaded(unloaded), false)
-  local expected = { name(session, "cat"), "agents://unrelated/Notes", "term://unrelated" }
+  local expected = { name(session, "cat"), "gents://unrelated/Notes", "term://unrelated" }
   table.sort(expected)
   eq(terminal_names(), expected)
 end
@@ -211,16 +211,16 @@ T["session removal"] = test.new_set({ parametrize = { { "close" }, { "delete" } 
     update(session, "First title")
     update(session, "Second title")
     if action == "close" then
-      agents.close(session.id)
-      require("agents.titles").update(session, "Late title")
+      gents.close(session.id)
+      require("gents.titles").update(session, "Late title")
     else
       vim.cmd.bdelete({ args = { tostring(session.buf) }, bang = true })
     end
     H.wait(function()
       return session.state == "exited" and not vim.api.nvim_buf_is_valid(session.buf)
     end)
-    require("agents.titles").update(session, "Even later title")
-    eq(agents.sessions(), {})
+    require("gents.titles").update(session, "Even later title")
+    eq(gents.sessions(), {})
     eq(terminal_names(), {})
     eq(vim.fn.jobwait({ session.job }, 0)[1] ~= -1, true)
   end,

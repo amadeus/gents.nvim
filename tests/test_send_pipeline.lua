@@ -1,6 +1,6 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local agents = require("agents")
+local gents = require("gents")
 local eq = test.expect.equality
 local original_notify = vim.notify
 local original_select = vim.ui.select
@@ -12,7 +12,7 @@ end
 local function set_select(callback)
   vim.ui.select = callback
 end
----@type agents.PickerSpec<unknown>[]
+---@type gents.PickerSpec<unknown>[]
 local pickers
 ---@type string[]
 local notifications
@@ -28,13 +28,13 @@ local T = test.new_set({
       set_notify(function(message)
         notifications[#notifications + 1] = message
       end)
-      agents.setup({
+      gents.setup({
         tools = { cat = { cmd = { "sh", "-c", "printf '1\\n2\\n3\\n4\\n5\\n6\\n'; exec cat" } } },
         prompts = {
           explain = { { text = "Explain:" }, { any = { "selection", "line" } } },
           selected = { "selection" },
         },
-        ---@param spec agents.PickerSpec<unknown>
+        ---@param spec gents.PickerSpec<unknown>
         picker = function(spec)
           pickers[#pickers + 1] = spec
         end,
@@ -59,15 +59,15 @@ local T = test.new_set({
   },
 })
 
----@param session agents.Session
+---@param session gents.Session
 ---@return string
 local function output(session)
   return table.concat(vim.api.nvim_buf_get_lines(session.buf, 0, -1, false), "\n")
 end
 
----@param spec agents.PickerSpec<unknown>
+---@param spec gents.PickerSpec<unknown>
 ---@param name string
----@return agents.PickerItem<unknown>?
+---@return gents.PickerItem<unknown>?
 local function find(spec, name)
   for _, item in ipairs(spec.items) do
     if item.text:match("^%S+") == name then
@@ -76,7 +76,7 @@ local function find(spec, name)
   end
 end
 
----@param spec agents.PickerSpec<unknown>
+---@param spec gents.PickerSpec<unknown>
 ---@param name string
 local function choose(spec, name)
   spec.actions[spec.default](assert(find(spec, name)))
@@ -87,19 +87,19 @@ T["send to a hidden target"] = test.new_set({ parametrize = { { true }, { false 
   ["honors focus without disturbing source cursor or later navigation"] = function(focus)
     local origin = vim.api.nvim_get_current_win()
     local session = H.new()
-    agents.hide(session.id)
+    gents.hide(session.id)
     vim.api.nvim_set_current_win(origin)
     local cursor = vim.api.nvim_win_get_cursor(origin)
-    ---@type agents.SendOptions
+    ---@type gents.SendOptions
     local opts = { target = session.id }
     if not focus then
       opts.focus = false
     end
-    eq(agents.send({ "line" }, opts), session)
+    eq(gents.send({ "line" }, opts), session)
     eq(vim.api.nvim_get_current_buf() == session.buf, focus)
     eq(vim.api.nvim_get_current_win() == origin, not focus)
     eq(vim.api.nvim_win_get_cursor(origin), cursor)
-    eq(require("agents.window").visible(session), true)
+    eq(require("gents.window").visible(session), true)
     -- Delivery is queued; returning to the editor must survive the actual paste.
     vim.api.nvim_set_current_win(origin)
     H.wait(function()
@@ -115,7 +115,7 @@ T["a target visible in another tab gets a view in the invoking tab"] = function(
   local session = H.new({ layout = "tabnew" })
   vim.api.nvim_set_current_win(origin)
   local tab = vim.api.nvim_get_current_tabpage()
-  agents.send({ "file" }, { target = session.id })
+  gents.send({ "file" }, { target = session.id })
   eq(vim.api.nvim_get_current_buf(), session.buf)
   eq(vim.api.nvim_get_current_tabpage(), tab)
   eq(#vim.fn.win_findbuf(session.buf), 2)
@@ -132,7 +132,7 @@ T["focused target locations use the captured source cwd"] = function()
   end
   vim.cmd.lcd(temp_dir)
   vim.api.nvim_set_current_win(origin)
-  agents.send({ "line" }, { target = session.id })
+  gents.send({ "line" }, { target = session.id })
   eq(vim.api.nvim_get_current_buf(), session.buf)
   H.wait(function()
     return output(session):find("CUSTOM:context.lua:2", 1, true) ~= nil
@@ -140,9 +140,9 @@ T["focused target locations use the captured source cwd"] = function()
 end
 
 T["context picker omits unavailable providers and prompts and previews defaults"] = function()
-  agents.send()
+  gents.send()
   local spec = assert(pickers[1])
-  eq(spec.title, "Agents: Send Context")
+  eq(spec.title, "Gents: Send Context")
   eq(assert(find(spec, "file")).preview, "@context.lua")
   eq(find(spec, "selection"), nil)
   eq(find(spec, "selected"), nil)
@@ -160,39 +160,39 @@ T["session sources"] = test.new_set({ parametrize = { { false }, { true } } }, {
     local mode = vim.api.nvim_get_mode().mode
     local sends = {
       function()
-        eq(agents.send(), nil)
+        eq(gents.send(), nil)
       end,
       function()
-        eq(agents.send({ "file" }), nil)
+        eq(gents.send({ "file" }), nil)
       end,
       function()
-        eq(agents.send({ { text = "Literal prompt" } }), nil)
+        eq(gents.send({ { text = "Literal prompt" } }), nil)
       end,
       function()
-        vim.cmd("Agents send")
+        vim.cmd("Gents send")
       end,
       function()
-        vim.cmd("Agents send explain")
+        vim.cmd("Gents send explain")
       end,
       function()
-        vim.cmd("1Agents send")
+        vim.cmd("1Gents send")
       end,
       function()
-        vim.cmd("Agents actions send")
+        vim.cmd("Gents actions send")
       end,
       function()
-        vim.cmd("1Agents actions send --no-focus --target " .. session.id)
+        vim.cmd("1Gents actions send --no-focus --target " .. session.id)
       end,
     }
     for _, send in ipairs(sends) do
       notifications = {}
       send()
-      eq(notifications, { "agents.nvim: send context from a non-session buffer" })
+      eq(notifications, { "gents.nvim: send context from a non-session buffer" })
       eq(pickers, {})
       eq(vim.api.nvim_get_current_win(), origin)
       eq(vim.api.nvim_get_current_buf(), session.buf)
       eq(vim.api.nvim_get_mode().mode, mode)
-      eq(agents.sessions(), { session })
+      eq(gents.sessions(), { session })
     end
   end,
 })
@@ -203,11 +203,11 @@ T["two asynchronous send pickers"] = test.new_set({ parametrize = { { true }, { 
     local origin = vim.api.nvim_get_current_win()
     local source = vim.api.nvim_get_current_buf()
     local first = H.new()
-    agents.hide(first.id)
+    gents.hide(first.id)
     local second = H.new()
-    agents.hide(second.id)
+    gents.hide(second.id)
     vim.api.nvim_set_current_win(origin)
-    agents.send(nil, focus and {} or { focus = false })
+    gents.send(nil, focus and {} or { focus = false })
     eq(vim.api.nvim_get_current_win(), origin)
     local context_picker = assert(pickers[1])
     local preview = assert(find(context_picker, "buffer")).preview
@@ -216,7 +216,7 @@ T["two asynchronous send pickers"] = test.new_set({ parametrize = { { true }, { 
     vim.cmd("new")
     choose(context_picker, "buffer")
     local target_picker = assert(pickers[2])
-    eq(target_picker.title, "Agents: Sessions")
+    eq(target_picker.title, "Gents: Sessions")
     eq(vim.api.nvim_get_current_win(), origin)
     eq(vim.fn.win_findbuf(second.buf), {})
     vim.cmd("new")
@@ -236,10 +236,10 @@ T["two asynchronous send pickers"] = test.new_set({ parametrize = { { true }, { 
 T["target picker cannot change an already resolved provider or source path"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
-  agents.hide(session.id)
-  agents.hide(H.new().id)
+  gents.hide(session.id)
+  gents.hide(H.new().id)
   vim.api.nvim_set_current_win(origin)
-  agents.send({ "line" })
+  gents.send({ "line" })
   local spec = assert(pickers[1])
   vim.api.nvim_buf_set_name(0, vim.fs.joinpath(vim.fn.getcwd(), "renamed.lua"))
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
@@ -255,12 +255,12 @@ end
 T["unknown and unavailable items send nothing and do not open target pickers"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
-  agents.hide(session.id)
+  gents.hide(session.id)
   vim.api.nvim_set_current_win(origin)
   test.expect.error(function()
-    agents.send({ "file", "missing-provider" })
+    gents.send({ "file", "missing-provider" })
   end, "unknown provider")
-  eq(agents.send({ "file", "selection" }), nil)
+  eq(gents.send({ "file", "selection" }), nil)
   eq(#notifications, 1)
   eq(#pickers, 0)
   eq(vim.fn.win_findbuf(session.buf), {})
@@ -271,7 +271,7 @@ T["ranged command sends selected lines directly and named prompts expand"] = fun
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
   vim.api.nvim_set_current_win(origin)
-  vim.cmd("2Agents send")
+  vim.cmd("2Gents send")
   H.wait(function()
     return output(session):find("local second = 2", 1, true) ~= nil
   end)
@@ -279,7 +279,7 @@ T["ranged command sends selected lines directly and named prompts expand"] = fun
   eq(#pickers, 0)
   eq(vim.api.nvim_get_current_buf(), session.buf)
   vim.api.nvim_set_current_win(origin)
-  vim.cmd("Agents send explain")
+  vim.cmd("Gents send explain")
   H.wait(function()
     return output(session):find("Explain:", 1, true) ~= nil
   end)
@@ -289,24 +289,24 @@ T["context send without sessions"] = test.new_set({ parametrize = { { true }, { 
   ---@param focus boolean
   ["launches the selected tool and preserves captured parts across both pickers"] = function(focus)
     local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
-    require("agents.config").get().prompts.snapshot = { "file", "buffer" }
-    agents.send(nil, focus and {} or { focus = false })
+    require("gents.config").get().prompts.snapshot = { "file", "buffer" }
+    gents.send(nil, focus and {} or { focus = false })
     local context_picker = assert(pickers[1])
-    eq(context_picker.title, "Agents: Send Context")
-    eq(agents.sessions(), {})
+    eq(context_picker.title, "Gents: Send Context")
+    eq(gents.sessions(), {})
     local preview = assert(find(context_picker, "snapshot")).preview
     vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
     vim.api.nvim_buf_set_name(source, vim.fs.joinpath(vim.fn.getcwd(), "renamed.lua"))
     vim.cmd.new()
     choose(context_picker, "snapshot")
     local tool_picker = assert(pickers[2])
-    eq(tool_picker.title, "Agents: New Session")
+    eq(tool_picker.title, "Gents: New Session")
     eq(vim.api.nvim_get_current_win(), origin)
-    eq(agents.sessions(), {})
+    eq(gents.sessions(), {})
     vim.cmd.new()
     choose(tool_picker, "cat")
-    local session = assert(agents.sessions()[1])
-    eq(#agents.sessions(), 1)
+    local session = assert(gents.sessions()[1])
+    eq(#gents.sessions(), 1)
     eq(session.tool.name, "cat")
     eq(vim.api.nvim_get_current_buf() == session.buf, focus)
     eq(vim.api.nvim_get_current_win() == origin, not focus)
@@ -325,17 +325,17 @@ T["context send without sessions"] = test.new_set({ parametrize = { { true }, { 
 
 T["direct send without sessions uses the selected tool formatter and captured location"] = function()
   local cwd = vim.fn.getcwd(0)
-  require("agents.config").get().tools.cat.location = function(path, range)
+  require("gents.config").get().tools.cat.location = function(path, range)
     return "CUSTOM:" .. path .. ":" .. assert(range).start[1]
   end
-  agents.send({ "line" })
+  gents.send({ "line" })
   local spec = assert(pickers[1])
-  eq(spec.title, "Agents: New Session")
+  eq(spec.title, "Gents: New Session")
   vim.api.nvim_buf_set_name(0, vim.fs.joinpath(vim.fn.getcwd(), "renamed.lua"))
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   vim.cmd.lcd(temp_dir)
   choose(spec, "cat")
-  local session = assert(agents.sessions()[1])
+  local session = assert(gents.sessions()[1])
   eq(session.cwd, cwd)
   eq(vim.api.nvim_get_current_buf(), session.buf)
   H.wait(function()
@@ -349,11 +349,11 @@ end
 T["send without focus can launch in a new tab without another view in the source tab"] = function()
   local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
   local tab = vim.api.nvim_get_current_tabpage()
-  agents.send({ "file" }, { focus = false })
+  gents.send({ "file" }, { focus = false })
   local spec = assert(pickers[1])
-  eq(spec.title, "Agents: New Session")
+  eq(spec.title, "Gents: New Session")
   spec.actions.tabnew(assert(find(spec, "cat")))
-  local session = assert(agents.sessions()[1])
+  local session = assert(gents.sessions()[1])
   H.wait(function()
     return output(session):find("@context.lua", 1, true) ~= nil
   end)
@@ -369,12 +369,12 @@ end
 
 T["ranged send without sessions supports current-window launch and preserves selected text"] = function()
   local origin = vim.api.nvim_get_current_win()
-  vim.cmd("2Agents send")
+  vim.cmd("2Gents send")
   local spec = assert(pickers[1])
-  eq(spec.title, "Agents: New Session")
+  eq(spec.title, "Gents: New Session")
   vim.api.nvim_buf_set_lines(0, 0, -1, false, { "changed after capture" })
   spec.actions.current(assert(find(spec, "cat")))
-  local session = assert(agents.sessions()[1])
+  local session = assert(gents.sessions()[1])
   eq(vim.api.nvim_get_current_win(), origin)
   eq(vim.api.nvim_win_get_buf(origin), session.buf)
   eq(vim.api.nvim_tabpage_list_wins(0), { origin })
@@ -392,15 +392,15 @@ T["send without sessions can be cancelled"] = test.new_set({
 }, {
   ---@param stage string
   ["without creating a session or sending"] = function(stage)
-    require("agents.config").get().picker = nil
+    require("gents.config").get().picker = nil
     ---@type string[]
     local titles = {}
-    ---@param items agents.PickerItem<unknown>[]
+    ---@param items gents.PickerItem<unknown>[]
     ---@param opts vim.ui.select.Opts
-    ---@param callback fun(item: agents.PickerItem<unknown>?, idx?: integer)
+    ---@param callback fun(item: gents.PickerItem<unknown>?, idx?: integer)
     set_select(function(items, opts, callback)
       titles[#titles + 1] = assert(opts.prompt)
-      if stage == "tool" and opts.prompt == "Agents: Send Context" then
+      if stage == "tool" and opts.prompt == "Gents: Send Context" then
         for _, item in ipairs(items) do
           if item.text:match("^%S+") == "file" then
             callback(item)
@@ -411,26 +411,26 @@ T["send without sessions can be cancelled"] = test.new_set({
       end
       callback(nil)
     end)
-    agents.send()
+    gents.send()
     eq(
       titles,
-      stage == "tool" and { "Agents: Send Context", "Agents: New Session" }
-        or { "Agents: Send Context" }
+      stage == "tool" and { "Gents: Send Context", "Gents: New Session" }
+        or { "Gents: Send Context" }
     )
-    eq(agents.sessions(), {})
+    eq(gents.sessions(), {})
     eq(notifications, {})
   end,
 })
 
 T["unavailable context and explicit missing targets do not offer a new session"] = function()
-  eq(agents.send({ "selection" }), nil)
+  eq(gents.send({ "selection" }), nil)
   eq(#notifications, 1)
   eq(notifications[1]:find("requested context is not available", 1, true) ~= nil, true)
   test.expect.error(function()
-    agents.send({ "file" }, { target = "missing session" })
+    gents.send({ "file" }, { target = "missing session" })
   end, "no session matches target missing session")
   eq(#pickers, 0)
-  eq(agents.sessions(), {})
+  eq(gents.sessions(), {})
 end
 
 T["composed ranged send with an explicit multiword target"] = test.new_set({
@@ -442,7 +442,7 @@ T["composed ranged send with an explicit multiword target"] = test.new_set({
     local selected = H.new({ label = "code review" })
     local other = H.new()
     vim.api.nvim_set_current_win(origin)
-    vim.cmd("2Agents actions send " .. (focus and "" or "--no-focus ") .. "--target code review")
+    vim.cmd("2Gents actions send " .. (focus and "" or "--no-focus ") .. "--target code review")
     H.wait(function()
       return output(selected):find("local second = 2", 1, true) ~= nil
     end)
@@ -458,9 +458,9 @@ T["ranged actions keeps its original selection across picker changes"] = functio
   local origin, source = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf()
   local session = H.new()
   vim.api.nvim_set_current_win(origin)
-  vim.cmd("2Agents actions")
+  vim.cmd("2Gents actions")
   local menu = assert(pickers[1])
-  eq(menu.title, "Agents: Actions")
+  eq(menu.title, "Gents: Actions")
   vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
   vim.cmd("new")
   choose(menu, "send")
@@ -477,16 +477,16 @@ T["actions from a session"] = test.new_set({ parametrize = { { false }, { true }
   ["rejects send after picker focus changes"] = function(ranged)
     local session = H.new()
     local origin = vim.api.nvim_get_current_win()
-    vim.cmd(ranged and "1Agents actions" or "Agents actions")
+    vim.cmd(ranged and "1Gents actions" or "Gents actions")
     local menu = assert(pickers[1])
-    eq(menu.title, "Agents: Actions")
+    eq(menu.title, "Gents: Actions")
     vim.cmd("new")
     choose(menu, "send")
-    eq(notifications, { "agents.nvim: send context from a non-session buffer" })
+    eq(notifications, { "gents.nvim: send context from a non-session buffer" })
     eq(#pickers, 1)
     eq(vim.api.nvim_get_current_win(), origin)
     eq(vim.api.nvim_get_current_buf(), session.buf)
-    eq(agents.sessions(), { session })
+    eq(gents.sessions(), { session })
   end,
 })
 
@@ -494,7 +494,7 @@ T["ranged actions can send captured editor context after its window displays a s
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
   vim.api.nvim_set_current_win(origin)
-  vim.cmd("2Agents actions")
+  vim.cmd("2Gents actions")
   vim.api.nvim_win_set_buf(origin, session.buf)
   choose(assert(pickers[1]), "send")
   H.wait(function()
@@ -508,12 +508,12 @@ T["ranged actions rejects a non-send choice before changing sessions"] = functio
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()
   vim.api.nvim_set_current_win(origin)
-  vim.cmd("2Agents actions")
+  vim.cmd("2Gents actions")
   test.expect.error(function()
     choose(assert(pickers[1]), "hide")
   end, "only send accepts a range")
-  eq(require("agents.window").visible(session), true)
-  eq(agents.sessions(), { session })
+  eq(require("gents.window").visible(session), true)
+  eq(gents.sessions(), { session })
   eq(#pickers, 1)
 end
 
@@ -523,9 +523,9 @@ T["exited targets are rejected before showing a window"] = function()
   H.wait(function()
     return session.state == "exited"
   end)
-  agents.hide(session.id)
+  gents.hide(session.id)
   vim.api.nvim_set_current_win(origin)
-  agents.send({ "file" }, { target = session.id })
+  gents.send({ "file" }, { target = session.id })
   eq(vim.fn.win_findbuf(session.buf), {})
   eq(#notifications, 1)
   eq(notifications[1]:find("exited session", 1, true) ~= nil, true)

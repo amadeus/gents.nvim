@@ -1,7 +1,7 @@
 local M = {}
-local tools = require("agents.tools")
+local tools = require("gents.tools")
 
----@type agents.Config
+---@type gents.Config
 local defaults = {
   layout = "botright vsplit",
   float = { width = 0.8, height = 0.8, border = "rounded" },
@@ -15,23 +15,23 @@ local defaults = {
   keys = {},
 }
 
----@type agents.Config?
+---@type gents.Config?
 local current
 
----@class agents.config.PendingTool: agents.ToolOverride
+---@class gents.config.PendingTool: gents.ToolOverride
 ---@field name? string
 
----@class agents.config.PendingConfig: agents.Config
----@field tools table<string, agents.config.PendingTool>
+---@class gents.config.PendingConfig: gents.Config
+---@field tools table<string, gents.config.PendingTool>
 
----@param config agents.Config|agents.config.PendingConfig
+---@param config gents.Config|gents.config.PendingConfig
 local function validate(config)
   local layout_type = type(config.layout)
   if layout_type ~= "string" and layout_type ~= "table" and layout_type ~= "function" then
-    error("agents: layout must be a string, float configuration table, or function", 3)
+    error("gents: layout must be a string, float configuration table, or function", 3)
   end
   if config.on_exit ~= "keep" and config.on_exit ~= "close" then
-    error('agents: on_exit must be "keep" or "close"', 3)
+    error('gents: on_exit must be "keep" or "close"', 3)
   end
   assert(
     config.picker == nil
@@ -40,39 +40,39 @@ local function validate(config)
       or config.picker == "telescope"
       or config.picker == "fzf-lua"
       or type(config.picker) == "function",
-    'agents: picker must be nil, "snacks", "mini", "telescope", "fzf-lua", or a function'
+    'gents: picker must be nil, "snacks", "mini", "telescope", "fzf-lua", or a function'
   )
-  assert(type(config.picker_help) == "boolean", "agents: picker_help must be a boolean")
-  assert(type(config.buflisted) == "boolean", "agents: buflisted must be a boolean")
-  assert(type(config.icons) == "table", "agents: icons must be a table")
+  assert(type(config.picker_help) == "boolean", "gents: picker_help must be a boolean")
+  assert(type(config.buflisted) == "boolean", "gents: buflisted must be a boolean")
+  assert(type(config.icons) == "table", "gents: icons must be a table")
   for name, icon in pairs({ visible = config.icons.visible, hidden = config.icons.hidden }) do
     assert(
       type(icon) == "string" and icon ~= "" and not icon:find("[%s%c]"),
-      "agents: icons."
+      "gents: icons."
         .. name
         .. " must be a non-empty string without whitespace or control characters"
     )
   end
-  require("agents.keys").validate(config.keys)
-  assert(type(config.prompts) == "table", "agents: prompts must be a table of item lists")
+  require("gents.keys").validate(config.keys)
+  assert(type(config.prompts) == "table", "gents: prompts must be a table of item lists")
   for name, items in pairs(config.prompts) do
     assert(
       type(name) == "string" and name ~= "" and not name:find("%s"),
-      "agents: prompt names must be non-empty and contain no whitespace"
+      "gents: prompt names must be non-empty and contain no whitespace"
     )
     assert(
       type(items) == "table" and vim.islist(items) and #items > 0,
-      "agents: prompts." .. name .. " must be a non-empty item list"
+      "gents: prompts." .. name .. " must be a non-empty item list"
     )
   end
   for name, tool in pairs(config.tools) do
     assert(
       tool.title == nil or tool.title == false or type(tool.title) == "function",
-      "agents: tools." .. name .. ".title must be a function or false"
+      "gents: tools." .. name .. ".title must be a function or false"
     )
     assert(
       tool.location == nil or type(tool.location) == "function",
-      "agents: tools." .. name .. ".location must be a function"
+      "gents: tools." .. name .. ".location must be a function"
     )
     local cmd = tool.cmd
     local valid = false
@@ -87,7 +87,7 @@ local function validate(config)
     end
     if not valid then
       error(
-        "agents: tools."
+        "gents: tools."
           .. name
           .. ".cmd must be a non-empty list of strings starting with an executable",
         3
@@ -96,35 +96,32 @@ local function validate(config)
   end
 end
 
----@param opts? agents.SetupOptions
----@return agents.Config
+---@param opts? gents.SetupOptions
+---@return gents.Config
 function M.setup(opts)
   opts = vim.deepcopy(opts or {})
   local overrides = opts.tools or {}
   opts.tools = nil
-  ---@type agents.Config|agents.config.PendingConfig
+  ---@type gents.Config|gents.config.PendingConfig
   local config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts)
   for name, override in pairs(overrides) do
     if override == false then
       config.tools[name] = nil
     else
-      assert(
-        type(override) == "table",
-        "agents: tools." .. name .. " must be a tool table or false"
-      )
-      ---@type agents.config.PendingTool
+      assert(type(override) == "table", "gents: tools." .. name .. " must be a tool table or false")
+      ---@type gents.config.PendingTool
       local tool = vim.tbl_extend("force", config.tools[name] or {}, override)
       tool.name = name
       config.tools[name] = tool
     end
   end
   validate(config)
-  ---@cast config agents.Config
+  ---@cast config gents.Config
   current = config
   return config
 end
 
----@return agents.Config
+---@return gents.Config
 function M.get()
   return current or M.setup()
 end

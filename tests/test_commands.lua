@@ -1,7 +1,7 @@
 local test = require("mini.test")
 local expect = test.expect.equality
-local commands = require("agents.commands")
-local config = require("agents.config")
+local commands = require("gents.commands")
+local config = require("gents.config")
 local T = test.new_set({
   hooks = {
     pre_case = function()
@@ -24,7 +24,7 @@ end
 
 ---@type table<string, function>
 local original
----@type { [1]: string, [2]: (agents.Target|agents.NewOptions|agents.SendOptions|agents.Item[])[] }[]
+---@type { [1]: string, [2]: (gents.Target|gents.NewOptions|gents.SendOptions|gents.Item[])[] }[]
 local calls
 local methods = commands.names()
 local dispatch = test.new_set({
@@ -32,22 +32,22 @@ local dispatch = test.new_set({
     pre_case = function()
       original, calls = {}, {}
       ---@type table<string, function>
-      local agents = require("agents")
+      local gents = require("gents")
       for _, name in ipairs(methods) do
-        original[name] = agents[name]
-        ---@param ... agents.Target|agents.NewOptions|agents.SendOptions|agents.Item[]
-        agents[name] = function(...)
+        original[name] = gents[name]
+        ---@param ... gents.Target|gents.NewOptions|gents.SendOptions|gents.Item[]
+        gents[name] = function(...)
           calls[#calls + 1] = { name, { ... } }
         end
       end
     end,
     post_case = function()
       ---@type table<string, function>
-      local agents = require("agents")
+      local gents = require("gents")
       for _, name in ipairs(methods) do
-        agents[name] = original[name]
+        gents[name] = original[name]
       end
-      vim.g.agents_commands_evaluated = nil
+      vim.g.gents_commands_evaluated = nil
     end,
   },
 })
@@ -67,7 +67,7 @@ dispatch["every subcommand calls the Lua facade"] = function()
     "close",
     "send",
   }) do
-    vim.cmd("Agents " .. command)
+    vim.cmd("Gents " .. command)
   end
   expect(calls, {
     { "pick", {} },
@@ -85,7 +85,7 @@ end
 
 dispatch["send expands named prompts alongside provider names"] = function()
   config.setup({ prompts = { explain = { { text = "Explain:" }, "selection" } } })
-  vim.cmd("Agents send file explain")
+  vim.cmd("Gents send file explain")
   expect(calls, { { "send", { { "file", { text = "Explain:" }, "selection" } } } })
 end
 
@@ -114,18 +114,18 @@ dispatch["actions composes with every leaf command"] = function()
     "send --no-focus --target 12",
   }) do
     calls = {}
-    vim.cmd("Agents " .. command)
+    vim.cmd("Gents " .. command)
     local direct = vim.deepcopy(calls)
     calls = {}
-    vim.cmd("Agents actions " .. command)
+    vim.cmd("Gents actions " .. command)
     expect(calls, direct)
   end
 end
 
 dispatch["send targets preserve labels and prompt expansion"] = function()
   config.setup({ prompts = { explain = { { text = "Explain:" }, "selection" } } })
-  vim.cmd("Agents send file explain --target feature   code review")
-  vim.cmd("Agents actions send --target 12")
+  vim.cmd("Gents send file explain --target feature   code review")
+  vim.cmd("Gents actions send --target 12")
   expect(calls, {
     {
       "send",
@@ -137,10 +137,10 @@ end
 
 dispatch["send accepts a focus opt-out before the target"] = function()
   config.setup({ prompts = { explain = { { text = "Explain:" }, "selection" } } })
-  vim.cmd("Agents send --no-focus")
-  vim.cmd("Agents send file --no-focus explain")
-  vim.cmd("Agents actions send --no-focus file explain --target cat #2")
-  vim.cmd("Agents send --no-focus --target 12")
+  vim.cmd("Gents send --no-focus")
+  vim.cmd("Gents send file --no-focus explain")
+  vim.cmd("Gents actions send --no-focus file explain --target cat #2")
+  vim.cmd("Gents send --no-focus --target 12")
   expect(calls, {
     { "send", { nil, { focus = false } } },
     { "send", { { "file", { text = "Explain:" }, "selection" }, { focus = false } } },
@@ -153,8 +153,8 @@ dispatch["send accepts a focus opt-out before the target"] = function()
 end
 
 dispatch["send preserves option-like text after the target separator"] = function()
-  vim.cmd("Agents send file --target feature --no-focus review")
-  vim.cmd("Agents actions send --no-focus --target --no-focus")
+  vim.cmd("Gents send file --target feature --no-focus review")
+  vim.cmd("Gents actions send --no-focus --target --no-focus")
   expect(calls, {
     { "send", { { "file" }, { target = "feature --no-focus review" } } },
     { "send", { nil, { focus = false, target = "--no-focus" } } },
@@ -164,30 +164,30 @@ end
 dispatch["ranges are rejected for commands other than send"] = function()
   for _, command in ipairs({ "actions hide", "actions new cat", "focus", "new cat" }) do
     test.expect.error(function()
-      vim.cmd("1Agents " .. command)
+      vim.cmd("1Gents " .. command)
     end, "only send accepts a range")
   end
   expect(calls, {})
 end
 
 dispatch["ranged send chains forward the range and explicit target"] = function()
-  local send = require("agents.send")
+  local send = require("gents.send")
   local run = send.run
-  ---@param callback fun(items?: agents.Item[], opts?: agents.SendOptions, range?: { line1: integer, line2: integer }): agents.Session?
+  ---@param callback fun(items?: gents.Item[], opts?: gents.SendOptions, range?: { line1: integer, line2: integer }): gents.Session?
   local function set_run(callback)
     send.run = callback
   end
-  ---@type { items?: agents.Item[], opts?: agents.SendOptions, range?: { line1: integer, line2: integer } }[]
+  ---@type { items?: gents.Item[], opts?: gents.SendOptions, range?: { line1: integer, line2: integer } }[]
   local sent = {}
   set_run(function(items, opts, range)
     sent[#sent + 1] = { items = items, opts = opts, range = range }
   end)
   local ok, err = pcall(function()
-    vim.cmd("1Agents actions send file --target cat #2")
-    vim.cmd("1Agents send --target 12")
-    vim.cmd("1Agents send --no-focus")
-    vim.cmd("1Agents actions send file --no-focus --target cat #2")
-    vim.cmd("1Agents actions send --no-focus --target 12")
+    vim.cmd("1Gents actions send file --target cat #2")
+    vim.cmd("1Gents send --target 12")
+    vim.cmd("1Gents send --no-focus")
+    vim.cmd("1Gents actions send file --no-focus --target cat #2")
+    vim.cmd("1Gents actions send --no-focus --target 12")
   end)
   set_run(run)
   assert(ok, err)
@@ -210,7 +210,7 @@ end
 
 dispatch["arguments split on whitespace without evaluation"] = function()
   vim.cmd(
-    [[Agents new cat --target literal  'two words' $HOME $(echo unsafe) | let g:agents_commands_evaluated = 1]]
+    [[Gents new cat --target literal  'two words' $HOME $(echo unsafe) | let g:gents_commands_evaluated = 1]]
   )
   expect(calls, {
     {
@@ -228,7 +228,7 @@ dispatch["arguments split on whitespace without evaluation"] = function()
             "unsafe)",
             "|",
             "let",
-            "g:agents_commands_evaluated",
+            "g:gents_commands_evaluated",
             "=",
             "1",
           },
@@ -236,14 +236,14 @@ dispatch["arguments split on whitespace without evaluation"] = function()
       },
     },
   })
-  expect(vim.g.agents_commands_evaluated, nil)
+  expect(vim.g.gents_commands_evaluated, nil)
 end
 
 dispatch["all session commands accept ids and labels containing spaces"] = function()
   for _, command in ipairs({ "hide", "close", "pick", "focus", "toggle" }) do
     calls = {}
-    vim.cmd("Agents " .. command .. " 12")
-    vim.cmd("Agents " .. command .. " cat   #2")
+    vim.cmd("Gents " .. command .. " 12")
+    vim.cmd("Gents " .. command .. " cat   #2")
     expect(calls, { { command, { 12 } }, { command, { "cat #2" } } })
   end
 end
@@ -251,12 +251,12 @@ end
 dispatch["invalid command chains fail before invoking an action"] = function()
   for _, command in ipairs({ "unknown", "actions unknown" }) do
     test.expect.error(function()
-      vim.cmd("Agents " .. command)
+      vim.cmd("Gents " .. command)
     end, "unknown command 'unknown'")
   end
   test.expect.error(function()
-    vim.cmd("Agents actions actions")
-  end, "agents:")
+    vim.cmd("Gents actions actions")
+  end, "gents:")
   expect(calls, {})
 end
 
@@ -269,7 +269,7 @@ dispatch["send rejects a missing explicit target"] = function()
     "actions send file --no-focus --target",
   }) do
     test.expect.error(function()
-      vim.cmd("Agents " .. command)
+      vim.cmd("Gents " .. command)
     end, "target")
   end
   expect(calls, {})
@@ -280,26 +280,26 @@ T["setup replaces its command without resetting config"] = function()
   commands.setup()
   commands.setup()
   expect(config.get(), configured)
-  local command = vim.api.nvim_get_commands({ builtin = false }).Agents
+  local command = vim.api.nvim_get_commands({ builtin = false }).Gents
   expect(command.nargs, "*")
 end
 
 T["completion covers only supported subcommands"] = function()
   expect(
-    complete("Agents "),
+    complete("Gents "),
     { "actions", "close", "focus", "hide", "new", "pick", "send", "toggle" }
   )
-  expect(complete("Agents a"), { "actions" })
-  expect(complete("Agents f"), { "focus" })
-  expect(complete("Agents focus "), {})
-  expect(complete("Agents n"), { "new" })
-  expect(complete("Agents actions "), { "close", "focus", "hide", "new", "pick", "send", "toggle" })
-  expect(complete("Agents actions f"), { "focus" })
-  expect(complete("Agents actions a"), {})
-  expect(complete("Agents actions actions "), {})
-  expect(complete("Agents toggle "), {})
-  expect(complete("Agents pick "), {})
-  expect(complete("Agents unknown "), {})
+  expect(complete("Gents a"), { "actions" })
+  expect(complete("Gents f"), { "focus" })
+  expect(complete("Gents focus "), {})
+  expect(complete("Gents n"), { "new" })
+  expect(complete("Gents actions "), { "close", "focus", "hide", "new", "pick", "send", "toggle" })
+  expect(complete("Gents actions f"), { "focus" })
+  expect(complete("Gents actions a"), {})
+  expect(complete("Gents actions actions "), {})
+  expect(complete("Gents toggle "), {})
+  expect(complete("Gents pick "), {})
+  expect(complete("Gents unknown "), {})
 end
 
 T["command names are returned independently"] = function()
@@ -311,28 +311,28 @@ end
 
 T["send completes providers and prompts at every item position"] = function()
   config.setup({ prompts = { explain = { "file" }, file = { { text = "File prompt" } } } })
-  expect(complete("Agents send fi"), { "file" })
-  expect(complete("Agents send loc"), { "locationlist" })
-  expect(complete("Agents send pos"), {})
-  expect(complete("Agents send che"), {})
-  expect(complete("Agents send hel"), {})
-  expect(complete("Agents send file ex"), { "explain" })
-  expect(complete("'<,'>Agents send se"), { "selection" })
-  expect(vim.fn.getcompletion("Agents send file di", "cmdline"), { "diagnostics" })
-  expect(complete("Agents actions send fi"), { "file" })
-  expect(complete("Agents actions send file ex"), { "explain" })
-  expect(complete("'<,'>Agents actions send se"), { "selection" })
-  expect(complete("Agents send file --t"), { "--target" })
-  expect(complete("Agents actions send --t"), { "--target" })
-  expect(complete("Agents send --"), { "--no-focus", "--target" })
-  expect(complete("Agents send file --no"), { "--no-focus" })
-  expect(complete("Agents actions send --no"), { "--no-focus" })
-  expect(complete("Agents send --no-focus fi"), { "file" })
-  expect(complete("Agents actions send --no-focus file ex"), { "explain" })
-  expect(complete("Agents send file --no-focus --t"), { "--target" })
-  expect(complete("'<,'>Agents actions send --no"), { "--no-focus" })
-  expect(vim.fn.getcompletion("Agents actions send file di", "cmdline"), { "diagnostics" })
-  expect(vim.fn.getcompletion("Agents actions send file loc", "cmdline"), { "locationlist" })
+  expect(complete("Gents send fi"), { "file" })
+  expect(complete("Gents send loc"), { "locationlist" })
+  expect(complete("Gents send pos"), {})
+  expect(complete("Gents send che"), {})
+  expect(complete("Gents send hel"), {})
+  expect(complete("Gents send file ex"), { "explain" })
+  expect(complete("'<,'>Gents send se"), { "selection" })
+  expect(vim.fn.getcompletion("Gents send file di", "cmdline"), { "diagnostics" })
+  expect(complete("Gents actions send fi"), { "file" })
+  expect(complete("Gents actions send file ex"), { "explain" })
+  expect(complete("'<,'>Gents actions send se"), { "selection" })
+  expect(complete("Gents send file --t"), { "--target" })
+  expect(complete("Gents actions send --t"), { "--target" })
+  expect(complete("Gents send --"), { "--no-focus", "--target" })
+  expect(complete("Gents send file --no"), { "--no-focus" })
+  expect(complete("Gents actions send --no"), { "--no-focus" })
+  expect(complete("Gents send --no-focus fi"), { "file" })
+  expect(complete("Gents actions send --no-focus file ex"), { "explain" })
+  expect(complete("Gents send file --no-focus --t"), { "--target" })
+  expect(complete("'<,'>Gents actions send --no"), { "--no-focus" })
+  expect(vim.fn.getcompletion("Gents actions send file di", "cmdline"), { "diagnostics" })
+  expect(vim.fn.getcompletion("Gents actions send file loc", "cmdline"), { "locationlist" })
 end
 
 T["tool completion uses configured tools only at the tool position"] = function()
@@ -342,24 +342,21 @@ T["tool completion uses configured tools only at the tool position"] = function(
       custom = { cmd = { "cat" } },
     },
   })
-  expect(complete("Agents new c"), { "codex", "copilot", "crush", "cursor-agent", "custom" })
-  expect(complete("Agents new custom "), {})
-  expect(complete("Agents new custom --arg"), {})
-  expect(complete("Agents new c ignored", "c", #"Agents new c"), {
+  expect(complete("Gents new c"), { "codex", "copilot", "crush", "cursor-agent", "custom" })
+  expect(complete("Gents new custom "), {})
+  expect(complete("Gents new custom --arg"), {})
+  expect(complete("Gents new c ignored", "c", #"Gents new c"), {
     "codex",
     "copilot",
     "crush",
     "cursor-agent",
     "custom",
   })
-  expect(vim.fn.getcompletion("Agents new cus", "cmdline"), { "custom" })
-  expect(
-    complete("Agents actions new c"),
-    { "codex", "copilot", "crush", "cursor-agent", "custom" }
-  )
-  expect(complete("Agents actions new custom "), {})
-  expect(complete("Agents actions new custom --target"), {})
-  expect(complete("Agents actions new c ignored", "c", #"Agents actions new c"), {
+  expect(vim.fn.getcompletion("Gents new cus", "cmdline"), { "custom" })
+  expect(complete("Gents actions new c"), { "codex", "copilot", "crush", "cursor-agent", "custom" })
+  expect(complete("Gents actions new custom "), {})
+  expect(complete("Gents actions new custom --target"), {})
+  expect(complete("Gents actions new c ignored", "c", #"Gents actions new c"), {
     "codex",
     "copilot",
     "crush",
@@ -373,14 +370,14 @@ local sessions = test.new_set({ hooks = { pre_case = H.reset, post_case = H.rese
 T["sessions"] = sessions
 
 sessions["composed new, hide, and close operate on a real terminal"] = function()
-  vim.cmd("Agents actions new cat")
-  local session = assert(require("agents").current())
+  vim.cmd("Gents actions new cat")
+  local session = assert(require("gents").current())
   expect(session.tool.name, "cat")
   expect(vim.fn.jobwait({ session.job }, 0), { -1 })
-  vim.cmd("Agents actions hide " .. session.id)
+  vim.cmd("Gents actions hide " .. session.id)
   expect(vim.fn.win_findbuf(session.buf), {})
-  vim.cmd("Agents actions close " .. session.label)
-  expect(require("agents").sessions(), {})
+  vim.cmd("Gents actions close " .. session.label)
+  expect(require("gents").sessions(), {})
   H.wait(function()
     return not vim.api.nvim_buf_is_valid(session.buf)
   end)
@@ -390,7 +387,7 @@ sessions["completion replaces only the current word of a session label"] = funct
   local first = H.new()
   local second = H.new()
   local custom = H.new({ label = "feature code review" })
-  local all = complete("Agents hide ")
+  local all = complete("Gents hide ")
   table.sort(all)
   local expected = {
     tostring(first.id),
@@ -402,14 +399,14 @@ sessions["completion replaces only the current word of a session label"] = funct
   }
   table.sort(expected)
   expect(all, expected)
-  expect(complete("Agents close c"), { "cat", "cat #2" })
-  expect(complete("Agents close cat "), { "#2" })
-  expect(complete("Agents close cat #"), { "#2" })
-  expect(complete("Agents close cat   #"), { "#2" })
-  expect(complete("Agents hide feature c"), { "code review" })
-  expect(complete("Agents hide feature code r"), { "review" })
-  expect(complete("Agents close missing"), {})
-  expect(vim.fn.getcompletion("Agents close cat #", "cmdline"), { "#2" })
+  expect(complete("Gents close c"), { "cat", "cat #2" })
+  expect(complete("Gents close cat "), { "#2" })
+  expect(complete("Gents close cat #"), { "#2" })
+  expect(complete("Gents close cat   #"), { "#2" })
+  expect(complete("Gents hide feature c"), { "code review" })
+  expect(complete("Gents hide feature code r"), { "review" })
+  expect(complete("Gents close missing"), {})
+  expect(vim.fn.getcompletion("Gents close cat #", "cmdline"), { "#2" })
   for _, command in ipairs({
     "hide",
     "close",
@@ -421,32 +418,32 @@ sessions["completion replaces only the current word of a session label"] = funct
     "send --no-focus --target",
     "send file --no-focus --target",
   }) do
-    expect(complete("Agents " .. command .. " feature code r"), { "review" })
-    expect(complete("Agents actions " .. command .. " cat   #"), { "#2" })
-    expect(complete("Agents " .. command .. " " .. custom.id), { tostring(custom.id) })
+    expect(complete("Gents " .. command .. " feature code r"), { "review" })
+    expect(complete("Gents actions " .. command .. " cat   #"), { "#2" })
+    expect(complete("Gents " .. command .. " " .. custom.id), { tostring(custom.id) })
   end
   expect(
-    vim.fn.getcompletion("Agents actions send file --target feature c", "cmdline"),
+    vim.fn.getcompletion("Gents actions send file --target feature c", "cmdline"),
     { "code review" }
   )
-  vim.cmd("Agents close cat #2")
-  expect(complete("Agents close cat #"), {})
+  vim.cmd("Gents close cat #2")
+  expect(complete("Gents close cat #"), {})
 end
 
 sessions["send target completion preserves option-like label text"] = function()
   H.new({ label = "feature --no-focus review" })
   H.new({ label = "--no-focus" })
-  expect(complete("Agents send --target feature --no"), { "--no-focus review" })
-  expect(complete("Agents send --no-focus --target feature --no-focus r"), { "review" })
-  expect(complete("Agents actions send file --target --no"), { "--no-focus" })
-  expect(complete("Agents send --target --"), { "--no-focus" })
+  expect(complete("Gents send --target feature --no"), { "--no-focus review" })
+  expect(complete("Gents send --no-focus --target feature --no-focus r"), { "review" })
+  expect(complete("Gents actions send file --target --no"), { "--no-focus" })
+  expect(complete("Gents send --target --"), { "--no-focus" })
 end
 
 sessions["unknown tools report the requested name"] = function()
   test.expect.error(function()
-    vim.cmd("Agents new missing-tool")
+    vim.cmd("Gents new missing-tool")
   end, "unknown tool: missing%-tool")
-  expect(require("agents").sessions(), {})
+  expect(require("gents").sessions(), {})
 end
 
 return T

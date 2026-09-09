@@ -2,38 +2,38 @@ local M = {}
 
 -- Only the fzf-lua surface used by this adapter is described here, so fzf-lua
 -- remains optional and its type definitions are not required by LuaLS.
----@class agents.pickers.FzfAction
+---@class gents.pickers.FzfAction
 ---@field fn fun(selected: string[])
 ---@field desc string
 
----@class agents.pickers.FzfOptions
+---@class gents.pickers.FzfOptions
 ---@field winopts { title: string }
 ---@field previewer false
 ---@field fzf_opts table<string, string|boolean>
----@field actions table<string, agents.pickers.FzfAction>
+---@field actions table<string, gents.pickers.FzfAction>
 
----@class agents.pickers.FzfKeymap
+---@class gents.pickers.FzfKeymap
 ---@field fzf? table<string, string|boolean|table|function>
 ---@field builtin? table<string, string|boolean>
 
----@class agents.pickers.FzfModules
----@field fzf_exec fun(contents: string[], opts: agents.pickers.FzfOptions)
+---@class gents.pickers.FzfModules
+---@field fzf_exec fun(contents: string[], opts: gents.pickers.FzfOptions)
 ---@field ansi_from_hl fun(group: string, text: string): string
----@field keymap agents.pickers.FzfKeymap
+---@field keymap gents.pickers.FzfKeymap
 ---@field fzf_bin? string The configured executable, before fzf-lua's fallbacks.
 
----Adapter actions in binding order: agents.nvim action, the description shown
+---Adapter actions in binding order: gents.nvim action, the description shown
 ---by fzf-lua's help window, and the fzf key name.
 ---@type { [1]: string, [2]: string, [3]: string }[]
 local bindings = {
-  { "vsplit", "agents-open-in-vsplit", "ctrl-v" },
-  { "split", "agents-open-in-split", "ctrl-s" },
-  { "tabnew", "agents-open-in-tab", "ctrl-t" },
-  { "float", "agents-open-in-float", "alt-f" },
-  { "current", "agents-open-here", "alt-enter" },
-  { "edit_args", "agents-edit-command", "alt-e" },
-  { "hide", "agents-hide-session", "alt-h" },
-  { "close", "agents-close-session", "ctrl-x" },
+  { "vsplit", "gents-open-in-vsplit", "ctrl-v" },
+  { "split", "gents-open-in-split", "ctrl-s" },
+  { "tabnew", "gents-open-in-tab", "ctrl-t" },
+  { "float", "gents-open-in-float", "alt-f" },
+  { "current", "gents-open-here", "alt-enter" },
+  { "edit_args", "gents-edit-command", "alt-e" },
+  { "hide", "gents-hide-session", "alt-h" },
+  { "close", "gents-close-session", "ctrl-x" },
 }
 
 ---Help names for each menu's default action.
@@ -41,14 +41,14 @@ local bindings = {
 local labels = { new = "start", show = "show", run = "run", send = "send" }
 
 ---fzf-lua needs no setup call; its modules load on first use.
----@return agents.pickers.FzfModules?
+---@return gents.pickers.FzfModules?
 function M.instance()
-  ---@type agents.pickers.FzfModules?
+  ---@type gents.pickers.FzfModules?
   local modules
   local ok = pcall(function()
-    ---@type { fzf_exec: fun(contents: string[], opts: agents.pickers.FzfOptions) }
+    ---@type { fzf_exec: fun(contents: string[], opts: gents.pickers.FzfOptions) }
     local fzf = require("fzf-lua")
-    ---@type { globals: { keymap: agents.pickers.FzfKeymap, fzf_bin?: string } }
+    ---@type { globals: { keymap: gents.pickers.FzfKeymap, fzf_bin?: string } }
     local config = require("fzf-lua.config")
     ---@type { ansi_from_hl: fun(group: string, text: string): string }
     local utils = require("fzf-lua.utils")
@@ -64,7 +64,7 @@ end
 
 ---The executable fzf-lua will run: the configured binary, then fzf on PATH,
 ---then fzf.vim's download, following fzf-lua's own fallback order.
----@param modules agents.pickers.FzfModules
+---@param modules gents.pickers.FzfModules
 ---@return string?
 function M.binary(modules)
   local configured = modules.fzf_bin and vim.fn.expand(modules.fzf_bin) or nil
@@ -99,26 +99,26 @@ local function fzf_key(key)
 end
 
 ---@generic T
----@param spec agents.PickerSpec<T>
+---@param spec gents.PickerSpec<T>
 function M.open(spec)
   local modules = M.instance()
   if not modules then
     vim.notify(
-      'agents.nvim: picker = "fzf-lua" requires fzf-lua; install ibhagwan/fzf-lua and the fzf executable',
+      'gents.nvim: picker = "fzf-lua" requires fzf-lua; install ibhagwan/fzf-lua and the fzf executable',
       vim.log.levels.ERROR
     )
     return
   end
   if not M.binary(modules) then
     vim.notify(
-      'agents.nvim: picker = "fzf-lua" requires the fzf executable; install fzf or set fzf_bin in fzf-lua ('
+      'gents.nvim: picker = "fzf-lua" requires the fzf executable; install fzf or set fzf_bin in fzf-lua ('
         .. (modules.fzf_bin or "fzf")
         .. " was not found)",
       vim.log.levels.ERROR
     )
     return
   end
-  local shared = require("agents.picker")
+  local shared = require("gents.picker")
 
   -- Rows carry their index in a hidden first field, so the selected line maps
   -- back to the original item while fzf matches only the visible text.
@@ -158,9 +158,9 @@ function M.open(spec)
   for key in pairs(modules.keymap.builtin or {}) do
     taken[fzf_key(key)] = true
   end
-  ---@type table<string, agents.pickers.FzfAction>
+  ---@type table<string, gents.pickers.FzfAction>
   local actions = {
-    enter = { fn = run(spec.default), desc = "agents-" .. (labels[spec.default] or spec.default) },
+    enter = { fn = run(spec.default), desc = "gents-" .. (labels[spec.default] or spec.default) },
   }
   for _, binding in ipairs(bindings) do
     local action, desc, key = binding[1], binding[2], binding[3]

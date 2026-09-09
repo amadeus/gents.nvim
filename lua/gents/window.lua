@@ -1,6 +1,6 @@
 local M = {}
 
----@param session agents.Session
+---@param session gents.Session
 function M.attach(session)
   local terminal_input = false
   local restoring_input = false
@@ -20,7 +20,7 @@ function M.attach(session)
       -- Navigation mappings can leave terminal mode before switching windows.
       vim.schedule(function()
         if
-          vim.api.nvim_get_current_win() == win and require("agents.session").current() == session
+          vim.api.nvim_get_current_win() == win and require("gents.session").current() == session
         then
           terminal_input = vim.fn.mode() == "t"
         end
@@ -36,7 +36,7 @@ function M.attach(session)
       if
         terminal_input
         and session.state ~= "exited"
-        and require("agents.session").current() == session
+        and require("gents.session").current() == session
         and mode ~= "t"
         and mode ~= "i"
         and mode ~= "R"
@@ -59,7 +59,7 @@ function M.attach(session)
   })
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param tab? integer Defaults to the current tab.
 ---@return integer?
 function M.find(session, tab)
@@ -71,14 +71,14 @@ function M.find(session, tab)
   end
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param tab? integer Defaults to the current tab.
 ---@return boolean
 function M.visible(session, tab)
   return M.find(session, tab) ~= nil
 end
 
----@param value agents.FloatValue
+---@param value gents.FloatValue
 ---@param field string
 ---@return number
 local function float_value(value, field)
@@ -91,12 +91,12 @@ local function float_value(value, field)
   end
   assert(
     type(resolved) == "number" and resolved == resolved and math.abs(resolved) < math.huge,
-    "agents: float " .. field .. " must resolve to a finite number"
+    "gents: float " .. field .. " must resolve to a finite number"
   )
   return resolved
 end
 
----@param value agents.FloatValue
+---@param value gents.FloatValue
 ---@param size integer
 ---@param dimension "width"|"height"
 ---@return integer
@@ -108,11 +108,11 @@ local function float_dimension(value, size, dimension)
   return math.max(1, math.floor(resolved))
 end
 
----@param layout agents.FloatConfig
+---@param layout gents.FloatConfig
 ---@return vim.api.keyset.win_config
 local function float_config(layout)
   -- Geometry resolution leaves nested window options untouched.
-  ---@type agents.FloatOptions
+  ---@type gents.FloatOptions
   local opts = vim.tbl_extend("force", layout, {})
   opts.width = float_dimension(layout.width, vim.o.columns, "width")
   opts.height = float_dimension(layout.height, vim.o.lines, "height")
@@ -124,17 +124,17 @@ local function float_config(layout)
   return opts
 end
 
----@class agents.FloatView
----@field layout agents.FloatConfig
+---@class gents.FloatView
+---@field layout gents.FloatConfig
 ---@field relative string
 ---@field win? integer
 ---@field bufpos? [integer, integer]
 ---@field row_offset number
 ---@field col_offset number
 
----@type table<integer, agents.FloatView>
+---@type table<integer, gents.FloatView>
 local floats = {}
-local float_group = vim.api.nvim_create_augroup("AgentsFloats", { clear = true })
+local float_group = vim.api.nvim_create_augroup("GentsFloats", { clear = true })
 
 vim.api.nvim_create_autocmd("WinClosed", {
   group = float_group,
@@ -171,7 +171,7 @@ vim.api.nvim_create_autocmd("VimResized", {
           vim.api.nvim_win_set_config(win, geometry)
         end)
         if not ok and vim.api.nvim_win_is_valid(win) then
-          vim.notify("agents: could not resize float: " .. tostring(err), vim.log.levels.ERROR)
+          vim.notify("gents: could not resize float: " .. tostring(err), vim.log.levels.ERROR)
         end
       end
     end
@@ -179,10 +179,10 @@ vim.api.nvim_create_autocmd("VimResized", {
 })
 
 ---@param buf? integer Existing buffer; omit to choose a new session's window first.
----@param layout? agents.Layout
+---@param layout? gents.Layout
 ---@return integer
 function M.open(buf, layout)
-  local config = require("agents.config").get()
+  local config = require("gents.config").get()
   layout = layout or config.layout
   if layout == "float" then
     layout = config.float
@@ -218,9 +218,9 @@ function M.open(buf, layout)
   return win
 end
 
----@param session agents.Session
----@param layout? agents.Layout
----@return agents.Session
+---@param session gents.Session
+---@param layout? gents.Layout
+---@return gents.Session
 function M.show(session, layout)
   local wins = vim.fn.win_findbuf(session.buf)
   ---@type integer?
@@ -238,14 +238,14 @@ function M.show(session, layout)
     vim.cmd.startinsert()
   end
   if opened then
-    require("agents.events").emit("AgentsSessionShow", { id = session.id, win = opened })
+    require("gents.events").emit("GentsSessionShow", { id = session.id, win = opened })
   end
   return session
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param tab? integer Restrict hiding to this tab; otherwise hide every view.
----@return agents.Session
+---@return gents.Session
 function M.hide(session, tab)
   local wins = vim.fn.win_findbuf(session.buf)
   if tab then
@@ -273,7 +273,7 @@ function M.hide(session, tab)
       if
         alternate == session.buf
         or not vim.api.nvim_buf_is_loaded(alternate)
-        or vim.b[alternate].agents_session ~= nil
+        or vim.b[alternate].gents_session ~= nil
       then
         alternate = vim.api.nvim_create_buf(true, false)
       end
@@ -281,7 +281,7 @@ function M.hide(session, tab)
     end
   end
   if #wins > 0 and session.job and session.job > 0 and #vim.fn.win_findbuf(session.buf) == 0 then
-    require("agents.events").emit("AgentsSessionHide", { id = session.id })
+    require("gents.events").emit("GentsSessionHide", { id = session.id })
   end
   return session
 end

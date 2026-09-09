@@ -1,6 +1,6 @@
-# Agents.nvim
+# Gents.nvim
 
-Agents.nvim brings CLI agents into your existing Neovim workflow, running the
+Gents.nvim brings CLI agents into your existing Neovim workflow, running the
 tools you're already familiar with in native terminal buffers.
 
 - Run multiple agent sessions, including multiple instances of the same tool.
@@ -23,7 +23,7 @@ commands must be available on your `PATH`. Git is needed to install the plugin.
 
 Choose one installation method. Each example includes a minimal configuration
 and keymaps you can customize. The mappings use Normal mode; sending context
-also works with a Visual selection. agents.nvim installs no mappings by default.
+also works with a Visual selection. gents.nvim installs no mappings by default.
 
 ### lazy.nvim
 
@@ -31,8 +31,8 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
 
 ```lua
 {
-  "amadeus/agents.nvim",
-  cmd = "Agents",
+  "amadeus/gents.nvim",
+  cmd = "Gents",
   opts = {
     -- By default, sessions open in a full-height vertical split on the right.
     -- If you'd prefer, you can use a floating window instead.
@@ -49,13 +49,13 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
   },
   keys = {
     -- Pick a CLI tool and start a new session.
-    { "<leader>an", "<cmd>Agents new<cr>", desc = "New session" },
+    { "<leader>an", "<cmd>Gents new<cr>", desc = "New session" },
     -- Choose a command, such as starting, hiding, or closing a session.
-    { "<leader>ac", "<cmd>Agents actions<cr>", desc = "Agents actions" },
+    { "<leader>ac", "<cmd>Gents actions<cr>", desc = "Gents actions" },
     -- Show or hide a session without stopping its CLI.
-    { "<leader>aa", "<cmd>Agents toggle<cr>", desc = "Toggle session" },
+    { "<leader>aa", "<cmd>Gents toggle<cr>", desc = "Toggle session" },
     -- Choose context to send, including selected text in Visual mode.
-    { "<leader>as", "<cmd>Agents send<cr>", mode = { "n", "x" }, desc = "Send context", },
+    { "<leader>as", "<cmd>Gents send<cr>", mode = { "n", "x" }, desc = "Send context", },
   },
 }
 ```
@@ -65,8 +65,8 @@ Add this to your [lazy.nvim](https://lazy.folke.io/spec) plugin specs:
 Add this to your `init.lua` using [vim.pack](https://neovim.io/doc/user/pack/):
 
 ```lua
-vim.pack.add({ "https://github.com/amadeus/agents.nvim" })
-require("agents").setup({
+vim.pack.add({ "https://github.com/amadeus/gents.nvim" })
+require("gents").setup({
   -- By default, sessions open in a full-height vertical split on the right.
   -- If you'd prefer, you can use a floating window instead.
   -- layout = "float",
@@ -99,7 +99,7 @@ Add this inside your existing [vim-plug](https://github.com/junegunn/vim-plug)
 `plug#begin()` / `plug#end()` block:
 
 ```vim
-Plug 'amadeus/agents.nvim'
+Plug 'amadeus/gents.nvim'
 ```
 
 Reload your configuration or restart Neovim, then run `:PlugInstall`.
@@ -108,7 +108,7 @@ Neovim:
 
 ```vim
 lua << EOF
-require("agents").setup({
+require("gents").setup({
   -- By default, sessions open in a full-height vertical split on the right.
   -- If you'd prefer, you can use a floating window instead.
   -- layout = "float",
@@ -137,8 +137,8 @@ EOF
 
 </details>
 
-Run `:Agents` once to ensure the plugin is loaded and open its picker. Then use
-`:checkhealth agents` to check your setup.
+Run `:Gents` once to ensure the plugin is loaded and open its picker. Then use
+`:checkhealth gents` to check your setup.
 
 ## Configuration
 
@@ -151,7 +151,7 @@ configuration above. The optional `float` example keeps the window near the
 top-right corner as Neovim resizes. With lazy.nvim, these settings live inside
 `opts`.
 
-agents.nvim uses Neovim's `vim.ui.select` picker by default. If you have
+gents.nvim uses Neovim's `vim.ui.select` picker by default. If you have
 [snacks.nvim](https://github.com/folke/snacks.nvim) installed, add
 `picker = "snacks"` to the same options table for its menus and extra shortcuts.
 Adapters for [mini.pick](https://github.com/nvim-mini/mini.pick),
@@ -163,25 +163,25 @@ Adapters for [mini.pick](https://github.com/nvim-mini/mini.pick),
 
 ## Commands
 
-| Command                     | What it does                                                            |
-| --------------------------- | ----------------------------------------------------------------------- |
-| `:Agents` or `:Agents pick` | Choose an existing session, or start one if none exist.                 |
-| `:Agents actions`           | Open a menu to start or manage sessions, switch focus, or send context. |
-| `:Agents new`               | Pick a CLI tool and start a session.                                    |
-| `:Agents new claude`        | Start a Claude session directly.                                        |
-| `:Agents focus`             | Focus a session, or return to the previous window when called from one. |
-| `:Agents toggle`            | Show or hide the selected session in the current tab.                   |
-| `:Agents hide`              | Hide the selected session's windows and keep its CLI running.           |
-| `:Agents close`             | Stop the selected CLI and delete its buffer.                            |
-| `:Agents send`              | Choose file references or text to send to an agent.                     |
+| Command                   | What it does                                                            |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `:Gents` or `:Gents pick` | Choose an existing session, or start one if none exist.                 |
+| `:Gents actions`          | Open a menu to start or manage sessions, switch focus, or send context. |
+| `:Gents new`              | Pick a CLI tool and start a session.                                    |
+| `:Gents new claude`       | Start a Claude session directly.                                        |
+| `:Gents focus`            | Focus a session, or return to the previous window when called from one. |
+| `:Gents toggle`           | Show or hide the selected session in the current tab.                   |
+| `:Gents hide`             | Hide the selected session's windows and keep its CLI running.           |
+| `:Gents close`            | Stop the selected CLI and delete its buffer.                            |
+| `:Gents send`             | Choose file references or text to send to an agent.                     |
 
 Commands that need a session use the session in the current buffer, the only
 session, or a picker if there are multiple sessions running. Specify an ID or
 label to choose one directly. Commands also compose under `actions`:
 
 ```vim
-:Agents actions hide claude #2
-:Agents send file diagnostics --target claude #2
+:Gents actions hide claude #2
+:Gents send file diagnostics --target claude #2
 ```
 
 Sending context focuses the selected session so you can continue typing. Add
@@ -194,7 +194,7 @@ actions or functions instead of calling them directly.
 
 ## Documentation
 
-Use `:help agents.nvim` for the complete reference, or start with these guides:
+Use `:help gents.nvim` for the complete reference, or start with these guides:
 
 - [Usage guide](docs/usage.md)
 - [Sending context](docs/recipes/context.md)
@@ -225,7 +225,7 @@ plenary.nvim checkouts, or `FZF_LUA_DIR` to your fzf-lua checkout (with
 
 ## Inspiration
 
-Thanks to these plugins for the ideas that helped shape agents.nvim:
+Thanks to these plugins for the ideas that helped shape gents.nvim:
 
 - [folke/sidekick.nvim](https://github.com/folke/sidekick.nvim) — for managing
   CLI sessions and sharing editor context with agents.

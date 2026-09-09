@@ -1,20 +1,20 @@
 local M = {}
 
----@class agents.send.Item
+---@class gents.send.Item
 ---@field text? string Nil identifies a separate submit keystroke.
 ---@field submit? boolean Whether the pasted message requests submission.
 
----@class agents.send.Queue
+---@class gents.send.Queue
 ---@field timer uv.uv_timer_t
----@field items agents.send.Item[]
+---@field items gents.send.Item[]
 ---@field started integer
 ---@field changed integer
 ---@field tick integer
 
----@type table<integer, agents.send.Queue>
+---@type table<integer, gents.send.Queue>
 local queues = {}
 
----@param session agents.Session
+---@param session gents.Session
 function M.detach(session)
   local queue = queues[session.id]
   queues[session.id] = nil
@@ -24,18 +24,18 @@ function M.detach(session)
   end
 end
 
----@param session agents.Session
----@param queue agents.send.Queue
+---@param session gents.Session
+---@param queue gents.send.Queue
 ---@return boolean
 local function live(session, queue)
   return queues[session.id] == queue
-    and require("agents.session").get(session.id) == session
+    and require("gents.session").get(session.id) == session
     and session.state ~= "exited"
     and vim.api.nvim_buf_is_valid(session.buf)
 end
 
----@param session agents.Session
----@param queue agents.send.Queue
+---@param session gents.Session
+---@param queue gents.send.Queue
 local function advance(session, queue)
   if not live(session, queue) then
     return
@@ -68,14 +68,14 @@ local function advance(session, queue)
     vim.api.nvim_buf_call(session.buf, function()
       vim.api.nvim_put(vim.split(item.text, "\n", { plain = true }), "c", false, true)
     end)
-    require("agents.events").emit("AgentsSend", { id = session.id, submit = item.submit == true })
+    require("gents.events").emit("GentsSend", { id = session.id, submit = item.submit == true })
   else
     vim.api.nvim_chan_send(assert(session.job), "\r")
   end
 end
 
----@param session agents.Session
----@param queue agents.send.Queue
+---@param session gents.Session
+---@param queue gents.send.Queue
 local function start(session, queue)
   queue.timer:start(
     100,
@@ -86,11 +86,11 @@ local function start(session, queue)
   )
 end
 
----@param session agents.Session
+---@param session gents.Session
 function M.attach(session)
   M.detach(session)
   local now = vim.uv.hrtime()
-  ---@type agents.send.Queue
+  ---@type gents.send.Queue
   local queue = {
     timer = assert(vim.uv.new_timer()),
     items = {},
@@ -102,12 +102,12 @@ function M.attach(session)
   start(session, queue)
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param text string
 ---@param submit? boolean
 function M.enqueue(session, text, submit)
   local queue = queues[session.id]
-  assert(queue and live(session, queue), "agents: cannot send to an exited or closed session")
+  assert(queue and live(session, queue), "gents: cannot send to an exited or closed session")
   text = text:gsub("\r\n", "\n")
   if text:sub(-1) ~= "\n" then
     text = text .. "\n"
@@ -121,7 +121,7 @@ function M.enqueue(session, text, submit)
   end
 end
 
----@param session agents.Session
+---@param session gents.Session
 ---@param focus boolean
 local function present(session, focus)
   local origin = vim.api.nvim_get_current_win()
@@ -135,7 +135,7 @@ local function present(session, focus)
     end
   end
   local opened = destination == nil
-  destination = destination or require("agents.window").open(session.buf)
+  destination = destination or require("gents.window").open(session.buf)
   session.tab = vim.api.nvim_win_get_tabpage(destination)
   if focus then
     vim.api.nvim_set_current_win(destination)
@@ -144,20 +144,20 @@ local function present(session, focus)
     vim.api.nvim_set_current_win(origin)
   end
   if opened then
-    require("agents.events").emit("AgentsSessionShow", { id = session.id, win = destination })
+    require("gents.events").emit("GentsSessionShow", { id = session.id, win = destination })
   end
 end
 
----@param parts agents.Part[]
----@param ctx agents.Context
----@param opts agents.SendOptions
----@return agents.Session?
+---@param parts gents.Part[]
+---@param ctx gents.Context
+---@param opts gents.SendOptions
+---@return gents.Session?
 local function deliver(parts, ctx, opts)
-  if opts.target == nil and #require("agents.session").list() == 0 then
-    local origin = require("agents.picker").origin()
-    require("agents.picker").tools(function(tool, launch_opts)
-      local text = require("agents.render").text(parts, ctx, tool)
-      local session = require("agents.session").new(tool, launch_opts, ctx.cwd)
+  if opts.target == nil and #require("gents.session").list() == 0 then
+    local origin = require("gents.picker").origin()
+    require("gents.picker").tools(function(tool, launch_opts)
+      local text = require("gents.render").text(parts, ctx, tool)
+      local session = require("gents.session").new(tool, launch_opts, ctx.cwd)
       if opts.focus == false then
         vim.cmd.stopinsert()
         if vim.api.nvim_win_is_valid(origin) then
@@ -168,16 +168,16 @@ local function deliver(parts, ctx, opts)
     end)
     return
   end
-  return require("agents.target").with(opts.target, function(session)
+  return require("gents.target").with(opts.target, function(session)
     if session.state == "exited" then
       vim.notify(
-        "agents.nvim: cannot send to exited session " .. session.label,
+        "gents.nvim: cannot send to exited session " .. session.label,
         vim.log.levels.ERROR
       )
       return
     end
     present(session, opts.focus ~= false)
-    local text = require("agents.render").text(parts, ctx, session.tool)
+    local text = require("gents.render").text(parts, ctx, session.tool)
     M.enqueue(session, text, opts.submit == true)
     return session
   end)
@@ -186,47 +186,47 @@ end
 ---@param buf integer
 ---@return boolean
 local function can_send_from(buf)
-  for _, session in ipairs(require("agents.session").list()) do
+  for _, session in ipairs(require("gents.session").list()) do
     if session.buf == buf then
-      vim.notify("agents.nvim: send context from a non-session buffer", vim.log.levels.WARN)
+      vim.notify("gents.nvim: send context from a non-session buffer", vim.log.levels.WARN)
       return false
     end
   end
   return true
 end
 
----@param ctx agents.Context
----@param items? agents.Item[]
----@param opts? agents.SendOptions
----@return agents.Session?
+---@param ctx gents.Context
+---@param items? gents.Item[]
+---@param opts? gents.SendOptions
+---@return gents.Session?
 function M.from_context(ctx, items, opts)
   if not can_send_from(ctx.buf) then
     return
   end
   opts = vim.deepcopy(opts or {})
   if items == nil then
-    require("agents.picker").context(ctx, function(parts)
+    require("gents.picker").context(ctx, function(parts)
       deliver(parts, ctx, opts)
     end)
     return
   end
-  local parts = require("agents.render").resolve(items, ctx)
+  local parts = require("gents.render").resolve(items, ctx)
   if not parts then
-    vim.notify("agents.nvim: requested context is not available here", vim.log.levels.WARN)
+    vim.notify("gents.nvim: requested context is not available here", vim.log.levels.WARN)
     return
   end
   return deliver(parts, ctx, opts)
 end
 
----@param items? agents.Item[]
----@param opts? agents.SendOptions
+---@param items? gents.Item[]
+---@param opts? gents.SendOptions
 ---@param range? { line1: integer, line2: integer }
----@return agents.Session?
+---@return gents.Session?
 function M.run(items, opts, range)
   if not can_send_from(vim.api.nvim_get_current_buf()) then
     return
   end
-  local ctx = require("agents.context").capture(range)
+  local ctx = require("gents.context").capture(range)
   local mode = vim.fn.mode()
   if mode == "v" or mode == "V" or mode == "\22" or mode == "s" or mode == "S" or mode == "\19" then
     vim.cmd.normal({ args = { "\27" }, bang = true })

@@ -1,21 +1,21 @@
 local test = require("mini.test")
 local expect = test.expect.equality
-local render = require("agents.render")
-local tools = require("agents.tools")
+local render = require("gents.render")
+local tools = require("gents.tools")
 local T = test.new_set()
 
----@type agents.Context
+---@type gents.Context
 local ctx = { win = 1, buf = 1, cwd = "/workspace", cursor = { 12, 3 } }
 
 ---@param first integer
 ---@param last? integer
----@return agents.Range
+---@return gents.Range
 local function lines(first, last)
   return { kind = "line", start = { first, 0 }, finish = { last or first, 0 } }
 end
 
 T["composition resolves names, literals, fallbacks, and inline providers"] = function()
-  local providers = require("agents.providers")
+  local providers = require("gents.providers")
   local original = assert(providers.get("file"))
   test.finally(function()
     providers.register("file", original)
@@ -27,7 +27,7 @@ T["composition resolves names, literals, fallbacks, and inline providers"] = fun
     end,
   })
   local unused = false
-  ---@type agents.Item[]
+  ---@type gents.Item[]
   local items = {
     { text = "Explain:" },
     "file",
@@ -110,7 +110,7 @@ T["unknown names fail before any provider runs, including unused fallbacks"] = f
 end
 
 T["resolved parts do not retain mutable caller or provider tables"] = function()
-  ---@type agents.Part[]
+  ---@type gents.Part[]
   local supplied = { { text = "initial" }, { path = "/workspace/main.lua", range = lines(2, 5) } }
   local parts = assert(render.resolve({
     function()
@@ -129,7 +129,7 @@ T["invalid item and provider outputs report clear errors"] = function()
     ---@diagnostic disable-next-line: assign-type-mismatch
     local ok, err = pcall(render.resolve, { value }, ctx)
     expect(ok, false)
-    expect(type(err) == "string" and err:find("agents:", 1, true) ~= nil, true)
+    expect(type(err) == "string" and err:find("gents:", 1, true) ~= nil, true)
   end
   local bad_outputs = { "text", { "text" }, { { code = 2 } }, { { path = "" } } }
   for _, output in ipairs(bad_outputs) do
@@ -141,7 +141,7 @@ T["invalid item and provider outputs report clear errors"] = function()
       end,
     }, ctx)
     expect(ok, false)
-    expect(type(err) == "string" and err:find("agents:", 1, true) ~= nil, true)
+    expect(type(err) == "string" and err:find("gents:", 1, true) ~= nil, true)
   end
 end
 
@@ -175,7 +175,7 @@ T["paths use captured cwd and preserve outside paths"] = function()
 end
 
 T["the same parts use default, Claude, Gemini, and Qwen notation"] = function()
-  ---@type agents.Part[]
+  ---@type gents.Part[]
   local parts =
     { { text = "Review" }, { path = "/workspace/a file[1].lua", range = lines(12, 15) } }
   expect(render.text(parts, ctx, tools.defaults.codex), "Review\n@a file[1].lua:12-15")
@@ -197,7 +197,7 @@ T["tool escaping preserves ordinary paths and protects parser punctuation"] = fu
 end
 
 T["custom location writers receive normalized paths and structured ranges"] = function()
-  ---@type agents.Tool
+  ---@type gents.Tool
   local tool = {
     name = "custom",
     cmd = { "custom" },

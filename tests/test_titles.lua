@@ -1,9 +1,9 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local agents = require("agents")
+local gents = require("gents")
 local eq = test.expect.equality
 
----@type agents.TitleEvent[]
+---@type gents.TitleEvent[]
 local observed = {}
 ---@type table<integer, integer>
 local requests = {}
@@ -22,7 +22,7 @@ end
 ---@param tool? string
 ---@param code? integer
 ---@param terminator? string
----@return agents.test.Session
+---@return gents.test.Session
 local function new_stream(tool, code, terminator)
   local cmd = {
     "sh",
@@ -41,13 +41,13 @@ local function new_stream(tool, code, terminator)
     -- The shell fixture replaces argv; retain the built-in title configuration.
     vim.list_extend(cmd, { "-c", 'tui.terminal_title=["thread"]' })
   end
-  local session = assert(agents.new(tool or "cat", { cmd = cmd }))
+  local session = assert(gents.new(tool or "cat", { cmd = cmd }))
   assert(session.job and session.job > 0)
-  ---@cast session agents.test.Session
+  ---@cast session gents.test.Session
   return session
 end
 
----@param session agents.test.Session
+---@param session gents.test.Session
 ---@param titles string[]
 local function send(session, titles)
   local expected = (requests[session.buf] or 0) + #titles
@@ -61,19 +61,19 @@ local T = test.new_set({
   hooks = {
     pre_case = function()
       H.reset()
-      require("agents.config").get().tools.cat.title = parse
+      require("gents.config").get().tools.cat.title = parse
       observed, requests, ready_count = {}, {}, 0
-      group = vim.api.nvim_create_augroup("AgentsTitlesTest", { clear = true })
+      group = vim.api.nvim_create_augroup("GentsTitlesTest", { clear = true })
       vim.api.nvim_create_autocmd("User", {
         group = group,
-        pattern = "AgentsSessionTitle",
+        pattern = "GentsSessionTitle",
         callback = function(ev)
           observed[#observed + 1] = vim.deepcopy(ev.data)
         end,
       })
       vim.api.nvim_create_autocmd("User", {
         group = group,
-        pattern = "AgentsReady",
+        pattern = "GentsReady",
         callback = function()
           ready_count = ready_count + 1
         end,
@@ -104,15 +104,15 @@ T["OSC title transport"] = test.new_set({
   ["updates metadata and the buffer name without signaling ready"] = function(code, terminator)
     local session = new_stream(nil, code, terminator)
     local label = session.label
-    local before = agents.status()[1]
+    local before = gents.status()[1]
     send(session, { "Investigate flaky tests" })
     eq(session.title, "Investigate flaky tests")
-    eq(agents.status()[1].title, session.title)
+    eq(gents.status()[1].title, session.title)
     eq(before.title, nil)
     eq(session.label, label)
     eq(
       vim.api.nvim_buf_get_name(session.buf),
-      "agents://" .. session.id .. "/cat · Investigate flaky tests"
+      "gents://" .. session.id .. "/cat · Investigate flaky tests"
     )
     eq(observed, { { id = session.id, title = session.title } })
     eq(ready_count, 0)
@@ -134,7 +134,7 @@ end
 
 T["hidden sessions update independently even when their titles match"] = function()
   local first, second = new_stream(), new_stream()
-  agents.hide(first.id)
+  gents.hide(first.id)
   send(first, { "Shared task" })
   send(second, { "Shared task" })
   send(first, { "Hidden rename" })
@@ -148,7 +148,7 @@ T["hidden sessions update independently even when their titles match"] = functio
 end
 
 T["normalization rejects project-only and empty titles after parsing"] = function()
-  require("agents.config").get().tools.cat.title = function(title, session)
+  require("gents.config").get().tools.cat.title = function(title, session)
     eq(type(session.id), "number")
     eq(title, vim.trim(title))
     if title == "controls" then
@@ -200,7 +200,7 @@ T["tool title parsers"] = test.new_set({
 
 T["built-in parsers only remove known anchored prefixes"] = function()
   local session = new_stream()
-  local tools = require("agents.tools").defaults
+  local tools = require("gents.tools").defaults
   local claude, opencode, codex = tools.claude.title, tools.opencode.title, tools.codex.title
   assert(type(claude) == "function" and type(opencode) == "function" and type(codex) == "function")
   eq(claude("Keep ✳ and ◐ in this title", session), "Keep ✳ and ◐ in this title")
@@ -218,7 +218,7 @@ end
 
 T["Codex only accepts titles when the effective argv selects thread alone"] = function()
   local session = new_stream()
-  local parser = require("agents.tools").defaults.codex.title
+  local parser = require("gents.tools").defaults.codex.title
   assert(type(parser) == "function")
   local thread, project = 'tui.terminal_title=["thread"]', 'tui.terminal_title=["project"]'
   ---@type { cmd: string[], expected?: string }[]
@@ -239,7 +239,7 @@ T["Codex only accepts titles when the effective argv selects thread alone"] = fu
 end
 
 T["built-in and custom tools without parsers use cleaned terminal titles"] = function()
-  require("agents.config").get().tools.cat.title = nil
+  require("gents.config").get().tools.cat.title = nil
   local custom, builtin = new_stream(), new_stream("gemini")
   eq(custom.title, nil)
   eq(builtin.title, nil)
@@ -258,8 +258,8 @@ T["built-in and custom tools without parsers use cleaned terminal titles"] = fun
 end
 
 T["explicit parser opt-outs disable both generic and built-in title reporting"] = function()
-  require("agents.config").get().tools.cat.title = false
-  require("agents.config").get().tools.claude.title = false
+  require("gents.config").get().tools.cat.title = false
+  require("gents.config").get().tools.claude.title = false
   local custom, builtin = new_stream(), new_stream("claude")
   send(custom, { "Disabled terminal title" })
   send(builtin, { "✳ Disabled title" })
@@ -280,7 +280,7 @@ T["exited sessions retain their final title and ignore late requests"] = functio
     data = { sequence = "\027]2;Late title", terminator = "\007", cursor = { 1, 0 } },
   })
   eq(session.title, "Final conversation")
-  eq(agents.status()[1].title, session.title)
+  eq(gents.status()[1].title, session.title)
   eq(observed, { { id = session.id, title = "Final conversation" } })
 end
 
@@ -294,17 +294,17 @@ T["closing a session discards remaining title updates in the same output"] = fun
   })
   vim.api.nvim_create_autocmd("User", {
     group = group,
-    pattern = "AgentsSessionTitle",
+    pattern = "GentsSessionTitle",
     once = true,
     callback = function()
-      agents.close(session.id)
+      gents.close(session.id)
     end,
   })
   vim.fn.chansend(session.job, "go\n")
   H.wait(function()
     return session.state == "exited"
   end)
-  eq(agents.sessions(), {})
+  eq(gents.sessions(), {})
   eq(requests[session.buf], 2)
   eq(session.title, "Close now")
   eq(observed, { { id = session.id, title = "Close now" } })

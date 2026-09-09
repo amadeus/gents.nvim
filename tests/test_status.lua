@@ -1,13 +1,13 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local agents = require("agents")
+local gents = require("gents")
 local eq = test.expect.equality
 local T = test.new_set({ hooks = { pre_case = H.reset, post_case = H.reset } })
 
 T["status returns independent snapshots with live visibility"] = function()
   local session = H.new({ label = "review" })
   session.title = "Investigate flaky tests"
-  local status = agents.status()
+  local status = gents.status()
   eq(status, {
     {
       id = session.id,
@@ -24,40 +24,40 @@ T["status returns independent snapshots with live visibility"] = function()
   eq(session.label, "review")
   eq(session.title, "Investigate flaky tests")
   session.title = nil
-  eq(agents.status()[1].title, nil)
+  eq(gents.status()[1].title, nil)
   vim.cmd.enew()
-  eq(agents.status()[1].visible, false)
-  agents.show(session.id)
-  eq(agents.status()[1].visible, true)
-  agents.close(session.id)
-  eq(agents.status(), {})
+  eq(gents.status()[1].visible, false)
+  gents.show(session.id)
+  eq(gents.status()[1].visible, true)
+  gents.close(session.id)
+  eq(gents.status(), {})
 end
 
 T["status visibility follows native tab navigation"] = function()
   local session = H.new()
-  local status = agents.status()
+  local status = gents.status()
   eq(status[1].visible, true)
   vim.cmd.tabnew()
-  eq(agents.status()[1].visible, false)
+  eq(gents.status()[1].visible, false)
   eq(status[1].visible, true)
   vim.cmd.vsplit()
   vim.api.nvim_win_set_buf(0, session.buf)
-  eq(agents.status()[1].visible, true)
+  eq(gents.status()[1].visible, true)
   vim.cmd.tabprevious()
-  eq(agents.status()[1].visible, true)
+  eq(gents.status()[1].visible, true)
   vim.cmd.enew()
-  eq(agents.status()[1].visible, false)
+  eq(gents.status()[1].visible, false)
   vim.cmd.tabnext()
-  eq(agents.status()[1].visible, true)
+  eq(gents.status()[1].visible, true)
   vim.cmd.tabprevious()
-  eq(agents.status()[1].visible, false)
+  eq(gents.status()[1].visible, false)
 end
 
 T["a statusline reflects hidden sessions, show, hide, and exit"] = function()
-  _G.agents_test_status = function()
+  _G.gents_test_status = function()
     ---@type string[]
     local labels = {}
-    for _, status in ipairs(agents.status()) do
+    for _, status in ipairs(gents.status()) do
       labels[#labels + 1] = status.label
         .. ":"
         .. status.state
@@ -67,16 +67,16 @@ T["a statusline reflects hidden sessions, show, hide, and exit"] = function()
     return table.concat(labels, ",")
   end
   test.finally(function()
-    _G.agents_test_status = nil
+    _G.gents_test_status = nil
   end)
   local function render()
-    return vim.api.nvim_eval_statusline("%!v:lua.agents_test_status()", {}).str
+    return vim.api.nvim_eval_statusline("%!v:lua.gents_test_status()", {}).str
   end
   local session = H.new({ cmd = { "sh", "-c", "read signal; exit 7" } })
   eq(render(), "cat:starting:visible")
-  agents.hide(session.id)
+  gents.hide(session.id)
   eq(render(), "cat:starting:hidden")
-  agents.show(session.id)
+  gents.show(session.id)
   eq(render(), "cat:starting:visible")
   vim.fn.chansend(session.job, "go\n")
   H.wait(function()

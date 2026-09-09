@@ -1,16 +1,16 @@
 local test = require("mini.test")
 local H = require("tests.helpers")
-local agents = require("agents")
+local gents = require("gents")
 local eq = test.expect.equality
 
----@class agents.test.EventObservation
+---@class gents.test.EventObservation
 ---@field name string
----@field data agents.SessionEvent|agents.ReadyEvent
+---@field data gents.SessionEvent|gents.ReadyEvent
 
----@class agents.test.ReadyObservation: agents.test.EventObservation
----@field data agents.ReadyEvent
+---@class gents.test.ReadyObservation: gents.test.EventObservation
+---@field data gents.ReadyEvent
 
----@type agents.test.EventObservation[]
+---@type gents.test.EventObservation[]
 local observed = {}
 ---@type integer
 local group
@@ -18,7 +18,7 @@ local group
 local function reset()
   ---@type integer[]
   local jobs = {}
-  for _, session in ipairs(agents.sessions()) do
+  for _, session in ipairs(gents.sessions()) do
     if session.job and session.job > 0 then
       jobs[#jobs + 1] = session.job
     end
@@ -29,12 +29,12 @@ local function reset()
   end
 end
 
----@overload fun(name: "AgentsReady"): agents.test.ReadyObservation[]
----@param name agents.EventName
----@return agents.test.EventObservation[]
+---@overload fun(name: "GentsReady"): gents.test.ReadyObservation[]
+---@param name gents.EventName
+---@return gents.test.EventObservation[]
 local function events(name)
   return vim.tbl_filter(
-    ---@param event agents.test.EventObservation
+    ---@param event gents.test.EventObservation
     ---@return boolean
     function(event)
       return event.name == name
@@ -48,10 +48,10 @@ local T = test.new_set({
     pre_case = function()
       reset()
       observed = {}
-      group = vim.api.nvim_create_augroup("AgentsEventsTest", { clear = true })
+      group = vim.api.nvim_create_augroup("GentsEventsTest", { clear = true })
       vim.api.nvim_create_autocmd("User", {
         group = group,
-        pattern = "Agents*",
+        pattern = "Gents*",
         callback = function(ev)
           observed[#observed + 1] = { name = ev.match, data = vim.deepcopy(ev.data) }
         end,
@@ -68,28 +68,28 @@ T["lifecycle events occur once per plugin transition"] = function()
   local session = H.new()
   local first_win = vim.api.nvim_get_current_win()
   eq(observed, {
-    { name = "AgentsSessionStart", data = { id = session.id } },
-    { name = "AgentsSessionShow", data = { id = session.id, win = first_win } },
+    { name = "GentsSessionStart", data = { id = session.id } },
+    { name = "GentsSessionShow", data = { id = session.id, win = first_win } },
   })
-  agents.show(session.id)
+  gents.show(session.id)
   eq(#observed, 2)
   vim.cmd.split()
-  agents.hide(session.id)
-  agents.hide(session.id)
-  eq(#events("AgentsSessionHide"), 1)
-  agents.show(session.id)
-  local shown = events("AgentsSessionShow")
+  gents.hide(session.id)
+  gents.hide(session.id)
+  eq(#events("GentsSessionHide"), 1)
+  gents.show(session.id)
+  local shown = events("GentsSessionShow")
   eq(#shown, 2)
   eq(shown[2].data, { id = session.id, win = vim.api.nvim_get_current_win() })
-  agents.close(session.id)
+  gents.close(session.id)
   H.wait(function()
-    return #events("AgentsSessionExit") == 1
+    return #events("GentsSessionExit") == 1
   end)
-  eq(#events("AgentsSessionStart"), 1)
-  eq(#events("AgentsSessionShow"), 2)
-  eq(#events("AgentsSessionHide"), 2)
-  eq(events("AgentsSessionExit")[1].data.id, session.id)
-  eq(type(events("AgentsSessionExit")[1].data.exit_code), "number")
+  eq(#events("GentsSessionStart"), 1)
+  eq(#events("GentsSessionShow"), 2)
+  eq(#events("GentsSessionHide"), 2)
+  eq(events("GentsSessionExit")[1].data.id, session.id)
+  eq(type(events("GentsSessionExit")[1].data.exit_code), "number")
 end
 
 T["hide emits only when the last view across tabs is removed"] = function()
@@ -97,24 +97,24 @@ T["hide emits only when the last view across tabs is removed"] = function()
   vim.cmd.tabnew()
   vim.cmd.vsplit()
   vim.api.nvim_win_set_buf(0, session.buf)
-  require("agents.window").hide(session, vim.api.nvim_get_current_tabpage())
-  eq(#events("AgentsSessionHide"), 0)
+  require("gents.window").hide(session, vim.api.nvim_get_current_tabpage())
+  eq(#events("GentsSessionHide"), 0)
   vim.cmd.tabprevious()
-  eq(#events("AgentsSessionShow"), 1)
-  agents.hide(session.id)
-  eq(#events("AgentsSessionHide"), 1)
+  eq(#events("GentsSessionShow"), 1)
+  gents.hide(session.id)
+  eq(#events("GentsSessionHide"), 1)
 end
 
 T["show in the current window emits only when it adds a session view"] = function()
   local session = H.new()
   vim.cmd.tabnew()
   local origin = vim.api.nvim_get_current_win()
-  agents.show(session.id, { layout = "current" })
-  local shown = events("AgentsSessionShow")
+  gents.show(session.id, { layout = "current" })
+  local shown = events("GentsSessionShow")
   eq(#shown, 2)
   eq(shown[2].data, { id = session.id, win = origin })
-  agents.show(session.id, { layout = "current" })
-  eq(#events("AgentsSessionShow"), 2)
+  gents.show(session.id, { layout = "current" })
+  eq(#events("GentsSessionShow"), 2)
   eq(vim.api.nvim_get_current_win(), origin)
   eq(#vim.fn.win_findbuf(session.buf), 2)
 end
@@ -122,56 +122,56 @@ end
 T["process exit emits its actual exit code and keeps the buffer"] = function()
   local session = H.new({ cmd = { "sh", "-c", "exit 7" } })
   H.wait(function()
-    return #events("AgentsSessionExit") == 1
+    return #events("GentsSessionExit") == 1
   end)
-  eq(events("AgentsSessionExit")[1].data, { id = session.id, exit_code = 7 })
+  eq(events("GentsSessionExit")[1].data, { id = session.id, exit_code = 7 })
   eq(session.state, "exited")
-  eq(agents.sessions(), { session })
+  eq(gents.sessions(), { session })
   eq(vim.api.nvim_buf_is_valid(session.buf), true)
 end
 
 T["a start listener may replace the initial window without a stale show event"] = function()
   vim.api.nvim_create_autocmd("User", {
     group = group,
-    pattern = "AgentsSessionStart",
+    pattern = "GentsSessionStart",
     callback = function(ev)
-      agents.hide(ev.data.id)
-      agents.show(ev.data.id, { layout = "tabnew" })
+      gents.hide(ev.data.id)
+      gents.show(ev.data.id, { layout = "tabnew" })
     end,
   })
   local session = H.new()
-  eq(events("AgentsSessionShow"), {
+  eq(events("GentsSessionShow"), {
     {
-      name = "AgentsSessionShow",
+      name = "GentsSessionShow",
       data = { id = session.id, win = vim.api.nvim_get_current_win() },
     },
   })
 end
 
 T["successful auto-close emits exit and hides once"] = function()
-  agents.setup({ on_exit = "close", tools = { cat = { cmd = { "cat" } } } })
+  gents.setup({ on_exit = "close", tools = { cat = { cmd = { "cat" } } } })
   local session = H.new({ cmd = { "sh", "-c", "exit 0" } })
   H.wait(function()
-    return #agents.sessions() == 0
+    return #gents.sessions() == 0
   end)
-  eq(events("AgentsSessionExit"), {
-    { name = "AgentsSessionExit", data = { id = session.id, exit_code = 0 } },
+  eq(events("GentsSessionExit"), {
+    { name = "GentsSessionExit", data = { id = session.id, exit_code = 0 } },
   })
-  eq(#events("AgentsSessionHide"), 1)
+  eq(#events("GentsSessionHide"), 1)
   eq(vim.api.nvim_buf_is_valid(session.buf), false)
 end
 
 T["failed launches do not emit lifecycle events"] = function()
   test.expect.error(function()
-    H.new({ cmd = { "/agents-test-missing-executable" } })
+    H.new({ cmd = { "/gents-test-missing-executable" } })
   end)
   eq(observed, {})
-  eq(agents.sessions(), {})
+  eq(gents.sessions(), {})
 end
 
 T["ready signals do not change the send-readiness state"] = function()
   local session = H.new()
-  local data = agents.ready(session.id)
+  local data = gents.ready(session.id)
   eq(data, {
     id = session.id,
     label = session.label,
@@ -182,7 +182,7 @@ T["ready signals do not change the send-readiness state"] = function()
     focused = true,
     source = "hook",
   })
-  eq(events("AgentsReady")[1].data, data)
+  eq(events("GentsReady")[1].data, data)
   eq(session.state, "starting")
 end
 
@@ -191,28 +191,28 @@ T["hook ready distinguishes visible and hidden sessions"] = function()
   local session = H.new()
   local terminal = vim.api.nvim_get_current_win()
   vim.api.nvim_set_current_win(source)
-  local data = agents.ready(session.id)
+  local data = gents.ready(session.id)
   eq({ data.visible, data.focused, data.win }, { true, false, terminal })
-  agents.hide(session.id)
-  data = agents.ready(session.id)
+  gents.hide(session.id)
+  data = gents.ready(session.id)
   eq({ data.visible, data.focused }, { false, false })
   eq(data.win, nil)
   eq(vim.api.nvim_get_current_win(), source)
-  eq(#events("AgentsReady"), 2)
+  eq(#events("GentsReady"), 2)
 end
 
 T["hook ready treats sessions in another tab as hidden"] = function()
   local session = H.new()
   local terminal = vim.api.nvim_get_current_win()
   vim.cmd.tabnew()
-  local data = agents.ready(session.id)
+  local data = gents.ready(session.id)
   eq({ data.visible, data.focused }, { false, false })
   eq(data.win, nil)
   vim.cmd.tabprevious()
-  data = agents.ready(session.id)
+  data = gents.ready(session.id)
   eq({ data.visible, data.focused, data.win }, { true, true, terminal })
   vim.cmd.tabnext()
-  data = agents.ready(session.id)
+  data = gents.ready(session.id)
   eq({ data.visible, data.focused }, { false, false })
   eq(data.win, nil)
 end
@@ -225,19 +225,19 @@ T["hook ready prefers the focused view among current-tab views"] = function()
   local visible = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(visible, session.buf)
   vim.api.nvim_set_current_win(source)
-  local data = agents.ready(session.id)
+  local data = gents.ready(session.id)
   eq({ data.visible, data.focused, data.win }, { true, false, visible })
 
   vim.cmd.vsplit()
   local focused = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(focused, session.buf)
-  data = agents.ready(session.id)
+  data = gents.ready(session.id)
   eq({ data.visible, data.focused, data.win }, { true, true, focused })
 end
 
 T["ready rejects unknown ids without opening a picker"] = function()
   test.expect.error(function()
-    agents.ready(-1)
+    gents.ready(-1)
   end, "no session with id")
   eq(observed, {})
 end
@@ -264,16 +264,16 @@ T["OSC notifications"] = test.new_set({
       vim.api.nvim_set_current_win(source)
     end
     if visibility == "hidden" then
-      agents.hide(session.id)
+      gents.hide(session.id)
     elseif visibility == "other-tab" then
       vim.cmd.tabnew()
     end
     vim.fn.chansend(session.job, "go\n")
     H.wait(function()
-      return #events("AgentsReady") > 0
+      return #events("GentsReady") > 0
     end)
-    eq(#events("AgentsReady"), 1)
-    local data = events("AgentsReady")[1].data
+    eq(#events("GentsReady"), 1)
+    local data = events("GentsReady")[1].data
     eq(data.id, session.id)
     eq(data.source, "osc")
     local visible = visibility == "focused" or visibility == "visible"
@@ -286,10 +286,10 @@ T["OSC notifications"] = test.new_set({
 T["short-lived notification process emits before exiting"] = function()
   local session = H.new({ cmd = { "sh", "-c", [[printf '\033]9;done\007']] } })
   H.wait(function()
-    return session.state == "exited" and #events("AgentsReady") > 0
+    return session.state == "exited" and #events("GentsReady") > 0
   end)
-  eq(#events("AgentsReady"), 1)
-  eq(events("AgentsReady")[1].data.id, session.id)
+  eq(#events("GentsReady"), 1)
+  eq(events("GentsReady")[1].data.id, session.id)
 end
 
 T["progress and notification control sequences are not ready signals"] = function()
@@ -310,7 +310,7 @@ T["progress and notification control sequences are not ready signals"] = functio
   H.wait(function()
     return session.state == "exited"
   end)
-  eq(events("AgentsReady"), {})
+  eq(events("GentsReady"), {})
 end
 
 T["multipart OSC 99 emits once when its text notification completes"] = function()
@@ -325,10 +325,10 @@ T["multipart OSC 99 emits once when its text notification completes"] = function
     },
   })
   H.wait(function()
-    return session.state == "exited" and #events("AgentsReady") > 0
+    return session.state == "exited" and #events("GentsReady") > 0
   end)
-  eq(#events("AgentsReady"), 1)
-  eq(events("AgentsReady")[1].data.id, session.id)
+  eq(#events("GentsReady"), 1)
+  eq(events("GentsReady")[1].data.id, session.id)
 end
 
 T["unrelated terminal sequences and plain terminals do not emit ready"] = function()
@@ -336,11 +336,11 @@ T["unrelated terminal sequences and plain terminals do not emit ready"] = functi
   H.wait(function()
     return session.state == "exited"
   end)
-  eq(#events("AgentsReady"), 0)
+  eq(#events("GentsReady"), 0)
   vim.cmd.enew()
   local job = vim.fn.jobstart({ "sh", "-c", [[printf '\033]9;done\007']] }, { term = true })
   eq(vim.fn.jobwait({ job }, 2000), { 0 })
-  eq(#events("AgentsReady"), 0)
+  eq(#events("GentsReady"), 0)
 end
 
 T["a hook inside the session calls ready through Neovim remote-expr"] = function()
@@ -350,26 +350,26 @@ T["a hook inside the session calls ready through Neovim remote-expr"] = function
       vim.fn.serverstop(server)
     end)
   end
-  agents.setup({
+  gents.setup({
     tools = {
       hook = {
         cmd = {
           "sh",
           "-c",
-          [[exec "$AGENTS_TEST_NVIM" --server "$NVIM" --remote-expr "v:lua.require'agents'.ready($AGENTS_SESSION)"]],
+          [[exec "$GENTS_TEST_NVIM" --server "$NVIM" --remote-expr "v:lua.require'gents'.ready($GENTS_SESSION)"]],
         },
-        env = { AGENTS_TEST_NVIM = vim.v.progpath },
+        env = { GENTS_TEST_NVIM = vim.v.progpath },
       },
     },
   })
-  local session = assert(agents.new("hook"))
+  local session = assert(gents.new("hook"))
   H.wait(function()
     return session.state == "exited"
   end)
   eq(session.exit_code, 0)
-  eq(#events("AgentsReady"), 1)
-  eq(events("AgentsReady")[1].data.id, session.id)
-  eq(events("AgentsReady")[1].data.source, "hook")
+  eq(#events("GentsReady"), 1)
+  eq(events("GentsReady")[1].data.id, session.id)
+  eq(events("GentsReady")[1].data.source, "hook")
 end
 
 return T

@@ -1,5 +1,21 @@
 local M = {}
-local titles = require("gents.titles")
+
+-- Title parsers live in gents.titles, which loads with the first reported title
+-- rather than at startup.
+---@type gents.TitleParser
+local function claude_title(title)
+  return require("gents.titles").claude(title)
+end
+
+---@type gents.TitleParser
+local function codex_title(title, session)
+  return require("gents.titles").codex(title, session)
+end
+
+---@type gents.TitleParser
+local function opencode_title(title)
+  return require("gents.titles").opencode(title)
+end
 
 ---@param path string
 ---@param range? gents.Range
@@ -49,26 +65,26 @@ local builtins = {
   {
     name = "claude",
     cmd = { "claude" },
-    title = titles.claude,
+    title = claude_title,
     location = claude_location,
     url = "https://code.claude.com/docs/en/quickstart",
   },
   {
     name = "codex",
     cmd = { "codex", "-c", 'tui.terminal_title=["thread"]' },
-    title = titles.codex,
+    title = codex_title,
     url = "https://developers.openai.com/codex/cli",
   },
   {
     name = "opencode",
     cmd = { "opencode" },
-    title = titles.opencode,
+    title = opencode_title,
     url = "https://opencode.ai/docs/",
   },
   {
     name = "opencode2",
     cmd = { "opencode2" },
-    title = titles.opencode,
+    title = opencode_title,
     url = "https://opencode.ai/v2/docs",
   },
   {

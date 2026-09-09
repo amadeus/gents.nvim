@@ -6,7 +6,6 @@ local T = test.new_set({
   hooks = {
     pre_case = function()
       config.setup()
-      commands.setup()
     end,
     post_case = function()
       config.setup()
@@ -275,10 +274,11 @@ dispatch["send rejects a missing explicit target"] = function()
   expect(calls, {})
 end
 
-T["setup replaces its command without resetting config"] = function()
+T["sourcing the plugin file again replaces its command without resetting config"] = function()
   local configured = config.setup({ layout = "split" })
-  commands.setup()
-  commands.setup()
+  vim.g.loaded_gents = nil
+  vim.cmd("runtime plugin/gents.lua")
+  expect(vim.g.loaded_gents, true)
   expect(config.get(), configured)
   local command = vim.api.nvim_get_commands({ builtin = false }).Gents
   expect(command.nargs, "*")

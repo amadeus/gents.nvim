@@ -3,7 +3,11 @@ local M = {}
 ---@param opts? gents.SetupOptions
 function M.setup(opts)
   local config = require("gents.config").setup(opts)
-  require("gents.keys").setup(config.keys)
+  -- Keymap support loads once keys are configured, and stays active so a later
+  -- setup call can remove them again.
+  if next(config.keys) ~= nil or package.loaded["gents.keys"] then
+    require("gents.keys").setup(config.keys)
+  end
 end
 
 ---@param tool? string

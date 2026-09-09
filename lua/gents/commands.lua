@@ -231,14 +231,4 @@ function M.complete(arglead, cmdline, cursorpos)
   return {}
 end
 
-function M.setup()
-  vim.api.nvim_create_user_command("Gents", M.run, {
-    nargs = "*",
-    range = true,
-    complete = M.complete,
-    desc = "Manage agent CLI sessions",
-    force = true,
-  })
-end
-
 return M

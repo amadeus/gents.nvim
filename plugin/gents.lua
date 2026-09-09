@@ -3,12 +3,30 @@ if vim.g.loaded_gents then
 end
 vim.g.loaded_gents = true
 
-local highlights = require("gents.picker").define_highlights
-highlights()
+-- Startup only registers entry points; modules load when a command or picker
+-- first needs them. Picker highlights are defined when a menu first opens and
+-- refreshed after colorscheme changes from then on.
 vim.api.nvim_create_autocmd("ColorScheme", {
   group = vim.api.nvim_create_augroup("GentsHighlights", { clear = true }),
-  desc = "Set default Gents picker highlights",
-  callback = highlights,
+  desc = "Refresh default Gents picker highlights",
+  callback = function()
+    if package.loaded["gents.picker"] then
+      require("gents.picker").define_highlights()
+    end
+  end,
 })
 
-require("gents.commands").setup()
+---@param opts gents.commands.Options
+local function run(opts)
+  require("gents.commands").run(opts)
+end
+
+vim.api.nvim_create_user_command("Gents", run, {
+  nargs = "*",
+  range = true,
+  complete = function(...)
+    return require("gents.commands").complete(...)
+  end,
+  desc = "Manage agent CLI sessions",
+  force = true,
+})

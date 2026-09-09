@@ -97,8 +97,9 @@ end
 function M.open(spec)
   local adapter = require("gents.config").get().picker
   local module = type(adapter) == "string" and builtin[adapter] or nil
+  -- Custom adapters may style rows with the same groups as the built-in ones.
+  M.define_highlights()
   if module then
-    M.define_highlights()
     require(module).open(spec)
     return
   elseif adapter then

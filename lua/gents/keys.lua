@@ -154,8 +154,11 @@ function M.setup(entries)
       end
     end
   end
-  for _, session in ipairs(require("gents.session").list()) do
-    M.attach(session.buf)
+  -- Sessions exist only once their module has loaded.
+  if package.loaded["gents.session"] then
+    for _, session in ipairs(require("gents.session").list()) do
+      M.attach(session.buf)
+    end
   end
 end
 

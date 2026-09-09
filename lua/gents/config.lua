@@ -53,7 +53,10 @@ local function validate(config)
         .. " must be a non-empty string without whitespace or control characters"
     )
   end
-  require("gents.keys").validate(config.keys)
+  assert(type(config.keys) == "table", "gents: keys must be a list")
+  if next(config.keys) ~= nil then
+    require("gents.keys").validate(config.keys)
+  end
   assert(type(config.prompts) == "table", "gents: prompts must be a table of item lists")
   for name, items in pairs(config.prompts) do
     assert(

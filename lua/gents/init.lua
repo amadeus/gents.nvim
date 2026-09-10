@@ -151,16 +151,24 @@ function M.actions(range)
 end
 
 ---@param target? gents.Target
+---@param opts? gents.ToggleOptions
 ---@return gents.Session?
-function M.toggle(target)
+function M.toggle(target, opts)
   local window = require("gents.window")
   local tab = vim.api.nvim_get_current_tabpage()
+  local layout = opts and opts.layout
   if target == nil and #M.sessions() == 0 then
-    return M.new()
+    return M.new(nil, { layout = layout or nil })
   end
   return require("gents.target").with(target, function(session)
     if window.visible(session, tab) then
       return window.hide(session, tab)
+    end
+    if layout then
+      return window.show(session, layout)
+    end
+    if layout == nil and session.last_float and #vim.fn.win_findbuf(session.buf) == 0 then
+      return window.show(session, "float")
     end
     return window.show(session)
   end)

@@ -208,6 +208,287 @@ T["toggle shows a sole hidden session"] = function()
   eq(vim.fn.jobwait({ session.job }, 0), { -1 })
 end
 
+T["toggle restores floats after hiding"] = test.new_set({
+  parametrize = { { "toggle" }, { "hide" }, { "native close" } },
+}, {
+  ---@param action string
+  ["keeps the session and its floating placement"] = function(action)
+    local session = H.new({ layout = "float" })
+    local buf, job = session.buf, session.job
+    for _ = 1, 2 do
+      if action == "native close" then
+        vim.api.nvim_win_close(vim.api.nvim_get_current_win(), true)
+      elseif action == "hide" then
+        gents.hide(session.id)
+      else
+        gents.toggle(session.id)
+      end
+      eq(window.visible(session), false)
+      gents.toggle(session.id)
+      eq(vim.api.nvim_win_get_config(0).relative, "editor")
+      eq(vim.api.nvim_get_current_buf(), buf)
+      eq(session.job, job)
+      eq(vim.fn.jobwait({ job }, 0), { -1 })
+    end
+  end,
+})
+
+T["toggle float restoration can be disabled per call"] = test.new_set({
+  parametrize = {
+    { {}, "editor" },
+    { { layout = "float" }, "editor" },
+    { { layout = false }, "" },
+    { { layout = "vsplit" }, "" },
+  },
+}, {
+  ---@param opts gents.ToggleOptions
+  ---@param relative string
+  ["only controls reopening"] = function(opts, relative)
+    local session = H.new({ layout = "float" })
+    gents.toggle(session.id, opts)
+    eq(window.visible(session), false)
+    eq(session.last_float, true)
+    gents.toggle(session.id, opts)
+    eq(vim.api.nvim_win_get_config(0).relative, relative)
+    eq(vim.api.nvim_get_current_buf(), session.buf)
+    -- Reopening still records the actual placement for later default toggles.
+    gents.toggle(session.id)
+    gents.toggle(session.id)
+    eq(vim.api.nvim_win_get_config(0).relative, relative)
+  end,
+})
+
+T["toggle preserves the float opt-out through session selection"] = function()
+  local first = H.new({ layout = "float" })
+  gents.hide(first.id)
+  local second = H.new({ layout = "float" })
+  gents.hide(second.id)
+  local picked = capture_picker()
+  gents.toggle(nil, { layout = false })
+  local spec = picked()
+  spec.actions[spec.default](spec.items[1])
+  eq(vim.api.nvim_get_current_buf(), first.buf)
+  eq(vim.api.nvim_win_get_config(0).relative, "")
+  eq(window.visible(second), false)
+end
+
+T["toggle float opt-out still uses a floating default layout"] = function()
+  local session = H.new({ layout = "float" })
+  gents.hide(session.id)
+  require("gents.config").get().layout = "float"
+  gents.toggle(nil, { layout = false })
+  eq(vim.api.nvim_win_get_config(0).relative, "editor")
+end
+
+T["toggle float opt-out reuses existing views in other tabs"] = function()
+  local original = vim.api.nvim_get_current_win()
+  local session = H.new({ layout = "tabnew" })
+  -- Keep the tab open while cleanup removes the session's split and float.
+  vim.cmd.new()
+  gents.show(session.id, { layout = "float" })
+  local wins = vim.fn.win_findbuf(session.buf)
+  vim.api.nvim_set_current_win(original)
+  gents.toggle(session.id, { layout = false })
+  eq(vim.api.nvim_get_current_buf(), session.buf)
+  eq(vim.fn.win_findbuf(session.buf), wins)
+end
+
+T["toggle accepts the documented layout forms"] = test.new_set({
+  parametrize = {
+    { "split", "" },
+    { "tabnew", "" },
+    { "current", "" },
+    { { width = 24, height = 6, row = 1, col = 2 }, "editor", 24 },
+    {
+      ---@return integer
+      function()
+        return vim.api.nvim_open_win(
+          0,
+          true,
+          { relative = "editor", width = 24, height = 6, row = 1, col = 2 }
+        )
+      end,
+      "editor",
+      24,
+    },
+  },
+}, {
+  ---@param layout gents.Layout
+  ---@param relative string
+  ---@param width? integer
+  ["shows the existing session at the requested placement"] = function(layout, relative, width)
+    local session = H.new({ layout = "float" })
+    gents.hide(session.id)
+    gents.toggle(session.id, { layout = layout })
+    eq(vim.api.nvim_get_current_buf(), session.buf)
+    eq(vim.api.nvim_win_get_config(0).relative, relative)
+    if width then
+      eq(vim.api.nvim_win_get_width(0), width)
+    end
+    eq(vim.fn.jobwait({ session.job }, 0), { -1 })
+  end,
+})
+
+T["toggle explicit layout preserves views in other tabs"] = function()
+  local original = vim.api.nvim_get_current_win()
+  local session = H.new({ layout = "tabnew" })
+  local remote = vim.api.nvim_get_current_win()
+  vim.api.nvim_set_current_win(original)
+  gents.toggle(session.id, { layout = "float" })
+  eq(vim.api.nvim_get_current_tabpage(), vim.api.nvim_win_get_tabpage(original))
+  eq(vim.api.nvim_win_get_config(0).relative, "editor")
+  eq(vim.api.nvim_win_get_buf(remote), session.buf)
+  eq(#vim.fn.win_findbuf(session.buf), 2)
+  gents.toggle(session.id, { layout = "vsplit" })
+  eq(vim.fn.win_findbuf(session.buf), { remote })
+end
+
+T["toggle explicit layout survives session selection"] = function()
+  local first = H.new()
+  gents.hide(first.id)
+  local second = H.new()
+  gents.hide(second.id)
+  local picked = capture_picker()
+  gents.toggle(nil, { layout = { width = 24, height = 6 } })
+  local spec = picked()
+  spec.actions[spec.default](spec.items[1])
+  eq(vim.api.nvim_get_current_buf(), first.buf)
+  eq(vim.api.nvim_win_get_config(0).relative, "editor")
+  eq(vim.api.nvim_win_get_width(0), 24)
+  eq(window.visible(second), false)
+end
+
+T["toggle carries placement into the New Session picker"] = test.new_set({
+  parametrize = {
+    { false, "" },
+    { "float", "editor" },
+    { { width = 24, height = 6 }, "editor", 24 },
+  },
+}, {
+  ---@param layout gents.Layout|false
+  ---@param relative string
+  ---@param width? integer
+  ["launches at the requested placement"] = function(layout, relative, width)
+    local config = require("gents.config").get()
+    config.tools = { cat = assert(config.tools.cat) }
+    local picked = capture_picker()
+    gents.toggle(nil, { layout = layout })
+    local spec = picked()
+    eq(spec.title, "Gents: New Session")
+    eq(#spec.items, 1)
+    spec.actions[spec.default](spec.items[1])
+    local session = assert(gents.current())
+    eq(session.tool.name, "cat")
+    eq(vim.api.nvim_win_get_config(0).relative, relative)
+    if width then
+      eq(vim.api.nvim_win_get_width(0), width)
+    end
+  end,
+})
+
+T["toggle restores custom floats using current float defaults"] = test.new_set({
+  parametrize = {
+    { { width = 12, height = 4, row = 0, col = 0 } },
+    {
+      ---@return integer
+      function()
+        return vim.api.nvim_open_win(
+          0,
+          true,
+          { relative = "editor", width = 12, height = 4, row = 0, col = 0 }
+        )
+      end,
+    },
+  },
+}, {
+  ---@param layout gents.Layout
+  ["uses the resulting window type"] = function(layout)
+    local session = H.new({ layout = layout })
+    gents.toggle(session.id)
+    require("gents.config").get().float.width = function()
+      return 30
+    end
+    gents.toggle(session.id)
+    eq(vim.api.nvim_win_get_config(0).relative, "editor")
+    eq(vim.api.nvim_win_get_width(0), 30)
+  end,
+})
+
+T["toggle remembers the most recent placement among multiple views"] = test.new_set({
+  parametrize = { { "float", "vsplit", "" }, { "vsplit", "float", "editor" } },
+}, {
+  ---@param initial string
+  ---@param latest string
+  ---@param relative string
+  ["updates through show and picker placement"] = function(initial, latest, relative)
+    local original = vim.api.nvim_get_current_win()
+    local session = H.new({ layout = initial })
+    vim.api.nvim_set_current_win(original)
+    gents.show(session.id, { layout = latest })
+    eq(#vim.fn.win_findbuf(session.buf), 2)
+    gents.toggle(session.id)
+    gents.toggle(session.id)
+    eq(vim.api.nvim_win_get_config(0).relative, relative)
+
+    vim.api.nvim_set_current_win(original)
+    local picked = capture_picker()
+    gents.pick()
+    local spec = picked()
+    spec.actions[initial](spec.items[1])
+    gents.toggle(session.id)
+    gents.toggle(session.id)
+    eq(vim.api.nvim_win_get_config(0).relative, initial == "float" and "editor" or "")
+  end,
+})
+
+T["toggle remembers placement independently for each session"] = function()
+  local floating = H.new({ layout = "float" })
+  gents.hide(floating.id)
+  local split = H.new()
+  gents.hide(split.id)
+  gents.toggle(floating.id)
+  eq(vim.api.nvim_win_get_config(0).relative, "editor")
+  gents.hide(floating.id)
+  gents.toggle(split.id)
+  eq(vim.api.nvim_win_get_config(0).relative, "")
+end
+
+T["toggle uses the current default layout after a non-floating placement"] = function()
+  local session = H.new()
+  gents.hide(session.id)
+  require("gents.config").get().layout = "float"
+  gents.toggle(session.id)
+  eq(vim.api.nvim_win_get_config(0).relative, "editor")
+end
+
+T["show and focus reopen hidden floats using the default layout"] = test.new_set({
+  parametrize = { { gents.show }, { gents.focus } },
+}, {
+  ---@param action fun(target?: gents.Target): gents.Session?
+  ["also updates the placement remembered by toggle"] = function(action)
+    local session = H.new({ layout = "float" })
+    gents.hide(session.id)
+    action(session.id)
+    eq(vim.api.nvim_win_get_config(0).relative, "")
+    gents.toggle(session.id)
+    gents.toggle(session.id)
+    eq(vim.api.nvim_win_get_config(0).relative, "")
+  end,
+})
+
+T["toggle reuses a view in another tab despite remembered float placement"] = function()
+  local original = vim.api.nvim_get_current_win()
+  local session = H.new({ layout = "tabnew" })
+  local remote = vim.api.nvim_get_current_win()
+  vim.api.nvim_set_current_win(original)
+  gents.show(session.id, { layout = "float" })
+  gents.toggle(session.id)
+  eq(vim.api.nvim_win_is_valid(remote), true)
+  gents.toggle(session.id)
+  eq(vim.api.nvim_get_current_win(), remote)
+  eq(vim.fn.win_findbuf(session.buf), { remote })
+end
+
 T["toggle shows the sole session even when it is visible in another tab"] = function()
   local original = vim.api.nvim_get_current_win()
   local session = H.new({ layout = "tabnew" })

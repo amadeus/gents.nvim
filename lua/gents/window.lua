@@ -214,6 +214,10 @@ function M.open(buf, layout)
   vim.api.nvim_set_current_win(win)
   if buf then
     vim.api.nvim_win_set_buf(win, buf)
+    local session = require("gents.session").get(vim.b[buf].gents_session)
+    if session then
+      session.last_float = vim.api.nvim_win_get_config(win).relative ~= ""
+    end
   end
   return win
 end

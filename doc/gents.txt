@@ -238,6 +238,10 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     layout to place it in the invoking window or tab instead. With no sessions
     and no target, open New Session.
 
+    When no view exists, restore a float if the session's most recent
+    gents.nvim placement was floating; otherwise use the configured layout.
+    See |gents-layouts| for placement memory and float settings.
+
     From a non-session buffer with several sessions, choose which session to
     toggle, even if one is already visible. This command affects the chosen
     session; it does not hide every session in the tab.
@@ -406,9 +410,9 @@ layout                                                  *gents-config.layout*
     Type: gents.Layout. Default: "botright vsplit".
     Chooses the window when starting a session or showing one with no existing
     view. The default creates a full-height split on the right. An ordinary
-    show may focus a view in another tab instead of opening a window. See
-    |gents-layouts| for strings, inline floats, callbacks, and per-call
-    placement overrides.
+    show may focus a view in another tab instead of opening a window. Toggle
+    restores remembered floats using |gents-config.float|. See |gents-layouts|
+    for strings, inline floats, callbacks, and per-call placement overrides.
 
 float                                                    *gents-config.float*
     Type: gents.FloatOptions.
@@ -807,6 +811,27 @@ views and opening new ones does not replace its process or buffer.
 Status visibility and picker markers describe the current tab. Toggle uses
 that same visibility check: if visible here it hides the views here;
 otherwise it shows the session, which can focus an existing view elsewhere.
+
+When toggle needs to open a new view, it remembers whether that session's
+most recent gents.nvim placement was floating. A remembered float opens with
+the current |gents-config.float| settings; otherwise toggle uses the current
+default layout. This keeps a float available across repeated toggles even
+when the default layout is a split.
+
+Pass { layout = false } to |gents.toggle()| to use the configured
+layout when opening a view for that call. Existing views are still reused.
+An explicit layout string, float table, or callback chooses placement when
+showing, preserving views elsewhere just like |gents.show()|. If the session
+is already visible in the current tab, toggle hides its views there regardless
+of layout. Omitting layout or setting it to nil uses remembered placement.
+
+New sessions and subsequent gents.nvim placements update this memory,
+including picker placement actions and layout callbacks. With several views,
+the most recent placement wins. Focusing an existing view, hiding views, or
+native window changes leave the memory unchanged. Only float versus default
+placement is remembered, not inline float options, manual geometry changes,
+split arrangements, or tab placement. show, focus, and send continue to use
+their normal placement rules.
 
 Floating windows                                                 *gents-float*
 
@@ -1889,15 +1914,26 @@ actions({range}?) -> nil
     require("gents").actions({ line1 = 3, line2 = 8 })
 <
                                                             *gents.toggle()*
-toggle({target}?) -> gents.Session?
+toggle({target}?, {opts}?) -> gents.Session?
     {target}: |gents.Target|. If the resolved session is visible in the
-    current tab, hide its views in this tab only. Otherwise show it using
-    normal show behavior, which can focus a view in another tab. Other
-    sessions stay open. Return the immediately affected session, otherwise
-    nil. With no target and no sessions, open the tool picker. Target and
-    window errors propagate.
+    current tab, hide its views in this tab only, regardless of opts.layout.
+    Otherwise, with no explicit layout, show it using an existing view,
+    which can be in another tab. When no view exists,
+    restore a float using the current float settings if the most recent
+    gents.nvim placement was floating; otherwise use the configured layout.
+    See |gents-layouts|. Other sessions stay open. Return the immediately
+    affected session, otherwise nil. With no target and no sessions, open
+    the tool picker, carrying any explicit layout into the launch.
+    Target and window errors propagate.
+
+    {opts}: |gents.ToggleOptions|. Set layout = false to skip remembered
+    placement and use normal show behavior. An explicit layout string, float
+    table, or callback chooses placement while preserving views elsewhere.
 >lua
     require("gents").toggle("review")
+    require("gents").toggle(nil, { layout = false })
+    require("gents").toggle("review", { layout = "float" })
+    require("gents").toggle("review", { layout = { width = 80, height = 0.8 } })
 <
                                                *gents.providers.terminal()*
 require("gents.providers").terminal({ctx}, {limit}?) -> gents.Part[]?
@@ -1976,6 +2012,22 @@ An optional table passed to |gents.show()|:
 Omitting layout reuses an existing window when possible. An explicit layout
 keeps other views of the session. See |gents-layouts|.
 
+                                                        *gents.ToggleOptions*
+An optional table passed to |gents.toggle()|:
+
+    layout?  gents.Layout|false  Placement when showing; omitted uses memory.
+
+Omitted or nil reuses an existing view, or opens one using remembered
+float-versus-default placement. false reuses an existing view, or opens with
+the configured layout. A string, float table, or callback explicitly chooses
+placement, preserving other views. Inline float tables require width and
+height, just like |gents.ShowOptions| and |gents.NewOptions|.
+
+layout only affects showing: views in the current tab are still hidden.
+When no sessions exist, an explicit layout is passed to the New Session
+picker; omitted or false uses the configured default. A newly opened view
+still updates the session's remembered placement. See |gents-layouts|.
+
                                                           *gents.SendOptions*
 An optional table passed to |gents.send()|:
 
@@ -2016,6 +2068,7 @@ snapshots. A session's buffer is shared by all of its views.
     state       gents.SessionState   Startup/exit state, defined below.
     exit_code?  integer              Process exit code after it exits.
     tab?        integer              Last tab used by gents.nvim.
+    last_float? boolean              Last gents.nvim placement was floating.
 
 tab is a hint for picker ordering, not proof of where the buffer is visible.
 Native window changes can leave it unchanged. Closed sessions are removed

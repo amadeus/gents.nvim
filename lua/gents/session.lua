@@ -17,6 +17,7 @@ local next_id = 0
 ---@field state gents.SessionState
 ---@field exit_code? integer
 ---@field tab? integer
+---@field last_float? boolean Whether the most recent gents placement was floating.
 
 ---@return gents.Session[]
 function M.list()
@@ -162,6 +163,7 @@ function M.new(tool, opts, cwd)
     cwd = cwd,
     buf = vim.api.nvim_create_buf(false, true),
     state = "starting",
+    last_float = vim.api.nvim_win_get_config(win).relative ~= "",
   }
   vim.bo[session.buf].bufhidden = "hide"
   vim.b[session.buf].gents_session = session.id

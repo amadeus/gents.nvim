@@ -83,6 +83,28 @@ continue to run in the background, they are not paused.
 With several sessions, toggle acts on the one you are in, or opens a session
 picker when called from another buffer.
 
+If you opened a session in a float, toggle brings it back in a float when no
+view remains, using your current `float` settings. Opening that session in a
+split through gents.nvim makes future toggles use the default layout again.
+Each session remembers its most recent gents.nvim placement independently;
+custom float dimensions and split arrangements are not remembered. Existing
+views are still reused, including views in another tab.
+
+Pass `layout` to control placement when showing a session:
+
+```lua
+require("gents").toggle(nil, { layout = false }) -- Use the configured default.
+require("gents").toggle(nil, { layout = "float" }) -- Use your float defaults.
+require("gents").toggle(nil, { layout = { width = 80, height = 0.8 } })
+```
+
+Pass a session ID or label instead of `nil` to target a specific session.
+Omitting `layout` uses memory. `false` still reuses existing views; an explicit
+layout chooses placement while preserving views elsewhere, just like `show`.
+If the session is visible in the current tab, toggle hides it regardless of
+`layout`. With no sessions, the New Session picker carries the explicit layout
+into the launch. A newly opened view becomes the session's most recent placement.
+
 ### Bring context into the conversation
 
 From a file, press `<leader>as` (**a**gents **s**end or **s**hare is the

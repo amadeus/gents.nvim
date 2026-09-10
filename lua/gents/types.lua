@@ -49,6 +49,9 @@
 ---@class gents.ShowOptions
 ---@field layout? gents.Layout Explicit placement; preserves existing session views.
 
+---@class gents.ToggleOptions
+---@field layout? gents.Layout|false Explicit placement; nil uses memory, false uses normal show behavior.
+
 ---@class gents.SendOptions
 ---@field target? gents.Target
 ---@field submit? boolean Send Enter after pasting; defaults to false.

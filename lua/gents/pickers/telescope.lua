@@ -94,7 +94,8 @@ function M.instance()
   ---@type gents.pickers.TelescopeModules?
   local modules
   local ok = pcall(function()
-    modules = {
+    ---@type gents.pickers.TelescopeModules
+    local loaded = {
       pickers = require("telescope.pickers"),
       finders = require("telescope.finders"),
       config = require("telescope.config"),
@@ -102,6 +103,7 @@ function M.instance()
       action_set = require("telescope.actions.set"),
       action_state = require("telescope.actions.state"),
     }
+    modules = loaded
   end)
   return ok and modules or nil
 end

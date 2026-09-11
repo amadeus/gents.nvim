@@ -252,6 +252,90 @@ T["target picker cannot change an already resolved provider or source path"] = f
   end)
 end
 
+T["send target placement actions"] = test.new_set({
+  parametrize = { { "vsplit" }, { "split" }, { "tabnew" }, { "float" }, { "current" } },
+  hooks = {
+    pre_case = function()
+      vim.api.nvim_create_augroup("GentsSendPlacementTest", { clear = true })
+    end,
+    post_case = function()
+      vim.api.nvim_del_augroup_by_name("GentsSendPlacementTest")
+    end,
+  },
+}, {
+  ["with focus and visibility options"] = test.new_set({
+    parametrize = { { true, false }, { false, false }, { true, true }, { false, true } },
+  }, {
+    ---@param layout string
+    ---@param focus boolean
+    ---@param visible boolean
+    ["deliver captured context in the requested view"] = function(layout, focus, visible)
+      local origin = vim.api.nvim_get_current_win()
+      local source = vim.api.nvim_get_current_buf()
+      local tab = vim.api.nvim_get_current_tabpage()
+      local first = H.new()
+      gents.hide(first.id)
+      local second = H.new()
+      if not visible then
+        gents.hide(second.id)
+      end
+      local previous = vim.fn.win_findbuf(second.buf)
+      vim.api.nvim_set_current_win(origin)
+      gents.send({ "buffer" }, { focus = focus, submit = true })
+      local spec = assert(pickers[1])
+      eq(spec.title, "Gents: Sessions")
+      vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
+      vim.cmd.tabnew()
+      local item = assert(vim.iter(spec.items):find(function(row)
+        return row.data == second
+      end))
+      ---@type { event: gents.SessionEvent, current: integer, tab: integer }[]
+      local shown = {}
+      vim.api.nvim_create_autocmd("User", {
+        group = "GentsSendPlacementTest",
+        pattern = "GentsSessionShow",
+        callback = function(event)
+          shown[#shown + 1] = {
+            event = vim.deepcopy(event.data),
+            current = vim.api.nvim_get_current_win(),
+            tab = second.tab,
+          }
+        end,
+      })
+      spec.actions[layout](item)
+      local wins = vim.fn.win_findbuf(second.buf)
+      eq(#wins, #previous + 1)
+      local destination = assert(vim.iter(wins):find(function(win)
+        return not vim.list_contains(previous, win)
+      end))
+      eq(vim.api.nvim_win_get_tabpage(destination) == tab, layout ~= "tabnew")
+      eq(vim.api.nvim_win_get_config(destination).relative ~= "", layout == "float")
+      eq(destination == origin, layout == "current")
+      if layout == "vsplit" or layout == "split" then
+        local from = vim.api.nvim_win_get_position(origin)
+        local to = vim.api.nvim_win_get_position(destination)
+        eq(from[1] == to[1], layout == "vsplit")
+        eq(from[2] == to[2], layout == "split")
+      end
+      eq(vim.api.nvim_get_current_win(), focus and destination or origin)
+      eq(second.tab, vim.api.nvim_win_get_tabpage(destination))
+      eq(shown, {
+        {
+          event = { id = second.id, win = destination },
+          current = focus and destination or origin,
+          tab = second.tab,
+        },
+      })
+      H.wait(function()
+        return output(second):find("local second = 2", 1, true) ~= nil
+      end)
+      eq(output(second):find("changed after capture", 1, true), nil)
+      eq(output(first):find("local second = 2", 1, true), nil)
+      eq(vim.api.nvim_get_current_win(), focus and destination or origin)
+    end,
+  }),
+})
+
 T["unknown and unavailable items send nothing and do not open target pickers"] = function()
   local origin = vim.api.nvim_get_current_win()
   local session = H.new()

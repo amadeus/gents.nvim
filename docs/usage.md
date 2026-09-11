@@ -269,9 +269,12 @@ New Session and the session picker then offer:
 
 These shortcuts choose placement for that selection, overriding the default
 or per-call layout. For an existing session, they add the requested view
-even if another view exists. The picker also shows hints for other available
-actions, including hide and close. It widens to fit those hints where screen
-space permits and updates sizing when Neovim is resized.
+even if another view exists. When choosing a send target, they also send the
+captured context and honor `submit`. With `focus = false`, you stay in the
+sending window when the session opens elsewhere. The `current` placement
+replaces that window's buffer and enters terminal input. The picker also shows
+hints for other available actions, including hide and close. It widens to fit
+those hints where screen space permits and updates sizing when Neovim is resized.
 
 To hide the hints while keeping the shortcuts:
 

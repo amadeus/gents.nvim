@@ -407,6 +407,35 @@ T["actions picker runs the chosen command in the invoking window"] = function()
   test.expect.equality(vim.api.nvim_get_current_win(), origin)
 end
 
+T["send target float shortcut"] = test.new_set({ parametrize = { { true }, { false } } }, {
+  ---@param focus boolean
+  ["delivers context and honors focus after closing the picker"] = function(focus)
+    local gents = require("gents")
+    local origin = vim.api.nvim_get_current_win()
+    local source = vim.api.nvim_get_current_buf()
+    local selected = H.new({
+      cmd = { "sh", "-c", "printf '1\\n2\\n3\\n4\\n5\\n6\\n'; exec cat" },
+    })
+    gents.hide(selected.id)
+    local other = H.new()
+    gents.hide(other.id)
+    vim.api.nvim_set_current_win(origin)
+    gents.send({ { text = "Context from the float shortcut" } }, { focus = focus })
+    local picker = current_picker()
+    test.expect.equality(picker.opts.items[1].gents_index, 1)
+    press(picker, "<C-f>", "i", "input")
+    local destination = assert(vim.fn.win_findbuf(selected.buf)[1])
+    test.expect.equality(vim.api.nvim_get_current_win(), focus and destination or origin)
+    test.expect.equality(vim.api.nvim_get_current_buf(), focus and selected.buf or source)
+    test.expect.equality(vim.api.nvim_win_get_config(destination).relative, "editor")
+    H.wait(function()
+      local text = table.concat(vim.api.nvim_buf_get_lines(selected.buf, 0, -1, false), "\n")
+      return text:find("Context from the float shortcut", 1, true) ~= nil
+    end)
+    test.expect.equality(vim.api.nvim_get_current_win(), focus and destination or origin)
+  end,
+})
+
 T["context picker preserves previews and closes before sending the selected parts"] = function()
   local origin = vim.api.nvim_get_current_win()
   local parts = { { text = "Explain this" } }

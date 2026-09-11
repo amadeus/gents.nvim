@@ -320,7 +320,8 @@ end
 
 ---@param candidates gents.Session[]
 ---@param callback fun(session: gents.Session)
-function M.sessions(candidates, callback)
+---@param on_place? fun(session: gents.Session, layout: gents.Layout)
+function M.sessions(candidates, callback, on_place)
   local window = require("gents.window")
   local tab = vim.api.nvim_get_current_tabpage()
   local origin = M.origin()
@@ -426,7 +427,7 @@ function M.sessions(candidates, callback)
     ---@param item gents.PickerItem<gents.Session>
     spec.actions[layout] = function(item)
       select(item, function(session)
-        window.show(session, layout)
+        (on_place or window.show)(session, layout)
       end)
     end
   end

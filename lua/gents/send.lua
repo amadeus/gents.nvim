@@ -121,33 +121,6 @@ function M.enqueue(session, text, submit)
   end
 end
 
----@param session gents.Session
----@param focus boolean
-local function present(session, focus)
-  local origin = vim.api.nvim_get_current_win()
-  local tab = vim.api.nvim_get_current_tabpage()
-  ---@type integer?
-  local destination
-  for _, win in ipairs(vim.fn.win_findbuf(session.buf)) do
-    if vim.api.nvim_win_get_tabpage(win) == tab then
-      destination = win
-      break
-    end
-  end
-  local opened = destination == nil
-  destination = destination or require("gents.window").open(session.buf)
-  session.tab = vim.api.nvim_win_get_tabpage(destination)
-  if focus then
-    vim.api.nvim_set_current_win(destination)
-    vim.cmd.startinsert()
-  elseif vim.api.nvim_win_is_valid(origin) then
-    vim.api.nvim_set_current_win(origin)
-  end
-  if opened then
-    require("gents.events").emit("GentsSessionShow", { id = session.id, win = destination })
-  end
-end
-
 ---@param parts gents.Part[]
 ---@param ctx gents.Context
 ---@param opts gents.SendOptions
@@ -168,7 +141,10 @@ local function deliver(parts, ctx, opts)
     end)
     return
   end
-  return require("gents.target").with(opts.target, function(session)
+  ---@param session gents.Session
+  ---@param layout? gents.Layout
+  ---@return gents.Session?
+  local function send(session, layout)
     if session.state == "exited" then
       vim.notify(
         "gents.nvim: cannot send to exited session " .. session.label,
@@ -176,11 +152,12 @@ local function deliver(parts, ctx, opts)
       )
       return
     end
-    present(session, opts.focus ~= false)
+    require("gents.window").present(session, layout, opts.focus ~= false)
     local text = require("gents.render").text(parts, ctx, session.tool)
     M.enqueue(session, text, opts.submit == true)
     return session
-  end)
+  end
+  return require("gents.target").with(opts.target, send, send)
 end
 
 ---@param buf integer

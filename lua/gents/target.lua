@@ -5,8 +5,9 @@ local M = {}
 ---@generic T
 ---@param target? gents.Target
 ---@param callback fun(session: gents.Session): T|nil
+---@param on_place? fun(session: gents.Session, layout: gents.Layout)
 ---@return T|nil
-function M.with(target, callback)
+function M.with(target, callback, on_place)
   local registry = require("gents.session")
   local candidates = registry.list()
   if type(target) == "number" or type(target) == "string" then
@@ -40,7 +41,7 @@ function M.with(target, callback)
     return callback(candidates[1])
   end
 
-  require("gents.picker").sessions(candidates, callback)
+  require("gents.picker").sessions(candidates, callback, on_place)
 end
 
 return M

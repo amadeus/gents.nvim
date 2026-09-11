@@ -318,6 +318,52 @@ T["sending without focus preserves editor normal mode when reopening a session"]
   eq(get("require('gents.window').visible(session)"), true)
 end
 
+T["send target current placement"] = test.new_set({
+  parametrize = { { true, "t" }, { false, "t" }, { true, "nt" }, { false, "nt" } },
+}, {
+  ---@param focus boolean
+  ---@param previous_mode string
+  ["enters terminal input regardless of focus or previous terminal mode"] = function(
+    focus,
+    previous_mode
+  )
+    lua([[_G.source_win = vim.api.nvim_get_current_win()]])
+    spawn()
+    if previous_mode == "nt" then
+      input([[<C-\><C-n>]])
+      mode("nt")
+    end
+    lua([[
+      _G.selected = session
+      require("gents").hide(selected.id)
+    ]])
+    mode("n")
+    spawn()
+    lua([[
+      require("gents").hide(session.id)
+      require("gents").setup({
+        picker = function(spec)
+          _G.picker = spec
+        end,
+      })
+    ]])
+    mode("n")
+    lua([[require("gents").send({ { text = "test" } }, { focus = ... })]], { focus })
+    eq(get("picker.title"), "Gents: Sessions")
+    lua([[
+      for _, item in ipairs(picker.items) do
+        if item.data == selected then
+          picker.actions.current(item)
+          break
+        end
+      end
+    ]])
+    mode("t")
+    eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+    eq(get("vim.api.nvim_get_current_buf() == selected.buf"), true)
+  end,
+})
+
 T["sending to a new session"] = test.new_set({ parametrize = { { true }, { false } } }, {
   ---@param focus boolean
   ["respects terminal input focus after choosing a tool"] = function(focus)

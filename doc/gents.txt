@@ -1024,7 +1024,11 @@ Sessions (`Gents: Sessions`):
 
     Additional actions are `vsplit`, `split`, `tabnew`, `float`, `current`,
     `hide`, and `close`. Placement actions show the selected session in
-    that placement; they do not invoke the operation awaiting a target.
+    that placement. When sending context, placement actions also deliver the
+    captured context and honor submit. With focus = false, stay in the sending
+    window when the session opens elsewhere. The `current` placement replaces
+    that window's buffer and enters terminal input. For other operations,
+    placement actions only show the session.
     The `hide` action hides every view, and `close` stops the CLI and
     removes the session. See |gents-sessions| and |gents-on-exit|.
 

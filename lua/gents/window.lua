@@ -223,28 +223,69 @@ function M.open(buf, layout)
 end
 
 ---@param session gents.Session
+---@param layout gents.Layout?
+---@param scope "any"|"current"
+---@return integer destination
+---@return boolean opened
+local function place(session, layout, scope)
+  local wins = vim.fn.win_findbuf(session.buf)
+  local origin = vim.api.nvim_get_current_win()
+  local tab = vim.api.nvim_get_current_tabpage()
+  ---@type integer?
+  local destination
+  if layout == nil then
+    if vim.api.nvim_get_current_buf() == session.buf then
+      destination = origin
+    else
+      for _, win in ipairs(wins) do
+        if scope == "any" or vim.api.nvim_win_get_tabpage(win) == tab then
+          destination = win
+          break
+        end
+      end
+    end
+  end
+  destination = destination or M.open(session.buf, layout)
+  session.tab = vim.api.nvim_win_get_tabpage(destination)
+  return destination, not vim.list_contains(wins, destination)
+end
+
+---@param session gents.Session
+---@param layout gents.Layout?
+---@param scope "any"|"current"
+---@param focus boolean
+---@return gents.Session
+local function display(session, layout, scope, focus)
+  local origin = vim.api.nvim_get_current_win()
+  local destination, opened = place(session, layout, scope)
+  -- Current-window placement keeps focus here and explicitly resumes input.
+  if focus or destination == origin then
+    vim.api.nvim_set_current_win(destination)
+    if session.state ~= "exited" then
+      vim.cmd.startinsert()
+    end
+  elseif vim.api.nvim_win_is_valid(origin) then
+    vim.api.nvim_set_current_win(origin)
+  end
+  if opened then
+    require("gents.events").emit("GentsSessionShow", { id = session.id, win = destination })
+  end
+  return session
+end
+
+---@param session gents.Session
 ---@param layout? gents.Layout
 ---@return gents.Session
 function M.show(session, layout)
-  local wins = vim.fn.win_findbuf(session.buf)
-  ---@type integer?
-  local opened
-  if layout ~= nil or #wins == 0 then
-    local win = M.open(session.buf, layout)
-    if not vim.list_contains(wins, win) then
-      opened = win
-    end
-  elseif vim.api.nvim_get_current_buf() ~= session.buf then
-    vim.api.nvim_set_current_win(wins[1])
-  end
-  session.tab = vim.api.nvim_get_current_tabpage()
-  if session.state ~= "exited" then
-    vim.cmd.startinsert()
-  end
-  if opened then
-    require("gents.events").emit("GentsSessionShow", { id = session.id, win = opened })
-  end
-  return session
+  return display(session, layout, "any", true)
+end
+
+---@param session gents.Session
+---@param layout gents.Layout?
+---@param focus boolean
+---@return gents.Session
+function M.present(session, layout, focus)
+  return display(session, layout, "current", focus)
 end
 
 ---@param session gents.Session

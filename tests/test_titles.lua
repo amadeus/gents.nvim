@@ -178,6 +178,7 @@ T["tool title parsers"] = test.new_set({
     { "claude", { "✳ First task", "◐ Renamed task", "Claude Code", "◑ Resumed task" } },
     { "opencode", { "OC | First task", "OC | Renamed task", "OpenCode", "OC | Resumed task" } },
     { "opencode2", { "OC | First task", "OC | Renamed task", "OpenCode", "OC | Resumed task" } },
+    { "omp", { "π > First task", "π ⠋ Renamed task", "π", "π: Resumed task" } },
     {
       "codex",
       { "First task", "Renamed task", "019c6e27-e55b-73d1-87d8-4e01f1f75043", "Resumed task" },
@@ -197,6 +198,62 @@ T["tool title parsers"] = test.new_set({
     })
   end,
 })
+
+T["OMP activity changes preserve the conversation title"] = function()
+  local session = new_stream("omp", 0)
+  local markers = { ">", "!", ":" }
+  for codepoint = 0x2800, 0x28FF do
+    markers[#markers + 1] = vim.fn.nr2char(codepoint)
+  end
+  ---@type string[]
+  local titles = {}
+  for _, marker in ipairs(markers) do
+    titles[#titles + 1] = "π " .. marker .. " Keep π > in this title"
+  end
+  send(session, titles)
+  send(session, { "π: Keep π > in this title" })
+  eq(observed, { { id = session.id, title = "Keep π > in this title" } })
+  eq(
+    vim.api.nvim_buf_get_name(session.buf),
+    "gents://" .. session.id .. "/omp · Keep π > in this title"
+  )
+  eq(ready_count, 0)
+end
+
+T["OMP placeholders and directory fallbacks clear the title"] = function()
+  local session = new_stream("omp")
+  for _, raw in ipairs({
+    "π",
+    "π:",
+    "π >",
+    "π !",
+    "π :",
+    "π ⠋",
+    "π ⠙",
+    "π ⠹",
+    "π ⠸",
+    "π ⠼",
+    "π ⠴",
+    "π ⠦",
+    "π ⠧",
+    "π ⠇",
+    "π ⠏",
+    "π:   ",
+    "π > " .. vim.fs.basename(session.cwd),
+    "π: " .. session.cwd,
+    "Other π > title",
+    "π ? Unknown state",
+    "π " .. vim.fn.nr2char(0x27FF) .. " Before braille block",
+    "π " .. vim.fn.nr2char(0x2900) .. " After braille block",
+    "π ⠁⠋ Multiple markers",
+  }) do
+    send(session, { "π > Task" })
+    eq(session.title, "Task")
+    send(session, { raw })
+    eq(session.title, nil)
+  end
+  eq(ready_count, 0)
+end
 
 T["built-in parsers only remove known anchored prefixes"] = function()
   local session = new_stream()

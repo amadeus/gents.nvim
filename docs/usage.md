@@ -492,6 +492,9 @@ starts from defaults, so collect your options in one call. See
 `:help gents-tools` for built-in tools and environment examples, and
 `:help gents-config` for configuration merging and timing.
 
+For Oh My Pi (`:Gents new omp`), see the [OMP recipe](recipes/omp.md) for
+large context pastes, conversation titles, and ready notifications.
+
 ## When a CLI exits
 
 A CLI can exit on its own, for example after you use its quit command.

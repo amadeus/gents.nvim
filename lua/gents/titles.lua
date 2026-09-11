@@ -1,5 +1,8 @@
 local M = {}
 
+---@type table<string, boolean>
+local omp_markers = { [">"] = true, ["!"] = true, [":"] = true }
+
 ---@param title string
 ---@return string?
 function M.claude(title)
@@ -67,6 +70,20 @@ end
 ---@return string?
 function M.opencode(title)
   return title:match("^OC | (.+)$")
+end
+
+---@param title string
+---@return string?
+function M.omp(title)
+  local label = title:match("^π: (.+)$")
+  if label then
+    return label
+  end
+  local marker, text = title:match("^π (%S+) (.+)$")
+  -- Accept the full braille block (U+2800–U+28FF), independent of spinner frames.
+  if marker and (omp_markers[marker] or marker:match("^\226[\160-\163][\128-\191]$")) then
+    return text
+  end
 end
 
 ---@param title string

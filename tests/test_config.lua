@@ -18,6 +18,7 @@ local builtin_names = {
   "cursor-agent",
   "gemini",
   "grok",
+  "omp",
   "opencode",
   "opencode2",
   "pi",
@@ -54,6 +55,8 @@ T["built-in tools have names, commands, and install URLs"] = function()
   expect(result.tools.codex.cmd, { "codex", "-c", 'tui.terminal_title=["thread"]' })
   expect(result.tools.opencode.env, nil)
   expect(result.tools.opencode2.env, nil)
+  expect(result.tools.omp.cmd, { "omp" })
+  expect(type(result.tools.omp.title), "function")
 end
 
 T["title parsers can be customized or disabled without changing commands"] = function()
@@ -156,6 +159,7 @@ T["names sort built-in and custom tools together"] = function()
     "cursor-agent",
     "gemini",
     "grok",
+    "omp",
     "opencode",
     "opencode2",
     "pi",

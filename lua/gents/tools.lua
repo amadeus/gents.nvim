@@ -17,6 +17,11 @@ local function opencode_title(title)
   return require("gents.titles").opencode(title)
 end
 
+---@type gents.TitleParser
+local function omp_title(title)
+  return require("gents.titles").omp(title)
+end
+
 ---@param path string
 ---@param range? gents.Range
 ---@return string
@@ -122,6 +127,12 @@ local builtins = {
     name = "grok",
     cmd = { "grok" },
     url = "https://github.com/superagent-ai/grok-cli",
+  },
+  {
+    name = "omp",
+    cmd = { "omp" },
+    title = omp_title,
+    url = "https://omp.sh/",
   },
   {
     name = "pi",

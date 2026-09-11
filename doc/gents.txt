@@ -527,6 +527,8 @@ not install or authenticate the program. Built-in tools:
                   https://github.com/google-gemini/gemini-cli
     grok          { "grok" }
                   https://github.com/superagent-ai/grok-cli
+    omp           { "omp" }
+                  https://omp.sh/
     opencode      { "opencode" }
                   https://opencode.ai/docs/
     opencode2     { "opencode2" }
@@ -539,7 +541,7 @@ not install or authenticate the program. Built-in tools:
                   https://github.com/QwenLM/qwen-code
 
 All tools can use terminal titles emitted by their CLI, unless title reporting
-is disabled. Claude, Codex, OpenCode, and OpenCode 2 apply additional
+is disabled. Claude, Codex, OMP, OpenCode, and OpenCode 2 apply additional
 tool-specific parsing; other tools use the cleaned title directly. See
 |gents-tool-titles|. I haven't had time to test all existing CLI tools,
 however please file a bug if any specific tool is broken so we can get it
@@ -547,6 +549,20 @@ sorted.
 
 Claude, Gemini, and Qwen have location writers described below. Other optional
 tool fields are absent by default.
+
+Oh My Pi (omp) ~
+
+Start an interactive session with `:Gents new omp`. Context uses the default
+file references (@path and @path:start-end) and Markdown code blocks.
+OMP's large-paste menu can intercept optional submission for pastes of 100
+or more lines. To send those directly to its editor, merge this into your
+OMP config.yml:
+>yaml
+    paste:
+      largeMenuThreshold: 0
+<
+For a process-only config overlay and ready-notification setup, see:
+https://github.com/amadeus/gents.nvim/blob/main/docs/recipes/omp.md
 
 Overrides and custom tools ~
 
@@ -653,6 +669,10 @@ Built-in parsers behave as follows:
                 of the whole tui table prevents title reporting.
     opencode    Keeps text following the "OC | " prefix. Other titles clear
     opencode2   the conversation title.
+    omp         Keeps the label after "π: " or "π <state> ", where state is
+                >, !, :, or any braille character (U+2800–U+28FF). Placeholders
+                and unknown formats clear the title. Activity changes alone
+                do not change the conversation title.
     others      Use the cleaned terminal title without a dedicated parser.
                 Please report any bugs you find with other tools so we can
                 provide proper custom parsers
@@ -2545,7 +2565,9 @@ Supported terminal notifications:
 
 These are received through |TermRequest| on session buffers. Plain
 terminals are not observed. A supported terminal notification sets
-`source = "osc"`.
+`source = "osc"`. Terminal notifications are untested with Neovim inside
+tmux: some CLIs wrap them in tmux passthrough sequences that the terminal
+does not deliver. Hooks calling `gents.ready(id)` are unaffected.
 
 A CLI hook can call back into the parent Neovim using its inherited `NVIM`
 server address and `GENTS_SESSION` ID. Start the CLI through gents.nvim so

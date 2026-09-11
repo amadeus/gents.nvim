@@ -37,6 +37,11 @@ If it does not, or you want to change when it notifies, use the recipes below.
 Some adjust built-in terminal notifications; others add a hook that tells
 Neovim when the CLI needs attention.
 
+Terminal notifications are untested with Neovim running inside tmux. Some
+CLIs wrap them in tmux passthrough sequences that Neovim's terminal does not
+deliver, so your mileage may vary there. Hook recipes call Neovim directly and
+are unaffected.
+
 | Tool                                      | Example setup                  | When it notifies                                                   |
 | ----------------------------------------- | ------------------------------ | ------------------------------------------------------------------ |
 | [Codex](#codex)                           | Optional notification settings | Completed turns with the filter shown below                        |
@@ -46,6 +51,7 @@ Neovim when the CLI needs attention.
 | [Amp](#amp)                               | `agent.end` handler            | Turn finished without error or cancellation                        |
 | [Gemini CLI](#gemini-cli)                 | `AfterAgent` hook              | Final response generated                                           |
 | [Pi](#pi)                                 | Extension                      | Automatic work settled after a completed response                  |
+| [Oh My Pi](#oh-my-pi)                     | Optional extension             | Completed response with no scheduled continuation or queued input  |
 | [Qwen Code](#qwen-code)                   | `Stop` hook                    | Main response finished                                             |
 | [GitHub Copilot CLI](#github-copilot-cli) | `agentStop` hook               | Main agent finished a turn                                         |
 | [Grok CLI](#grok-cli)                     | `Stop` hook                    | Response finished                                                  |
@@ -311,7 +317,7 @@ export default function (pi: ExtensionAPI) {
     execFileSync(
       "nvim",
       ["--server", server, "--remote-expr", `v:lua.require'gents'.ready(${id})`],
-      { stdio: "ignore" },
+      { stdio: "ignore", timeout: 2000 },
     );
   });
 }
@@ -322,6 +328,81 @@ explicitly with `pi -e /absolute/path/gents-ready.ts`.
 
 See the
 [Pi extension lifecycle](https://github.com/earendil-works/pi/blob/v0.85.1/packages/coding-agent/docs/extensions.md#agent_start--agent_end--agent_settled).
+
+## Oh My Pi
+
+OMP enables native completion and ask notifications by default. It detects the
+host terminal using inherited environment variables, including `TERM_PROGRAM`,
+which gents.nvim passes through:
+
+| Host terminal                      | OMP notification | Received by gents.nvim |
+| ---------------------------------- | ---------------- | ---------------------- |
+| Kitty                              | OSC 99           | Yes                    |
+| Ghostty, WezTerm, iTerm2, Warp     | OSC 9            | Yes                    |
+| Apple Terminal, Alacritty, VS Code | Bell             | No; use the extension  |
+
+This assumes ordinary host detection; the tmux caveat above still applies. See the
+[terminal detection implementation](https://github.com/unsigned-gg/omp/blob/0c6c981ee5838d97700180383077eb0a3790637c/packages/tui/src/terminal-capabilities.ts).
+
+For completion notifications independent of terminal detection, create
+`.omp/extensions/gents-ready.ts` in the project, or
+`~/.omp/agent/extensions/gents-ready.ts` for your default OMP profile:
+
+```ts
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import { execFileSync } from "node:child_process";
+
+export default function (omp: ExtensionAPI) {
+  let stopReason: string | undefined;
+
+  omp.on("agent_start", () => {
+    stopReason = undefined;
+  });
+  omp.on("message_end", (event) => {
+    if (event.message.role === "assistant") stopReason = event.message.stopReason;
+  });
+  omp.on("agent_end", (event, ctx) => {
+    if (ctx.mode !== "tui" || event.willContinue || ctx.hasPendingMessages()) return;
+    if (stopReason !== "stop") return;
+
+    const server = process.env.NVIM;
+    const id = process.env.GENTS_SESSION;
+    if (!server || !/^\d+$/.test(id ?? "")) return;
+
+    execFileSync(
+      "nvim",
+      ["--server", server, "--remote-expr", `v:lua.require'gents'.ready(${id})`],
+      { stdio: "ignore", timeout: 2000 },
+    );
+  });
+}
+```
+
+Start a new OMP session through gents.nvim after adding the file. Named profiles
+use their own `~/.omp/profiles/<name>/agent/extensions` directory; you can also
+load the file explicitly with `omp -e /absolute/path/gents-ready.ts`.
+
+The extension reports a normally completed assistant response in TUI mode. It
+ignores errors, cancellations, non-TUI sessions, queued input, and events marked
+`willContinue` for automatic continuation. It does not report ask/approval
+prompts. It records the outcome from `message_end` because OMP can remove failed
+messages from the active history before `agent_end`. OMP has its own extension
+API; the Pi recipe above uses a different lifecycle event.
+
+If using the extension, disable OMP's native completion notifications to avoid
+duplicates. Merge this into your OMP config (or the process-only overlay in the
+[OMP setup recipe](omp.md)):
+
+```yaml
+completion:
+  notify: "off"
+```
+
+Leave `ask.notify` enabled if you also want OMP's native attention notifications.
+Those still depend on terminal detection. See the upstream
+[extension loading rules](https://github.com/unsigned-gg/omp/blob/0c6c981ee5838d97700180383077eb0a3790637c/docs/extension-loading.md),
+[agent-end contract](https://github.com/unsigned-gg/omp/blob/0c6c981ee5838d97700180383077eb0a3790637c/packages/coding-agent/src/extensibility/shared-events.ts#L193),
+and [notification settings](https://github.com/unsigned-gg/omp/blob/0c6c981ee5838d97700180383077eb0a3790637c/packages/coding-agent/src/config/settings-schema.ts).
 
 ## Qwen Code
 

@@ -200,6 +200,7 @@ Use `:help gents.nvim` for the complete reference, or start with these guides:
 - [Sending context](docs/recipes/context.md)
 - [Agent ready notifications](docs/recipes/ready.md)
 - [Conversation titles](docs/recipes/titles.md)
+- [Oh My Pi setup](docs/recipes/omp.md)
 - [Use your preferred picker](docs/recipes/pickers.md)
 - [Statusline integration](docs/recipes/statusline.md)
 

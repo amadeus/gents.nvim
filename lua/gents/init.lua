@@ -101,9 +101,31 @@ function M.focus(target)
 end
 
 ---@param target? gents.Target
+---@param opts? gents.HideOptions
 ---@return gents.Session?
-function M.hide(target)
-  return require("gents.target").with(target, require("gents.window").hide)
+function M.hide(target, opts)
+  local window = require("gents.window")
+  local tab = vim.api.nvim_get_current_tabpage()
+  ---@param session gents.Session
+  ---@return boolean
+  local function visible(session)
+    return window.visible(session, tab)
+  end
+  ---@param session gents.Session
+  ---@return gents.Session?
+  local function hide(session)
+    if visible(session) then
+      return window.hide(session, tab)
+    end
+  end
+  if opts and opts.all then
+    assert(target == nil, "gents: hide all cannot be combined with a target")
+    for _, session in ipairs(M.sessions()) do
+      hide(session)
+    end
+    return
+  end
+  return require("gents.target").with(target, hide, nil, visible)
 end
 
 ---@param target? gents.Target

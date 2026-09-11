@@ -415,7 +415,9 @@ function M.sessions(candidates, callback, on_place)
       end,
       ---@param item gents.PickerItem<gents.Session>
       hide = function(item)
-        select(item, window.hide)
+        select(item, function(session)
+          window.hide(session, tab)
+        end)
       end,
       ---@param item gents.PickerItem<gents.Session>
       close = function(item)

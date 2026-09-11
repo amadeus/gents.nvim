@@ -248,9 +248,15 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
 
                                                                *:Gents-hide*
 :Gents hide [target]
-    Hide every window showing the selected session, across all tabs,
-    including floating windows. The buffer and CLI keep running.
-    With no sessions and no target, do nothing.
+    Hide every window showing the selected session in the current tab,
+    including floating windows. The buffer and CLI keep running; views in
+    other tabs remain. Only visible sessions are eligible for selection.
+    An existing nonvisible target, or no visible sessions, does nothing.
+    Visibility means a window in the current tab.
+
+:Gents hide --all
+    Hide all visible sessions in the current tab without opening a picker.
+    Cannot be combined with a target. Also accepts the `actions` prefix.
 
                                                                *:Gents-close*
 :Gents close [target]
@@ -318,7 +324,9 @@ For focus outside a session, toggle, hide, close, and send, selection follows:
 4. Otherwise open the session picker.
 
 Hidden sessions, sessions in other tabs, and retained exited sessions are
-included. Sending to an exited session fails instead of restarting its CLI.
+included, except that hide selects only sessions visible in the invoking tab.
+An existing target with no view there is a no-op for hide. Sending to an
+exited session fails instead of restarting its CLI.
 The Actions menu counts only running sessions when choosing which actions to
 offer; that does not restrict direct commands or the session picker.
 
@@ -757,8 +765,9 @@ its process. Closing is different from hiding, which leaves the process and
 buffer working to view later. Ordinary window or buffer navigation also works
 the same way.
 
-:Gents hide hides all views of its target across tabs. Toggle hides only
-the target's views in the current tab when it is visible there.
+:Gents hide and toggle hide only the target's views in the current tab.
+:Gents hide --all hides every visible session in that tab. Other tabs keep
+their views, and all session buffers and running CLIs remain available.
 
 Sessions live within the current Neovim instance. Saving a native Vim session
 does not preserve or restore these processes; see |gents-health|.
@@ -1029,8 +1038,9 @@ Sessions (`Gents: Sessions`):
     window when the session opens elsewhere. The `current` placement replaces
     that window's buffer and enters terminal input. For other operations,
     placement actions only show the session.
-    The `hide` action hides every view, and `close` stops the CLI and
-    removes the session. See |gents-sessions| and |gents-on-exit|.
+    The `hide` action hides views in the tab where the picker opened; a
+    session with no view there is a no-op. `close` stops the CLI and removes
+    the session. See |gents-sessions| and |gents-on-exit|.
 
 Send Context (`Gents: Send Context`):
     Saved prompts appear alphabetically, followed by the built-in providers
@@ -1864,15 +1874,23 @@ focus({target}?) -> gents.Session?
     require("gents").focus()
 <
                                                               *gents.hide()*
-hide({target}?) -> gents.Session?
-    {target}: |gents.Target|. Hide every view of the resolved session in
-    every tab. The buffer and running CLI remain; show it to continue typing.
+hide({target}?, {opts}?) -> gents.Session?
+    {target}: |gents.Target|; {opts}: |gents.HideOptions|. Hide every view of
+    the resolved session in the invoking tab. Only visible sessions are
+    eligible, including when target is a predicate. Selection prefers the
+    current session, then a sole candidate, then a picker of visible matches.
+    The buffer and running CLI remain; views in other tabs are preserved.
     Return the hidden session on immediate resolution, otherwise nil.
-    No target and no sessions does nothing. Target and unexpected window
-    errors propagate.
+    An existing nonvisible target or no visible candidates does nothing.
+    Unknown targets and unexpected window errors propagate.
+
+    With all = true, hide all visible sessions without a picker and return
+    nil. Cannot be combined with a target. The invoking tab is captured before
+    hiding or opening a picker; changing tabs does not retarget the operation.
     See |gents-sessions|.
 >lua
     require("gents").hide("review")
+    require("gents").hide(nil, { all = true })
 <
                                                              *gents.close()*
 close({target}?) -> gents.Session?
@@ -2016,6 +2034,14 @@ An optional table passed to |gents.show()|:
 Omitting layout reuses an existing window when possible. An explicit layout
 keeps other views of the session. See |gents-layouts|.
 
+                                                          *gents.HideOptions*
+An optional table passed to |gents.hide()|:
+
+    all?     boolean         Hide every visible session in the current tab.
+
+Defaults to false. With true, omit target; the operation skips the picker
+and returns nil. Buffers, jobs, and views in other tabs remain.
+
                                                         *gents.ToggleOptions*
 An optional table passed to |gents.toggle()|:
 
@@ -2052,6 +2078,8 @@ An integer session ID, exact label string, or predicate:
 
 A predicate filters existing sessions, then the current matching session,
 the only match, or a picker determines the target. No matches is an error.
+For hide, only visible matches are eligible; matching only nonvisible
+sessions is a no-op.
 Lua string targets always mean labels, even if the string contains only
 digits; pass a number for an ID. Command targets interpret numeric text as
 an ID. Targets do not match conversation titles. See |gents-targets|.

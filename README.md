@@ -171,7 +171,7 @@ Adapters for [mini.pick](https://github.com/nvim-mini/mini.pick),
 | `:Gents new claude`       | Start a Claude session directly.                                        |
 | `:Gents focus`            | Focus a session, or return to the previous window when called from one. |
 | `:Gents toggle`           | Show or hide the selected session in the current tab.                   |
-| `:Gents hide`             | Hide the selected session's windows and keep its CLI running.           |
+| `:Gents hide`             | Hide the selected visible session's windows in the current tab.         |
 | `:Gents close`            | Stop the selected CLI and delete its buffer.                            |
 | `:Gents send`             | Choose file references or text to send to an agent.                     |
 

@@ -665,15 +665,82 @@ T["renamed terminal in the final window"] = test.new_set({
   end,
 })
 
-T["hide removes every view of a session across tabs"] = function()
+T["hide removes only current-tab views of a shared session"] = function()
   local session = H.new()
+  local tab = vim.api.nvim_get_current_tabpage()
   vim.cmd.split()
   vim.cmd.tabnew()
   vim.api.nvim_win_set_buf(0, session.buf)
+  local elsewhere = vim.api.nvim_get_current_win()
+  vim.api.nvim_set_current_tabpage(tab)
   eq(#vim.fn.win_findbuf(session.buf), 3)
   gents.hide(session.id)
-  eq(vim.fn.win_findbuf(session.buf), {})
+  eq(vim.fn.win_findbuf(session.buf), { elsewhere })
   eq(vim.fn.jobwait({ session.job }, 0), { -1 })
+end
+
+T["hide ignores existing nonvisible targets and rejects unknown targets"] = function()
+  local session = H.new()
+  local win = vim.api.nvim_get_current_win()
+  vim.cmd.tabnew()
+  eq(gents.ready(session.id).visible, false)
+  eq(gents.hide(session.id), nil)
+  eq(gents.hide(session.label), nil)
+  eq(
+    gents.hide(function(candidate)
+      return candidate.id == session.id
+    end),
+    nil
+  )
+  eq(gents.hide(), nil)
+  eq(vim.fn.win_findbuf(session.buf), { win })
+  test.expect.error(function()
+    gents.hide("missing")
+  end, "no session matches target")
+  test.expect.error(function()
+    gents.hide(session.id, { all = true })
+  end, "cannot be combined with a target")
+end
+
+T["hide all removes splits floats and duplicate views while preserving other tabs"] = function()
+  local first = H.new()
+  vim.cmd.split()
+  local second = H.new({ layout = "float" })
+  local tab = vim.api.nvim_get_current_tabpage()
+  vim.cmd.tabnew()
+  vim.api.nvim_win_set_buf(0, first.buf)
+  local shared = vim.api.nvim_get_current_win()
+  local elsewhere = H.new()
+  vim.api.nvim_set_current_tabpage(tab)
+  eq(gents.hide(nil, { all = true }), nil)
+  eq(window.visible(first, tab), false)
+  eq(window.visible(second, tab), false)
+  eq(vim.fn.win_findbuf(first.buf), { shared })
+  eq(#vim.fn.win_findbuf(elsewhere.buf), 1)
+  eq(vim.fn.jobwait({ first.job, second.job, elsewhere.job }, 0), { -1, -1, -1 })
+  eq(gents.hide(nil, { all = true }), nil)
+end
+
+T["hide all stays in its original tab when the tab closes"] = function()
+  local first = H.new({ layout = "tabnew" })
+  local tab = vim.api.nvim_get_current_tabpage()
+  local second = H.new({ layout = "tabnew" })
+  vim.api.nvim_set_current_tabpage(tab)
+  gents.hide(nil, { all = true })
+  eq(vim.api.nvim_tabpage_is_valid(tab), false)
+  eq(#vim.fn.win_findbuf(first.buf), 0)
+  eq(#vim.fn.win_findbuf(second.buf), 1)
+end
+
+T["hide all replaces the last agent window without reopening another agent"] = function()
+  local first = H.new({ layout = "current" })
+  local second = H.new()
+  gents.hide(nil, { all = true })
+  eq(window.visible(first), false)
+  eq(window.visible(second), false)
+  eq(#vim.api.nvim_list_wins(), 1)
+  eq(vim.bo.buftype, "")
+  eq(vim.fn.jobwait({ first.job, second.job }, 0), { -1, -1 })
 end
 
 T["native buffer replacement hides a session without plugin involvement"] = function()

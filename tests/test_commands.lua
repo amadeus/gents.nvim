@@ -23,7 +23,7 @@ end
 
 ---@type table<string, function>
 local original
----@type { [1]: string, [2]: (gents.Target|gents.NewOptions|gents.SendOptions|gents.Item[])[] }[]
+---@type { [1]: string, [2]: (gents.Target|gents.NewOptions|gents.HideOptions|gents.SendOptions|gents.Item[])[] }[]
 local calls
 local methods = commands.names()
 local dispatch = test.new_set({
@@ -34,7 +34,7 @@ local dispatch = test.new_set({
       local gents = require("gents")
       for _, name in ipairs(methods) do
         original[name] = gents[name]
-        ---@param ... gents.Target|gents.NewOptions|gents.SendOptions|gents.Item[]
+        ---@param ... gents.Target|gents.NewOptions|gents.HideOptions|gents.SendOptions|gents.Item[]
         gents[name] = function(...)
           calls[#calls + 1] = { name, { ... } }
         end
@@ -86,6 +86,18 @@ dispatch["send expands named prompts alongside provider names"] = function()
   config.setup({ prompts = { explain = { { text = "Explain:" }, "selection" } } })
   vim.cmd("Gents send file explain")
   expect(calls, { { "send", { { "file", { text = "Explain:" }, "selection" } } } })
+end
+
+dispatch["hide all dispatches directly and rejects a target"] = function()
+  vim.cmd("Gents hide --all")
+  vim.cmd("Gents actions hide --all")
+  expect(calls, { { "hide", { [2] = { all = true } } }, { "hide", { [2] = { all = true } } } })
+  for _, args in ipairs({ "--all 12", "--all cat", "--all --all" }) do
+    test.expect.error(function()
+      commands.run({ args = "hide " .. args })
+    end, "cannot be combined with a target")
+  end
+  expect(#calls, 2)
 end
 
 dispatch["actions composes with every leaf command"] = function()
@@ -390,6 +402,7 @@ sessions["completion replaces only the current word of a session label"] = funct
   local all = complete("Gents hide ")
   table.sort(all)
   local expected = {
+    "--all",
     tostring(first.id),
     tostring(second.id),
     tostring(custom.id),
@@ -428,6 +441,46 @@ sessions["completion replaces only the current word of a session label"] = funct
   )
   vim.cmd("Gents close cat #2")
   expect(complete("Gents close cat #"), {})
+end
+
+sessions["hide completion includes only visible targets and the all modifier"] = function()
+  local here = H.new({ label = "all" })
+  local hidden = H.new({ label = "hidden" })
+  require("gents").hide(hidden.id)
+  local tab = vim.api.nvim_get_current_tabpage()
+  H.new({ layout = "tabnew", label = "elsewhere" })
+  vim.api.nvim_set_current_tabpage(tab)
+  local candidates = complete("Gents hide ")
+  table.sort(candidates)
+  local expected = { "--all", tostring(here.id), "all" }
+  table.sort(expected)
+  expect(candidates, expected)
+  expect(complete("Gents actions hide --a"), { "--all" })
+  expect(complete("Gents hide --all "), {})
+  expect(complete("Gents close h"), { "hidden" })
+  vim.cmd("Gents hide all")
+  expect(require("gents.window").visible(here), false)
+end
+
+sessions["hide preserves option-like label text in targets and completion"] = function()
+  local review = H.new({ label = "review --all" })
+  local notes = H.new({ label = "review --all notes" })
+  local allow = H.new({ label = "--allow" })
+  for _, command in ipairs({ "Gents hide ", "Gents actions hide " }) do
+    expect(complete(command .. "review --all"), { "--all", "--all notes" })
+    expect(complete(command .. "review --all "), { "notes" })
+    expect(complete(command .. "review --all n"), { "notes" })
+    expect(complete(command .. "--all"), { "--allow", "--all" })
+    expect(complete(command .. "--all "), {})
+    expect(complete(command .. "--all n"), {})
+  end
+  vim.cmd("Gents hide review --all")
+  expect(require("gents.window").visible(review), false)
+  expect(require("gents.window").visible(notes), true)
+  expect(require("gents.window").visible(allow), true)
+  vim.cmd("Gents actions hide review --all notes")
+  expect(require("gents.window").visible(notes), false)
+  expect(require("gents.window").visible(allow), true)
 end
 
 sessions["send target completion preserves option-like label text"] = function()

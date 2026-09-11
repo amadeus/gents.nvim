@@ -118,6 +118,11 @@ function M.run(opts)
     return gents.new(name, #args > 0 and { args = args } or nil)
   end
 
+  if command == "hide" and args[1] == "--all" then
+    assert(#args == 1, "gents: hide --all cannot be combined with a target")
+    return gents.hide(nil, { all = true })
+  end
+
   if
     command == "hide"
     or command == "close"
@@ -147,11 +152,16 @@ end
 
 ---@param arglead string
 ---@param remainder string
+---@param visible_only? boolean
 ---@return string[]
-local function complete_target(arglead, remainder)
+local function complete_target(arglead, remainder, visible_only)
   ---@type string[]
   local candidates = {}
-  for _, session in ipairs(require("gents").sessions()) do
+  local sessions = require("gents").sessions()
+  if visible_only then
+    sessions = vim.tbl_filter(require("gents.window").visible, sessions)
+  end
+  for _, session in ipairs(sessions) do
     candidates[#candidates + 1] = session.label
   end
 
@@ -160,8 +170,11 @@ local function complete_target(arglead, remainder)
   if preceding ~= "" then
     preceding = preceding .. " "
   else
-    for _, session in ipairs(require("gents").sessions()) do
+    for _, session in ipairs(sessions) do
       candidates[#candidates + 1] = tostring(session.id)
+    end
+    if visible_only then
+      candidates[#candidates + 1] = "--all"
     end
   end
   return matching(candidates, preceding .. arglead, #preceding)
@@ -225,7 +238,10 @@ function M.complete(arglead, cmdline, cursorpos)
     or command == "focus"
     or command == "toggle"
   then
-    return complete_target(arglead, remainder)
+    if command == "hide" and remainder:match("^%s*%-%-all%s") then
+      return {}
+    end
+    return complete_target(arglead, remainder, command == "hide")
   end
 
   return {}

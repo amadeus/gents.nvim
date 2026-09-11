@@ -1236,6 +1236,32 @@ T["session current action"] = test.new_set({ parametrize = { { false }, { true }
   end,
 })
 
+T["deferred hide uses the invoking tab and rechecks visibility"] = test.new_set({
+  parametrize = { { "show", false }, { "show", true }, { "hide", false }, { "hide", true } },
+}, {
+  ---@param action string
+  ---@param hidden boolean
+  ["preserves views elsewhere"] = function(action, hidden)
+    local get_spec = capture_sessions()
+    local origin = vim.api.nvim_get_current_win()
+    local first = H.new()
+    H.new()
+    local tab = vim.api.nvim_get_current_tabpage()
+    vim.api.nvim_set_current_win(origin)
+    require("gents").hide()
+    local spec = get_spec()
+    if hidden then
+      require("gents").hide(first.id)
+    end
+    vim.cmd.tabnew()
+    vim.api.nvim_win_set_buf(0, first.buf)
+    local elsewhere = vim.api.nvim_get_current_win()
+    spec.actions[action](spec.items[1])
+    test.expect.equality(require("gents.window").visible(first, tab), false)
+    test.expect.equality(vim.fn.win_findbuf(first.buf), { elsewhere })
+  end,
+})
+
 T["session hide and close actions preserve or terminate the job"] = function()
   local get_spec = capture_sessions()
   local session = H.new()
@@ -1249,9 +1275,9 @@ T["session hide and close actions preserve or terminate the job"] = function()
   require("gents").pick()
   spec = get_spec()
   spec.actions.hide(spec.items[1])
-  test.expect.equality(vim.fn.win_findbuf(session.buf), {})
+  test.expect.equality(vim.fn.win_findbuf(session.buf), { split })
   test.expect.equality(vim.api.nvim_win_is_valid(float), false)
-  test.expect.equality(vim.api.nvim_win_is_valid(split), false)
+  test.expect.equality(vim.api.nvim_win_is_valid(split), true)
   test.expect.equality(vim.fn.jobwait({ session.job }, 0), { -1 })
   test.expect.equality(require("gents.session").get(session.id), session)
   require("gents").pick()
@@ -1262,6 +1288,7 @@ T["session hide and close actions preserve or terminate the job"] = function()
   spec = get_spec()
   spec.actions.close(spec.items[1])
   test.expect.equality(vim.api.nvim_win_is_valid(float), false)
+  test.expect.equality(vim.api.nvim_win_is_valid(split), false)
   test.expect.equality(require("gents.session").get(session.id), nil)
   H.wait(function()
     return not vim.api.nvim_buf_is_valid(session.buf)

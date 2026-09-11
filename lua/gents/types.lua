@@ -49,6 +49,9 @@
 ---@class gents.ShowOptions
 ---@field layout? gents.Layout Explicit placement; preserves existing session views.
 
+---@class gents.HideOptions
+---@field all? boolean Hide all visible sessions in the current tab; mutually exclusive with a target.
+
 ---@class gents.ToggleOptions
 ---@field layout? gents.Layout|false Explicit placement; nil uses memory, false uses normal show behavior.
 

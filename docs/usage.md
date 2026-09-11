@@ -351,7 +351,7 @@ vim.keymap.set("n", "<leader>aa", "<cmd>Gents toggle<cr>", {
 | `:Gents` or `:Gents pick [target]`                         | Choose an existing session, or show an explicit target. With no sessions, pick a tool to start.                            |
 | `:Gents focus [target]`                                    | Focus a session. When called from a session without a target, return to the previous window and leave the session visible. |
 | `:Gents toggle [target]`                                   | Hide the selected session's views in the current tab, or show it if it is not visible there.                               |
-| `:Gents hide [target]`                                     | Hide every view of the selected session, across all tabs, and keep its CLI running.                                        |
+| `:Gents hide [target]`                                     | Hide the selected visible session's views in the current tab and keep its CLI running.                                     |
 | `:Gents close [target]`                                    | Stop the selected CLI and delete its buffer.                                                                               |
 | `:Gents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or saved prompts.                                                              |
 
@@ -371,8 +371,9 @@ See `:help gents-commands` for command syntax and completion.
 ## Choose a session
 
 Commands usually infer which session you mean. From a session buffer, `hide`
-hides that session. From another buffer, it acts on the only session or asks
-you to choose if several exist.
+hides that session in the current tab. From another buffer, it acts on the
+only visible session or asks you to choose among visible sessions. Visibility
+means a window in the current tab.
 
 Target selection follows this order:
 
@@ -382,9 +383,11 @@ Target selection follows this order:
 4. The session picker.
 
 Hidden sessions, sessions in other tabs, and retained exited sessions count
-when choosing a target. An explicit target that does not exist reports an
-error. Labels such as `claude #2` are stable targets; conversation titles are
-display text and cannot be used as targets.
+when choosing a target, except that `hide` considers only visible sessions.
+An existing nonvisible target is a no-op for `hide`; views in other tabs stay
+open. An explicit target that does not exist reports an error. Labels such as
+`claude #2` are stable targets; conversation titles are display text and cannot
+be used as targets.
 
 ```vim
 :Gents hide claude #2
@@ -395,6 +398,11 @@ display text and cannot be used as targets.
 require("gents").show("claude #2")
 require("gents").hide(3)
 ```
+
+To hide all session views from the current tab, run `:Gents hide --all` or
+`require("gents").hide(nil, { all = true })`. This skips selection and keeps
+every CLI running. Do not combine `all` with a target. With no visible
+sessions, hide does nothing.
 
 There are a few differences between commands:
 

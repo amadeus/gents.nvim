@@ -18,6 +18,46 @@ local T = test.new_set({
   },
 })
 
+T["hide resolves only visible sessions before considering a picker"] = function()
+  local origin = vim.api.nvim_get_current_win()
+  local visible = H.new()
+  local hidden = H.new()
+  require("gents").hide(hidden.id)
+  local tab = vim.api.nvim_get_current_tabpage()
+  local elsewhere = H.new({ layout = "tabnew" })
+  vim.api.nvim_set_current_tabpage(tab)
+  vim.api.nvim_set_current_win(origin)
+  set_select(function()
+    error("unexpected picker")
+  end)
+  test.expect.equality(require("gents").hide(), visible)
+  test.expect.equality(require("gents").hide(), nil)
+  test.expect.equality(#vim.fn.win_findbuf(elsewhere.buf), 1)
+end
+
+T["hide predicates and pickers include only visible matching sessions"] = function()
+  local origin = vim.api.nvim_get_current_win()
+  local first = H.new()
+  local second = H.new()
+  local hidden = H.new()
+  require("gents").hide(hidden.id)
+  local excluded = H.new()
+  vim.api.nvim_set_current_win(origin)
+  ---@param items gents.PickerItem<gents.Session>[]
+  ---@param _ vim.ui.select.Opts
+  ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
+  set_select(function(items, _, callback)
+    test.expect.equality({ items[1].data.id, items[2].data.id }, { first.id, second.id })
+    test.expect.equality(#items, 2)
+    callback(items[2], 2)
+  end)
+  require("gents").hide(function(session)
+    return session.id ~= excluded.id
+  end)
+  test.expect.equality(require("gents.window").visible(first), true)
+  test.expect.equality(require("gents.window").visible(second), false)
+end
+
 T["explicit ids and labels override the current session"] = function()
   local first = H.new()
   local second = H.new()

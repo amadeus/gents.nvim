@@ -713,6 +713,7 @@ settings produce no updates; empty signals may not reach gents.nvim, and a
 reset without a recognized signal can leave the previous title visible.
 Generic titles may describe a project, status, or screen instead of a
 conversation.
+
 OpenCode can shorten a title before sending it. Changing Codex's title format
 inside the running CLI cannot be detected by inspecting its launch arguments.
 Exit retains the last title and ignores later updates. See |gents-events|

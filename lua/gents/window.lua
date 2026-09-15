@@ -34,8 +34,9 @@ function M.attach(session)
       ---@type string
       local mode = vim.fn.mode():sub(1, 1)
       if
-        terminal_input
+        (terminal_input or require("gents.config").get().insert_on_focus)
         and session.state ~= "exited"
+        and vim.bo[session.buf].buftype == "terminal"
         and require("gents.session").current() == session
         and mode ~= "t"
         and mode ~= "i"

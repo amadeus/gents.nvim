@@ -45,8 +45,15 @@ local function stop()
   end
 end
 
-local function setup()
-  lua([[require("gents").setup({ tools = { cat = { cmd = { "cat" } } } })]])
+---@param insert_on_focus? boolean
+local function setup(insert_on_focus)
+  lua(
+    [[require("gents").setup({
+      insert_on_focus = ...,
+      tools = { cat = { cmd = { "cat" } } },
+    })]],
+    { insert_on_focus or false }
+  )
 end
 
 ---@param expected string
@@ -97,6 +104,7 @@ local T = test.new_set({
 })
 
 T["new enters terminal input after returning to the event loop"] = function()
+  setup(true)
   spawn()
   eq(get("vim.fn.jobwait({ session.job }, 0)"), { -1 })
   input("gents input<CR>")
@@ -155,6 +163,7 @@ T["float resizing"] = test.new_set({ parametrize = { { "t" }, { "nt" }, { "n" },
 })
 
 T["explicit show enters terminal input for hidden and visible sessions"] = function()
+  setup(true)
   spawn()
   input([[<C-\><C-n>]])
   mode("nt")
@@ -364,9 +373,13 @@ T["send target current placement"] = test.new_set({
   end,
 })
 
-T["sending to a new session"] = test.new_set({ parametrize = { { true }, { false } } }, {
+T["sending to a new session"] = test.new_set({
+  parametrize = { { true, false }, { false, false }, { true, true }, { false, true } },
+}, {
   ---@param focus boolean
-  ["respects terminal input focus after choosing a tool"] = function(focus)
+  ---@param enabled boolean
+  ["respects terminal input focus after choosing a tool"] = function(focus, enabled)
+    setup(enabled)
     lua(
       [[
       _G.source_win = vim.api.nvim_get_current_win()
@@ -434,6 +447,7 @@ T["window reentry does not resume input after the session exits"] = function()
 end
 
 T["window reentry does not change ordinary terminal behavior"] = function()
+  setup(true)
   lua([[
     vim.o.splitright = true
     vim.keymap.set("t", "<C-w>h", "<C-\\><C-n><C-w>h")
@@ -552,6 +566,204 @@ T["TermOpen and a real ftplugin retain their window customizations after current
   eq(get("window_options()"), get("source_options"))
   eq(get("#require('gents').sessions()"), 1)
   eq(get("vim.fn.jobwait({ session.job }, 0)"), { -1 })
+end
+
+local focus_option = test.new_set({ parametrize = { { false }, { true } } })
+T["insert on focus"] = focus_option
+
+focus_option["native navigation"] = test.new_set({
+  parametrize = { { "window" }, { "buffer" }, { "tab" }, { "shared buffer" } },
+}, {
+  ---@param enabled boolean
+  ---@param route string
+  ["respects the option after inspecting output"] = function(enabled, route)
+    setup(enabled)
+    lua([[_G.source_win = vim.api.nvim_get_current_win()]])
+    spawn()
+    if route == "shared buffer" then
+      lua([[vim.cmd.split()]])
+      mode("t")
+    end
+    input([[<C-\><C-n>]])
+    mode("nt")
+    input("gg")
+    mode("nt")
+    lua([[_G.terminal_win = vim.api.nvim_get_current_win()]])
+
+    if route == "buffer" then
+      lua([[vim.cmd.enew()]])
+    elseif route == "tab" then
+      lua([[vim.cmd.tabnew()]])
+    else
+      input("<C-w>p")
+    end
+    mode(route == "shared buffer" and (enabled and "t" or "nt") or "n")
+    if route == "shared buffer" and enabled then
+      input([[<C-\><C-n>]])
+      mode("nt")
+    end
+
+    if route == "buffer" then
+      input("<C-^>")
+    elseif route == "tab" then
+      input("gT")
+    else
+      input("<C-w>p")
+    end
+    mode(enabled and "t" or "nt")
+    eq(get("vim.api.nvim_get_current_win() == terminal_win"), true)
+    eq(get("require('gents').current() == session"), true)
+    eq(get("vim.fn.jobwait({ session.job }, 0)"), { -1 })
+  end,
+})
+
+focus_option["previous window"] = test.new_set({
+  parametrize = { { "live" }, { "exited" }, { "editor" }, { "terminal" } },
+}, {
+  ---@param enabled boolean
+  ---@param destination string
+  ["focus uses the destination session state"] = function(enabled, destination)
+    setup(enabled)
+    if destination == "live" or destination == "exited" then
+      spawn()
+      if destination == "exited" then
+        lua([[vim.fn.jobstop(session.job)]])
+        eq(
+          vim.wait(2000, function()
+            return get([[session.state == "exited"]])
+          end, 10),
+          true
+        )
+      end
+    elseif destination == "terminal" then
+      lua([[_G.ordinary_job = vim.fn.jobstart({ "cat" }, { term = true })]])
+    end
+    lua([[_G.previous_win = vim.api.nvim_get_current_win()]])
+    spawn()
+    lua([[
+      vim.keymap.set("t", "<F5>", function() require("gents").focus() end)
+    ]])
+    input("<F5>")
+    mode(destination == "editor" and "n" or (enabled and destination == "live" and "t" or "nt"))
+    eq(get("vim.api.nvim_get_current_win() == previous_win"), true)
+    eq(get("require('gents.window').visible(session)"), true)
+    if destination == "terminal" then
+      lua([[vim.fn.jobstop(ordinary_job); vim.fn.jobwait({ ordinary_job }, 2000)]])
+    end
+  end,
+})
+
+focus_option["background send"] = test.new_set({ parametrize = { { "n" }, { "i" } } }, {
+  ---@param enabled boolean
+  ---@param source_mode string
+  ["preserves editor mode after reopening from terminal normal mode"] = function(
+    enabled,
+    source_mode
+  )
+    setup(enabled)
+    lua([[_G.source_win = vim.api.nvim_get_current_win()]])
+    spawn()
+    input([[<C-\><C-n>]])
+    mode("nt")
+    lua([[require("gents").hide(session.id)]])
+    mode("n")
+    lua([[
+      vim.keymap.set({ "n", "i" }, "<F7>", function()
+        require("gents").send({ { text = "test" } }, { target = session.id, focus = false })
+      end)
+    ]])
+    if source_mode == "i" then
+      input("i")
+      mode("i")
+    end
+    input("<F7>")
+    mode(source_mode)
+    eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+    eq(get("require('gents.window').visible(session)"), true)
+  end,
+})
+
+---@param enabled boolean
+focus_option["exited sessions stay in normal mode on native reentry"] = function(enabled)
+  setup(enabled)
+  spawn()
+  lua([[
+    _G.terminal_win = vim.api.nvim_get_current_win()
+    require("gents").focus()
+    vim.fn.jobstop(session.job)
+  ]])
+  mode("n")
+  eq(
+    vim.wait(2000, function()
+      return get([[session.state == "exited"]])
+    end, 10),
+    true
+  )
+  input("<C-w>p")
+  mode("nt")
+  eq(get("vim.api.nvim_get_current_win() == terminal_win"), true)
+end
+
+---@param enabled boolean
+focus_option["failed launches leave no pending input or session"] = function(enabled)
+  setup(enabled)
+  lua([[
+    _G.started = pcall(require("gents").new, "cat", { cmd = { vim.fn.tempname() } })
+  ]])
+  mode("n")
+  eq(get("started"), false)
+  eq(get("#require('gents').sessions()"), 0)
+  eq(get("vim.bo.buftype"), "")
+end
+
+---@param enabled boolean
+focus_option["picker selection and current-window sends enter input"] = function(enabled)
+  setup(enabled)
+  lua([[_G.source_win = vim.api.nvim_get_current_win()]])
+  spawn()
+  input([[<C-\><C-n>]])
+  mode("nt")
+  lua([[
+    require("gents").hide(session.id)
+    require("gents.config").get().picker = function(spec) _G.picker = spec end
+    require("gents").pick()
+  ]])
+  mode("n")
+  eq(get("picker.title"), "Gents: Sessions")
+  lua([[picker.actions[picker.default](picker.items[1])]])
+  mode("t")
+  eq(get("require('gents').current() == session"), true)
+
+  input([[<C-\><C-n>]])
+  mode("nt")
+  lua([[
+    require("gents").hide(session.id)
+    require("gents.config").get().layout = "current"
+    require("gents").send({ { text = "test" } }, { target = session.id, focus = false })
+  ]])
+  mode("t")
+  eq(get("require('gents').current() == session"), true)
+  eq(get("vim.api.nvim_get_current_win() == source_win"), true)
+end
+
+T["setup changes affect existing sessions on their next reentry"] = function()
+  spawn()
+  input([[<C-\><C-n>]])
+  mode("nt")
+  setup(true)
+  mode("nt")
+  input("<C-w>p")
+  mode("n")
+  input("<C-w>p")
+  mode("t")
+  input([[<C-\><C-n>]])
+  mode("nt")
+  setup(false)
+  mode("nt")
+  input("<C-w>p")
+  mode("n")
+  input("<C-w>p")
+  mode("nt")
 end
 
 return T

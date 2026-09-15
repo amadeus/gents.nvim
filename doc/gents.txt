@@ -221,6 +221,9 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     and leaves terminal input mode. The session stays visible. The previous
     window may contain another terminal or session.
 
+    With |gents-config.insert_on_focus| enabled, a live gents session in that
+    window enters terminal input.
+
     From another buffer, show the only session or open the session picker.
     With no sessions, open New Session.
 
@@ -397,6 +400,7 @@ Complete defaults (the empty tools override preserves all built-in tools):
       layout = "botright vsplit",
       float = { width = 0.8, height = 0.8, border = "rounded" },
       buflisted = false,
+      insert_on_focus = false,
       picker = nil,
       picker_help = true,
       icons = { visible = "●", hidden = "○" },
@@ -412,7 +416,8 @@ their launch command, tool definition, environment, working directory,
 picker, picker_help, icons, tools, and prompts. New window openings use the
 current layout and float defaults. Changing setup does not rearrange existing
 windows; float views retain their original geometry settings for later resizes.
-Configured keymaps update immediately, including existing session buffers.
+Configured keymaps update immediately, including existing session buffers. The
+current insert_on_focus setting applies when entering an existing session.
 
 layout                                                  *gents-config.layout*
     Type: gents.Layout. Default: "botright vsplit".
@@ -440,6 +445,20 @@ buflisted                                            *gents-config.buflisted*
     Hiding a session or retaining its output after exit preserves this value.
     Changing setup does not alter existing buffers. See |gents-health| for
     finding unlisted buffers.
+
+insert_on_focus                                *gents-config.insert_on_focus*
+    Type: boolean. Default: false.
+    Enter terminal input whenever window, buffer, or tab navigation brings you
+    into a live session, so you can type into the CLI immediately. With false,
+    ordinary navigation restores input only if you left while using input.
+
+    You can still use |CTRL-\_CTRL-N| to inspect output while staying in the
+    session. With true, leaving and returning enters input again. Exited
+    sessions and ordinary terminal buffers are unaffected. Focus here means
+    entering a window or buffer within Neovim, not focusing its application.
+    Changes apply to existing sessions on their next entry; setup itself does
+    not change the current mode. Explicit show actions still enter input with
+    either value. See |gents-sessions| and |gents.focus()|.
 
 picker                                                  *gents-config.picker*
     Type: nil, "snacks", "mini", "telescope", "fzf-lua", or
@@ -920,17 +939,27 @@ Starting or explicitly showing a running session enters Terminal-mode so you
 can type into the CLI. Use |CTRL-\_CTRL-N| to leave terminal input and move
 through or copy its output with ordinary Normal-mode commands.
 
-When you navigate away from a session window while using terminal input,
-gents.nvim remembers that state and restores it when native window or buffer
-navigation brings you back. Navigation mappings that leave Terminal-mode
+By default, when you navigate away from a session window while using terminal
+input, gents.nvim remembers that state and restores it when native window or
+buffer navigation brings you back. Navigation mappings that leave Terminal-mode
 and immediately switch windows also preserve that intention. If you
 deliberately leave terminal input and stay in the session buffer to inspect
 output, returning later keeps you in Normal-mode. Exited sessions never
 resume terminal input through this restoration.
 
+To enter input on every return to a live session, even after inspecting its
+output in Normal-mode, enable |gents-config.insert_on_focus|:
+>lua
+    require("gents").setup({ insert_on_focus = true })
+<
+This applies to window, buffer, and tab navigation. Leaving input while staying
+in the session still lets you inspect and copy output.
+
 Explicit show/focus/pick actions enter input for a running session even if
 you last left its buffer in Normal-mode. focus() without a target, invoked
 from a session buffer, goes to the previous window and leaves Terminal-mode.
+With insert_on_focus enabled, it enters input if that window contains another
+live session.
 See |gents-api| for targeting and return values.
 
 ==============================================================================
@@ -1888,9 +1917,13 @@ focus({target}?) -> gents.Session?
     window with `:wincmd p`, leave terminal input mode, and return nil. The
     session stays visible and its CLI keeps running. The previous window can
     itself contain another terminal; it is not restricted to an editor buffer.
-    Otherwise show the current/sole/picked session, or open the tool picker if
-    there are no sessions. Return the immediately shown session, otherwise
-    nil. Target and window errors propagate.
+    If |gents-config.insert_on_focus| is true and the destination is a live
+    gents session, enter terminal input there instead of leaving input mode.
+
+    When called without a target from another buffer, show the sole/picked
+    session, or open the tool picker if there are no sessions. Return the
+    immediately shown session, otherwise nil. Target and window errors
+    propagate.
 >lua
     require("gents").focus()
 <
@@ -2012,27 +2045,28 @@ Setup and per-call options ~
                                                          *gents.SetupOptions*
 Fields accepted by |gents.setup()|; all are optional:
 
-    layout?       gents.Layout              "botright vsplit"
-    float?        gents.FloatOptions        80% width/height, rounded border
-    buflisted?    boolean                   false
-    picker?       gents.Picker              nil (vim.ui.select)
-    picker_help?  boolean                   true
-    icons?        gents.IconsOptions        visible = "●", hidden = "○"
-    on_exit?      "keep" or "close"         "keep"
-    tools?        table<string, gents.ToolOverride or false>
+    layout?           gents.Layout          "botright vsplit"
+    float?            gents.FloatOptions    80% width/height, rounded border
+    buflisted?        boolean               false
+    insert_on_focus?  boolean               false
+    picker?           gents.Picker          nil (vim.ui.select)
+    picker_help?      boolean               true
+    icons?            gents.IconsOptions    visible = "●", hidden = "○"
+    on_exit?          "keep" or "close"     "keep"
+    tools?            table<string, gents.ToolOverride or false>
                                             built-in tools plus overrides
-    prompts?      table<string, gents.Item[]>
+    prompts?          table<string, gents.Item[]>
                                             {}
-    keys?         gents.Keymap[]            {}
+    keys?             gents.Keymap[]        {}
 
 See |gents-config| for validation, merging, and when each setting applies.
 
                                                                *gents.Config*
 The resolved configuration has the same field names. layout, float,
-buflisted, picker_help, icons, on_exit, tools, prompts, and keys are present;
-picker may be nil. float is |gents.FloatConfig|, icons is |gents.Icons|,
-and tools maps names to complete |gents.Tool| objects. This type describes
-resolved values; |gents.setup()| does not return the configuration.
+buflisted, insert_on_focus, picker_help, icons, on_exit, tools, prompts, and
+keys are present; picker may be nil. float is |gents.FloatConfig|, icons is
+|gents.Icons|, and tools maps names to complete |gents.Tool| objects. This type
+describes resolved values; |gents.setup()| does not return the configuration.
 
                                                            *gents.NewOptions*
 An optional table passed to |gents.new()|:
@@ -2704,11 +2738,13 @@ only session buffers. For example: >lua
       end,
     })
 <
-New sessions enter terminal input. During ordinary navigation, returning
-to a running session restores input if you left while typing; deliberately
-leaving input in the session keeps Normal mode on return. Explicit gents.nvim
-show actions enter input for running sessions. Exited sessions remain
-readable without starting input. See |gents-sessions| and |gents-keymaps|.
+New sessions enter terminal input. By default, ordinary navigation back to
+a running session restores input if you left while typing; deliberately
+leaving input in the session keeps Normal mode on return. Enable
+|gents-config.insert_on_focus| to enter input on every return to a live session.
+Explicit gents.nvim show actions enter input for running sessions. Exited
+sessions remain readable without starting input. See |gents-sessions| and
+|gents-keymaps|.
 
 Ordinary buffer lists                                   *gents-buffer-listing*
 

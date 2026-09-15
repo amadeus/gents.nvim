@@ -91,7 +91,17 @@ function M.focus(target)
   end
   if M.current() then
     vim.cmd.wincmd("p")
-    vim.cmd.stopinsert()
+    local destination = M.current()
+    if
+      require("gents.config").get().insert_on_focus
+      and destination
+      and destination.state ~= "exited"
+      and vim.bo[destination.buf].buftype == "terminal"
+    then
+      vim.cmd.startinsert()
+    else
+      vim.cmd.stopinsert()
+    end
     return
   end
   if #M.sessions() == 0 then

@@ -409,6 +409,8 @@ There are a few differences between commands:
 - `pick` without a target always opens a picker, even if only one session exists.
 - `focus` without a target, called from a session, returns to the previous
   window and leaves terminal input mode. That window can contain any buffer.
+  With `insert_on_focus = true`, a live gents session in that window receives
+  terminal input.
 - With no sessions, `pick`, `focus`, and `toggle` open the tool picker;
   `hide` and `close` do nothing.
 - `send` opens the tool picker if it needs a new session, after you choose
@@ -416,6 +418,25 @@ There are a few differences between commands:
 
 Lua calls also accept a predicate to narrow the candidates. See
 `:help gents.Target` for examples.
+
+## Enter terminal input on focus
+
+To type into a live session immediately whenever you return to it, enable:
+
+```lua
+require("gents").setup({ insert_on_focus = true })
+```
+
+This covers window, buffer, and tab navigation within Neovim. You can still
+press `<C-\><C-n>` to inspect or copy output; input resumes when you leave
+and return. Exited sessions remain in Normal mode, and ordinary terminals
+are unaffected. A later setup change applies to existing sessions on their
+next entry.
+
+The default is `false`: ordinary navigation remembers whether you were using
+terminal input when you left. Deliberately leaving input to inspect output
+keeps Normal mode on return. Explicit show and pick actions enter input for
+live sessions with either setting.
 
 ## Send context directly
 

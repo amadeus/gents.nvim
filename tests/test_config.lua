@@ -37,10 +37,19 @@ T["defaults work without setup"] = function()
   expect(result.icons, { visible = "●", hidden = "○" })
   expect(result.on_exit, "keep")
   expect(result.buflisted, false)
+  expect(result.insert_on_focus, false)
   expect(result.prompts, {})
   expect(result.keys, {})
   expect(tools.names(result.tools), builtin_names)
   expect(fresh.get(), result)
+end
+
+T["insert on focus accepts booleans and resets to its default"] = function()
+  expect(config.setup({ insert_on_focus = true }).insert_on_focus, true)
+  expect(config.get().insert_on_focus, true)
+  expect(config.setup({ insert_on_focus = false }).insert_on_focus, false)
+  config.setup({ insert_on_focus = true })
+  expect(config.setup().insert_on_focus, false)
 end
 
 T["built-in tools have names, commands, and install URLs"] = function()
@@ -201,6 +210,9 @@ T["invalid configuration fails before replacing current config"] = function()
     { { on_exit = "discard" }, "on_exit must be" },
     { { buflisted = "true" }, "buflisted must be a boolean" },
     { { buflisted = 1 }, "buflisted must be a boolean" },
+    { { insert_on_focus = "true" }, "insert_on_focus must be a boolean" },
+    { { insert_on_focus = 1 }, "insert_on_focus must be a boolean" },
+    { { insert_on_focus = {} }, "insert_on_focus must be a boolean" },
     { { picker = false }, "picker must be" },
     { { picker = "unknown" }, "picker must be" },
     { { picker = {} }, "picker must be" },

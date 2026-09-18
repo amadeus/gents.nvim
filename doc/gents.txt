@@ -169,7 +169,8 @@ own login, conversation, and permissions.
 Press <C-\><C-n> to leave terminal input before typing an Ex command.
 Use `:Gents pick` to choose a session and switch to it. Use `:Gents toggle`
 to show or hide a session while its CLI keeps running. With several sessions,
-toggle uses the current session buffer or asks you to choose one.
+toggle hides the current session, or all visible sessions when called from
+another buffer. With none visible, choose a session to show.
 
 To send context, return to a file and run `:Gents send`: choose a provider,
 then a destination if several sessions exist. With no sessions, the tool
@@ -245,9 +246,10 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     gents.nvim placement was floating; otherwise use the configured layout.
     See |gents-layouts| for placement memory and float settings.
 
-    From a non-session buffer with several sessions, choose which session to
-    toggle, even if one is already visible. This command affects the chosen
-    session; it does not hide every session in the tab.
+    Without a target, hide the current session when called from its buffer.
+    From a non-session buffer, hide all sessions visible in the current tab,
+    preserving views in other tabs. If none are visible, show the sole session
+    or open the session picker when several sessions exist.
 
                                                                *:Gents-hide*
 :Gents hide [target]
@@ -1997,9 +1999,12 @@ toggle({target}?, {opts}?) -> gents.Session?
     which can be in another tab. When no view exists,
     restore a float using the current float settings if the most recent
     gents.nvim placement was floating; otherwise use the configured layout.
-    See |gents-layouts|. Other sessions stay open. Return the immediately
-    affected session, otherwise nil. With no target and no sessions, open
-    the tool picker, carrying any explicit layout into the launch.
+    See |gents-layouts|. With no target from a non-session buffer, hide all
+    sessions visible in the current tab and return nil. If none are visible,
+    show the sole session or open the session picker. Otherwise, return the
+    immediately affected session, or nil when opening a picker. With no target
+    and no sessions, open the tool picker, carrying any explicit layout into
+    the launch.
     Target and window errors propagate.
 
     {opts}: |gents.ToggleOptions|. Set layout = false to skip remembered

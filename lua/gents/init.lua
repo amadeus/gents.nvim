@@ -192,6 +192,13 @@ function M.toggle(target, opts)
   if target == nil and #M.sessions() == 0 then
     return M.new(nil, { layout = layout or nil })
   end
+  if target == nil and not M.current() then
+    for _, session in ipairs(M.sessions()) do
+      if window.visible(session, tab) then
+        return M.hide(nil, { all = true })
+      end
+    end
+  end
   return require("gents.target").with(target, function(session)
     if window.visible(session, tab) then
       return window.hide(session, tab)

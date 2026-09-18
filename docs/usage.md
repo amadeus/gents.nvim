@@ -80,8 +80,9 @@ Press `<leader>aa` to toggle hiding or showing your agent. You can also leave
 the terminal visible and navigate between windows as usual. Hidden sessions
 continue to run in the background, they are not paused.
 
-With several sessions, toggle acts on the one you are in, or opens a session
-picker when called from another buffer.
+Toggle hides the session you are in. From another buffer, it hides all sessions
+visible in the current tab. If none are visible, it shows the sole session or
+opens a session picker when several sessions exist. Views in other tabs stay open.
 
 If you opened a session in a float, toggle brings it back in a float when no
 view remains, using your current `float` settings. Opening that session in a
@@ -350,7 +351,7 @@ vim.keymap.set("n", "<leader>aa", "<cmd>Gents toggle<cr>", {
 | `:Gents new [tool] [args...]`                              | Pick a CLI tool, or start the named tool with optional extra arguments.                                                    |
 | `:Gents` or `:Gents pick [target]`                         | Choose an existing session, or show an explicit target. With no sessions, pick a tool to start.                            |
 | `:Gents focus [target]`                                    | Focus a session. When called from a session without a target, return to the previous window and leave the session visible. |
-| `:Gents toggle [target]`                                   | Hide the selected session's views in the current tab, or show it if it is not visible there.                               |
+| `:Gents toggle [target]`                                   | Hide visible sessions in the current tab, or summon a session when none are visible.                                      |
 | `:Gents hide [target]`                                     | Hide the selected visible session's views in the current tab and keep its CLI running.                                     |
 | `:Gents close [target]`                                    | Stop the selected CLI and delete its buffer.                                                                               |
 | `:Gents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or saved prompts.                                                              |
@@ -375,7 +376,8 @@ hides that session in the current tab. From another buffer, it acts on the
 only visible session or asks you to choose among visible sessions. Visibility
 means a window in the current tab.
 
-Target selection follows this order:
+Without a target, `toggle` first hides all visible sessions when called from a
+non-session buffer. Otherwise, target selection follows this order:
 
 1. An explicit session ID or exact label.
 2. The session in the current buffer.

@@ -177,7 +177,6 @@ T["tool title parsers"] = test.new_set({
   parametrize = {
     { "claude", { "✳ First task", "◐ Renamed task", "Claude Code", "◑ Resumed task" } },
     { "opencode", { "OC | First task", "OC | Renamed task", "OpenCode", "OC | Resumed task" } },
-    { "opencode2", { "OC | First task", "OC | Renamed task", "OpenCode", "OC | Resumed task" } },
     { "omp", { "π > First task", "π ⠋ Renamed task", "π", "π: Resumed task" } },
     {
       "codex",

@@ -36,13 +36,13 @@ Conversation titles are display text and are not command targets.
 Built-in parsers remove tool-specific wrappers so the picker can show the useful
 part of a title. Custom tools use their cleaned terminal title automatically.
 
-| Tool                    | How gents.nvim handles its terminal title                                                                                                    |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `claude`                | Removes a leading activity marker (`✳`, `◐`, or `◑` followed by a space). `Claude Code` clears the title.                                    |
-| `codex`                 | The built-in command requests `tui.terminal_title=["thread"]`. The parser omits `Codex` and unnamed thread UUIDs.                            |
-| `opencode`, `opencode2` | Keeps the text after `OC \| `. Other titles clear the conversation title.                                                                    |
-| `omp`                   | Removes `π: ` or `π ` followed by `>`, `!`, `:`, or any braille character (U+2800–U+28FF). Placeholders and unknown formats clear the title. |
-| Other tools             | Uses the cleaned terminal title without a dedicated parser.                                                                                  |
+| Tool        | How gents.nvim handles its terminal title                                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude`    | Removes a leading activity marker (`✳`, `◐`, or `◑` followed by a space). `Claude Code` clears the title.                                    |
+| `codex`     | The built-in command requests `tui.terminal_title=["thread"]`. The parser omits `Codex` and unnamed thread UUIDs.                            |
+| `opencode`  | Keeps the text after `OC \| `. Other titles clear the conversation title.                                                                    |
+| `omp`       | Removes `π: ` or `π ` followed by `>`, `!`, `:`, or any braille character (U+2800–U+28FF). Placeholders and unknown formats clear the title. |
+| Other tools | Uses the cleaned terminal title without a dedicated parser.                                                                                  |
 
 For example, Claude's `✳ Fix terminal navigation` becomes `Fix terminal
 navigation`. OSC 0 and OSC 2 signals drive these updates; a tool that emits no

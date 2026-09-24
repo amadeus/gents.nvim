@@ -46,8 +46,7 @@ are unaffected.
 | ----------------------------------------- | ------------------------------ | ------------------------------------------------------------------ |
 | [Codex](#codex)                           | Optional notification settings | Completed turns with the filter shown below                        |
 | [Claude Code](#claude-code)               | `Stop` hook                    | Main response finished                                             |
-| [OpenCode](#opencode)                     | `session.idle` handler         | Session became idle, including cancellation                        |
-| [OpenCode 2](#opencode-2)                 | CLI plugin                     | Turn succeeded in the current conversation or an open OpenCode tab |
+| [OpenCode](#opencode)                     | CLI plugin                     | Turn succeeded in the current conversation or an open OpenCode tab |
 | [Amp](#amp)                               | `agent.end` handler            | Turn finished without error or cancellation                        |
 | [Gemini CLI](#gemini-cli)                 | `AfterAgent` hook              | Final response generated                                           |
 | [Pi](#pi)                                 | Extension                      | Automatic work settled after a completed response                  |
@@ -131,37 +130,6 @@ See the
 
 ## OpenCode
 
-OpenCode's `session.idle` event lets you know the session has stopped working.
-It can also fire after cancellation or another idle transition, and this
-handler does not filter child sessions. Use this recipe with OpenCode 1;
-for OpenCode 2, use the [CLI plugin below](#opencode-2).
-
-Create `.opencode/plugins/gents-ready.js`:
-
-```js
-import { execFileSync } from "node:child_process";
-
-export const GentsReady = async () => ({
-  event: async ({ event }) => {
-    const server = process.env.NVIM;
-    const id = process.env.GENTS_SESSION;
-    if (event.type !== "session.idle" || !server || !/^\d+$/.test(id ?? "")) return;
-
-    execFileSync(
-      "nvim",
-      ["--server", server, "--remote-expr", `v:lua.require'gents'.ready(${id})`],
-      { stdio: "ignore" },
-    );
-  },
-});
-```
-
-See the
-[plugin documentation](https://opencode.ai/docs/plugins/) and
-[idle lifecycle implementation](https://github.com/anomalyco/opencode/blob/v1.18.23/packages/opencode/src/session/run-state.ts#L70).
-
-## OpenCode 2
-
 This CLI plugin tells gents.nvim when a turn succeeds in the conversation
 displayed in OpenCode, or in one of its open tabs. It ignores conversations that
 are not open in that CLI, and does not notify for cancellation or errors. Your
@@ -216,9 +184,9 @@ No package installation is needed for this example.
 Load this through `cli.json` so it runs in the CLI process, which inherits
 `NVIM` and `GENTS_SESSION` from gents.nvim. A plugin loaded in OpenCode's shared
 server cannot reliably identify the Neovim terminal that started the CLI.
-Start a new `opencode2` session through gents.nvim after adding the files.
+Start a new `opencode` session through gents.nvim after adding the files.
 
-See OpenCode 2's [CLI plugin setup](https://opencode.ai/v2/docs/cli/plugins/)
+See OpenCode's [CLI plugin setup](https://opencode.ai/v2/docs/cli/plugins/)
 and [CLI plugin API](https://opencode.ai/v2/docs/build/plugins/cli/).
 
 ## Amp

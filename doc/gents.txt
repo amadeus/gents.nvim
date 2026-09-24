@@ -551,8 +551,6 @@ not install or authenticate the program. Built-in tools:
     omp           { "omp" }
                   https://omp.sh/
     opencode      { "opencode" }
-                  https://opencode.ai/docs/
-    opencode2     { "opencode2" }
                   https://opencode.ai/v2/docs
     pi            { "pi" }
                   https://pi.dev/
@@ -562,11 +560,10 @@ not install or authenticate the program. Built-in tools:
                   https://github.com/QwenLM/qwen-code
 
 All tools can use terminal titles emitted by their CLI, unless title reporting
-is disabled. Claude, Codex, OMP, OpenCode, and OpenCode 2 apply additional
-tool-specific parsing; other tools use the cleaned title directly. See
-|gents-tool-titles|. I haven't had time to test all existing CLI tools,
-however please file a bug if any specific tool is broken so we can get it
-sorted.
+is disabled. Claude, Codex, OMP, and OpenCode apply additional tool-specific
+parsing; other tools use the cleaned title directly. See |gents-tool-titles|.
+I haven't had time to test all existing CLI tools, however please file a bug
+if any specific tool is broken so we can get it sorted.
 
 Claude, Gemini, and Qwen have location writers described below. Other optional
 tool fields are absent by default.
@@ -689,7 +686,7 @@ Built-in parsers behave as follows:
                 setting, a different title format, or a later replacement
                 of the whole tui table prevents title reporting.
     opencode    Keeps text following the "OC | " prefix. Other titles clear
-    opencode2   the conversation title.
+                the conversation title.
     omp         Keeps the label after "π: " or "π <state> ", where state is
                 >, !, :, or any braille character (U+2800–U+28FF). Placeholders
                 and unknown formats clear the title. Activity changes alone
@@ -2629,9 +2626,9 @@ Practical tool-specific recipes are in `docs/recipes/ready.md`:
 https://github.com/amadeus/gents.nvim/tree/main/docs/recipes
 The signal's scope matters: an idle notification can also follow a
 cancellation, and an attention notification can request permission. Hook
-support varies by CLI and execution mode. OpenCode 1 and OpenCode 2 have
-separate recipes. OpenCode 2 requires a CLI plugin loaded through
-`cli.json` so it can notify the correct gents.nvim session.
+support varies by CLI and execution mode. OpenCode requires a CLI plugin
+loaded through `cli.json` so it can notify the correct gents.nvim session when
+a turn succeeds in the current conversation or an open CLI tab.
 
 Conversation titles and status ~
 

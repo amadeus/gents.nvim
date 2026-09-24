@@ -20,7 +20,6 @@ local builtin_names = {
   "grok",
   "omp",
   "opencode",
-  "opencode2",
   "pi",
   "q",
   "qwen",
@@ -63,7 +62,8 @@ T["built-in tools have names, commands, and install URLs"] = function()
   expect(result.tools.copilot.cmd, { "copilot", "--banner" })
   expect(result.tools.codex.cmd, { "codex", "-c", 'tui.terminal_title=["thread"]' })
   expect(result.tools.opencode.env, nil)
-  expect(result.tools.opencode2.env, nil)
+  expect(result.tools.opencode.cmd, { "opencode" })
+  expect(type(result.tools.opencode.title), "function")
   expect(result.tools.omp.cmd, { "omp" })
   expect(type(result.tools.omp.title), "function")
 end
@@ -90,7 +90,7 @@ T["tool overrides replace individual fields and remove names"] = function()
       grok = false,
       copilot = { cmd = { "my-copilot" } },
       opencode = { env = { CUSTOM = "1" } },
-      opencode2 = { env = {} },
+      amp = { env = {} },
       custom = { cmd = { "custom", "--tui", "" }, env = { UNSET = false } },
     },
   })
@@ -100,7 +100,7 @@ T["tool overrides replace individual fields and remove names"] = function()
   expect(result.tools.copilot.url, tools.defaults.copilot.url)
   expect(result.tools.opencode.env, { CUSTOM = "1" })
   expect(result.tools.opencode.cmd, { "opencode" })
-  expect(result.tools.opencode2.env, {})
+  expect(result.tools.amp.env, {})
   expect(result.tools.custom, {
     name = "custom",
     cmd = { "custom", "--tui", "" },
@@ -170,7 +170,6 @@ T["names sort built-in and custom tools together"] = function()
     "grok",
     "omp",
     "opencode",
-    "opencode2",
     "pi",
     "q",
     "qwen",

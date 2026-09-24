@@ -84,12 +84,6 @@ local builtins = {
     name = "opencode",
     cmd = { "opencode" },
     title = opencode_title,
-    url = "https://opencode.ai/docs/",
-  },
-  {
-    name = "opencode2",
-    cmd = { "opencode2" },
-    title = opencode_title,
     url = "https://opencode.ai/v2/docs",
   },
   {

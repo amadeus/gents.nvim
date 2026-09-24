@@ -271,7 +271,7 @@ function M.tools(callback, opts)
         local cmd = vim.deepcopy(launch_opts.cmd or item.data.cmd)
         vim.list_extend(cmd, launch_opts.args or {})
         vim.ui.input(
-          { prompt = "Gents: command: ", default = table.concat(cmd, " ") },
+          { prompt = "Gents: command: ", default = table.concat(cmd, " ") .. " " },
           function(value)
             if value == nil then
               return

@@ -1101,7 +1101,7 @@ T["edit arguments runs the full argv and retains the original tool"] = function(
   require("gents").new(nil, { args = { "-u" }, layout = "current" })
   local spec = get_spec()
   spec.actions.edit_args(assert(find_tool(spec, "cat")))
-  test.expect.equality(assert(input_opts).default, "cat -u")
+  test.expect.equality(assert(input_opts).default, "cat -u ")
   vim.cmd.tabnew()
   assert(input_callback)("  printf \t %s\\n edited-argv  ")
   local session = assert(require("gents").current())

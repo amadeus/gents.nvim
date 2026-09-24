@@ -29,6 +29,14 @@ end
 
 T["buffer provider reads the captured checkhealth buffer"] = function()
   vim.cmd("checkhealth gents")
+  local buf = vim.api.nvim_get_current_buf()
+  -- Capture context only once asynchronous health checks finish the report.
+  assert(
+    vim.wait(2000, function()
+      return vim.bo[buf].filetype == "checkhealth"
+    end, 10),
+    "Timed out waiting for health report"
+  )
   local ctx = context.capture()
   eq(vim.bo[ctx.buf].filetype, "checkhealth")
   local expected = table.concat(vim.api.nvim_buf_get_lines(ctx.buf, 0, -1, false), "\n")

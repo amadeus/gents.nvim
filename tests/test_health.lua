@@ -16,8 +16,15 @@ local T = test.new_set({
 ---@return string
 local function report()
   vim.cmd("checkhealth gents")
-  expect(vim.bo.filetype, "checkhealth")
-  return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  local buf = vim.api.nvim_get_current_buf()
+  -- Asynchronous health checks set the filetype after writing the report.
+  assert(
+    vim.wait(2000, function()
+      return vim.bo[buf].filetype == "checkhealth"
+    end, 10),
+    "Timed out waiting for health report"
+  )
+  return table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
 end
 
 ---@param value string

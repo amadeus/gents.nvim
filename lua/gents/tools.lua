@@ -8,8 +8,8 @@ local function claude_title(title)
 end
 
 ---@type gents.TitleParser
-local function codex_title(title, session)
-  return require("gents.titles").codex(title, session)
+local function codex_title(title)
+  return require("gents.titles").codex(title)
 end
 
 ---@type gents.TitleParser
@@ -76,7 +76,7 @@ local builtins = {
   },
   {
     name = "codex",
-    cmd = { "codex", "-c", 'tui.terminal_title=["thread"]' },
+    cmd = { "codex" },
     title = codex_title,
     url = "https://developers.openai.com/codex/cli",
   },

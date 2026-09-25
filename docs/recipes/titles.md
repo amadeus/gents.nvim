@@ -39,7 +39,7 @@ part of a title. Custom tools use their cleaned terminal title automatically.
 | Tool        | How gents.nvim handles its terminal title                                                                                                    |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `claude`    | Removes a leading activity marker (`✳`, `◐`, or `◑` followed by a space). `Claude Code` clears the title.                                    |
-| `codex`     | The built-in command requests `tui.terminal_title=["thread"]`. The parser omits `Codex` and unnamed thread UUIDs.                            |
+| `codex`     | Uses the thread-only title configured in [Codex setup](#codex-setup). The parser omits `Codex` and unnamed thread UUIDs.                     |
 | `opencode`  | Keeps the text after `OC \| `. Other titles clear the conversation title.                                                                    |
 | `omp`       | Removes `π: ` or `π ` followed by `>`, `!`, `:`, or any braille character (U+2800–U+28FF). Placeholders and unknown formats clear the title. |
 | Other tools | Uses the cleaned terminal title without a dedicated parser.                                                                                  |
@@ -56,11 +56,30 @@ can display that directory's basename as the conversation title. If an OMP
 extension supplies a different terminal title format, use a custom parser below.
 See the [OMP setup recipe](omp.md) for context sends and ready notifications.
 
-Codex's parser uses titles only when the final launch arguments explicitly
-request the thread-only format. A replacement `cmd` without that setting, a
-different format, or a later override of the whole `tui` table prevents title
-reporting. Changes to the format inside the running CLI cannot be detected from
-its launch arguments. Use a custom parser if you choose another format.
+## Codex setup
+
+To show Codex conversation names, merge this setting into `~/.codex/config.toml`
+(or `$CODEX_HOME/config.toml` if you use a custom config directory):
+
+```toml
+[tui]
+terminal_title = ["thread"]
+```
+
+If you already have a `[tui]` section, add or update `terminal_title` there
+instead of creating a second section. Start a new Codex session after saving.
+No helper script or gents.nvim command override is needed: the built-in command
+is simply `codex`. Keeping the setting in the config file avoids forcing Codex
+into embedded mode with a command-line configuration override.
+
+The parser expects the thread-only format and omits `Codex` and unnamed thread
+UUIDs. It does not read Codex's config or inspect launch arguments. Codex's
+default title includes activity and project information, so configure the
+thread-only format above for conversation names. If you choose another format,
+use a custom parser or disable title reporting below.
+
+See the [Codex title settings](https://learn.chatgpt.com/docs/config-file/config-sample)
+and [ready notification setup](ready.md#codex) for other settings in `[tui]`.
 
 ## Customize or disable titles
 
@@ -99,24 +118,11 @@ require("gents").setup({
 ```
 
 This changes title reporting for new sessions without changing the CLI's own
-output. To also stop requesting Codex title output, replace its launch command:
+output. To also disable Codex title output, set an empty list in its config file:
 
-```lua
-require("gents").setup({
-  tools = {
-    codex = {
-      cmd = { "codex", "-c", "tui.terminal_title=[]" },
-      title = false,
-    },
-  },
-})
-```
-
-A `cmd` override replaces the whole command. To append an override for just one
-session:
-
-```lua
-require("gents").new("codex", { args = { "-c", "tui.terminal_title=[]" } })
+```toml
+[tui]
+terminal_title = []
 ```
 
 ## Find sessions through native buffer tools

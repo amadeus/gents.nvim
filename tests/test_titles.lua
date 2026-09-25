@@ -37,10 +37,6 @@ local function new_stream(tool, code, terminator)
     tostring(code or 2),
     terminator or "\\007",
   }
-  if tool == "codex" then
-    -- The shell fixture replaces argv; retain the built-in title configuration.
-    vim.list_extend(cmd, { "-c", 'tui.terminal_title=["thread"]' })
-  end
   local session = assert(gents.new(tool or "cat", { cmd = cmd }))
   assert(session.job and session.job > 0)
   ---@cast session gents.test.Session
@@ -272,25 +268,15 @@ T["built-in parsers only remove known anchored prefixes"] = function()
   )
 end
 
-T["Codex only accepts titles when the effective argv selects thread alone"] = function()
+T["Codex accepts configured titles without command-line overrides"] = function()
   local session = new_stream()
   local parser = require("gents.tools").defaults.codex.title
   assert(type(parser) == "function")
-  local thread, project = 'tui.terminal_title=["thread"]', 'tui.terminal_title=["project"]'
-  ---@type { cmd: string[], expected?: string }[]
-  local cases = {
-    { cmd = { "codex" } },
-    { cmd = { "codex", "-c", thread }, expected = "Conversation" },
-    { cmd = { "codex", "--config", thread }, expected = "Conversation" },
-    { cmd = { "codex", "--config=" .. thread }, expected = "Conversation" },
-    { cmd = { "codex", "-c" .. thread }, expected = "Conversation" },
-    { cmd = { "codex", "-c", thread, "-c", project } },
-    { cmd = { "codex", "-c", project, "-c", thread }, expected = "Conversation" },
-    { cmd = { "codex", "-c", thread, "--config", "tui={}" } },
-  }
-  for _, case in ipairs(cases) do
-    session.cmd = case.cmd
-    eq(parser("Conversation", session), case.expected)
+  for _, cmd in ipairs({ { "codex" }, { "codex", "resume", "--last" } }) do
+    session.cmd = cmd
+    eq(parser("Conversation", session), "Conversation")
+    eq(parser("Codex", session), nil)
+    eq(parser("019c6e27-e55b-73d1-87d8-4e01f1f75043", session), nil)
   end
 end
 

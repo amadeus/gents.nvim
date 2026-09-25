@@ -60,7 +60,7 @@ T["built-in tools have names, commands, and install URLs"] = function()
     expect(assert(tool.url):match("^https://") ~= nil, true)
   end
   expect(result.tools.copilot.cmd, { "copilot", "--banner" })
-  expect(result.tools.codex.cmd, { "codex", "-c", 'tui.terminal_title=["thread"]' })
+  expect(result.tools.codex.cmd, { "codex" })
   expect(result.tools.opencode.env, nil)
   expect(result.tools.opencode.cmd, { "opencode" })
   expect(type(result.tools.opencode.title), "function")

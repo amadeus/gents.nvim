@@ -17,47 +17,9 @@ function M.claude(title)
   end
 end
 
----@param cmd string[]
----@return boolean
-local function codex_thread_title(cmd)
-  ---@type string?
-  local format
-  local i = 2
-  while i <= #cmd do
-    local arg = cmd[i]
-    if arg == "--" then
-      break
-    end
-    ---@type string?
-    local config
-    if arg == "-c" or arg == "--config" then
-      i = i + 1
-      config = cmd[i]
-    else
-      config = arg:match("^%-%-config=(.*)$") or arg:match("^%-c=?(.+)$")
-    end
-    if config then
-      local key, value = config:match("^%s*([%w_%.]+)%s*=%s*(.-)%s*$")
-      if key == "tui.terminal_title" then
-        format = value
-      elseif key == "tui" then
-        format = nil
-      end
-    end
-    i = i + 1
-  end
-  -- Bare titles are only meaningful when the launch requests the thread item
-  -- alone. Respect command/config overrides without mislabeling project/status.
-  return format ~= nil and format:match([[^%[%s*["']thread["']%s*%]$]]) ~= nil
-end
-
 ---@param title string
----@param session gents.Session
 ---@return string?
-function M.codex(title, session)
-  if not codex_thread_title(session.cmd) then
-    return
-  end
+function M.codex(title)
   -- The thread title item falls back to a thread UUID before it has a name.
   local uuid =
     title:match("^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$")

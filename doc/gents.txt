@@ -536,7 +536,7 @@ not install or authenticate the program. Built-in tools:
                   https://ampcode.com/docs/cli
     claude        { "claude" }
                   https://code.claude.com/docs/en/quickstart
-    codex         { "codex", "-c", 'tui.terminal_title=["thread"]' }
+    codex         { "codex" }
                   https://developers.openai.com/codex/cli
     copilot       { "copilot", "--banner" }
                   https://github.com/github/copilot-cli
@@ -680,11 +680,9 @@ Built-in parsers behave as follows:
 
     claude      Removes the leading activity marker (✳, ◐, or ◑ followed
                 by a space); "Claude Code" clears the title.
-    codex       Uses titles only when the final launch arguments explicitly
-                configure tui.terminal_title=["thread"]. "Codex" and unnamed
-                thread UUIDs clear the title. A replacement cmd without this
-                setting, a different title format, or a later replacement
-                of the whole tui table prevents title reporting.
+    codex       Expects the thread-only title format configured in Codex.
+                "Codex" and unnamed thread UUIDs clear the title. See the
+                Codex setup below.
     opencode    Keeps text following the "OC | " prefix. Other titles clear
                 the conversation title.
     omp         Keeps the label after "π: " or "π <state> ", where state is
@@ -694,6 +692,21 @@ Built-in parsers behave as follows:
     others      Use the cleaned terminal title without a dedicated parser.
                 Please report any bugs you find with other tools so we can
                 provide proper custom parsers
+
+For Codex conversation names, merge this into ~/.codex/config.toml (or
+$CODEX_HOME/config.toml if you use a custom config directory):
+>toml
+    [tui]
+    terminal_title = ["thread"]
+<
+Add or update terminal_title in the existing [tui] section if present, then
+start a new Codex session. The built-in command is simply "codex"; no helper
+script or command-line override is needed. Keeping this setting in the config
+file avoids forcing Codex into embedded mode with a command-line override.
+The parser does not read Codex's config or inspect launch arguments. Codex's
+default title includes activity and project information. Use the thread-only
+format above, a custom parser, or title = false.
+See docs/recipes/titles.md for the complete setup and upstream reference.
 
 A title callback receives the cleaned title and the |gents.Session| and
 returns a string or nil. Nil clears the title; it does not fall back to raw
@@ -714,17 +727,11 @@ cwd or its basename clear the title.
     })
 <
 title = false disables reporting without changing the CLI command or its
-own title output. To also stop requesting Codex title output, replace its
-command, for example:
->lua
-    require("gents").setup({
-      tools = {
-        codex = {
-          cmd = { "codex", "-c", "tui.terminal_title=[]" },
-          title = false,
-        },
-      },
-    })
+own title output. To also disable Codex title output, set an empty list in
+its config file:
+>toml
+    [tui]
+    terminal_title = []
 <
 Title support depends on the CLI emitting a usable signal. Disabled title
 settings produce no updates; empty signals may not reach gents.nvim, and a
@@ -733,7 +740,7 @@ Generic titles may describe a project, status, or screen instead of a
 conversation.
 
 OpenCode can shorten a title before sending it. Changing Codex's title format
-inside the running CLI cannot be detected by inspecting its launch arguments.
+requires a matching parser if it no longer contains only the thread name.
 Exit retains the last title and ignores later updates. See |gents-events|
 for GentsSessionTitle and |gents.TitleParser| for the callback signature.
 

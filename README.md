@@ -1,4 +1,4 @@
-# Gents.nvim
+# gents.nvim
 
 Gents.nvim brings CLI agents into your existing Neovim workflow, running the
 tools you're already familiar with in native terminal buffers.

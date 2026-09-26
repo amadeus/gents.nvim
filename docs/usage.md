@@ -30,7 +30,7 @@ available actions and their shortcuts, so you can discover how to place, hide,
 and close sessions as you use it. Install it alongside gents.nvim and enable it
 with `picker = "snacks"`, as shown below.
 
-Gents.nvim installs no keymaps by default. These four cover the everyday
+gents.nvim installs no keymaps by default. These four cover the everyday
 flows; choose different keys if they fit your configuration better:
 
 ```lua

@@ -1,8 +1,8 @@
 *gents.txt*   Run CLI agents in Neovim terminal buffers
 
-GENTS.NVIM                                                       *gents.nvim*
+gents.nvim                                                       *gents.nvim*
 
-Gents.nvim runs your existing CLI agents in Neovim terminal buffers. Start
+gents.nvim runs your existing CLI agents in Neovim terminal buffers. Start
 several sessions, arrange their windows, and send context from your editor.
 Commands, Lua functions, pickers, and User events let you fit those sessions
 into your own workflow.

@@ -72,11 +72,16 @@ No helper script or gents.nvim command override is needed: the built-in command
 is simply `codex`. Keeping the setting in the config file avoids forcing Codex
 into embedded mode with a command-line configuration override.
 
-The parser expects the thread-only format and omits `Codex` and unnamed thread
-UUIDs. It does not read Codex's config or inspect launch arguments. Codex's
-default title includes activity and project information, so configure the
-thread-only format above for conversation names. If you choose another format,
-use a custom parser or disable title reporting below.
+The parser removes the trailing spinner Codex adds while generating the thread
+name, so `Fix tests ⠋` becomes `Fix tests`. Spinner changes do not rename the
+buffer or emit another title event. `Codex`, unnamed thread UUIDs, and
+spinner-only titles clear the title.
+
+The parser expects the thread-only format. It does not read Codex's config or
+inspect launch arguments. Codex's default title includes activity and project
+information, so configure the thread-only format above for conversation names.
+If you choose another format, use a custom parser or disable title reporting
+below.
 
 See the [Codex title settings](https://learn.chatgpt.com/docs/config-file/config-sample)
 and [ready notification setup](ready.md#codex) for other settings in `[tui]`.

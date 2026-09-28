@@ -280,6 +280,52 @@ T["Codex accepts configured titles without command-line overrides"] = function()
   end
 end
 
+T["Codex title generation spinners preserve the conversation title"] = function()
+  local session = new_stream("codex")
+  for _, frame in ipairs({ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }) do
+    send(session, { "Keep ⠋ in this title " .. frame })
+    eq(session.title, "Keep ⠋ in this title")
+  end
+  send(session, { "Keep ⠋ in this title" })
+  eq(observed, { { id = session.id, title = "Keep ⠋ in this title" } })
+  eq(
+    vim.api.nvim_buf_get_name(session.buf),
+    "gents://" .. session.id .. "/codex · Keep ⠋ in this title"
+  )
+  eq(ready_count, 0)
+end
+
+T["Codex title generation spinners do not turn placeholders into titles"] = function()
+  local session = new_stream("codex")
+  for _, frame in ipairs({ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }) do
+    for _, placeholder in ipairs({
+      "",
+      "Codex ",
+      "019C6E27-E55B-73D1-87D8-4E01F1F75043 ",
+      session.cwd .. " ",
+      vim.fs.basename(session.cwd) .. " ",
+    }) do
+      send(session, { "Task", placeholder .. frame })
+      eq(session.title, nil)
+    end
+  end
+  eq(vim.api.nvim_buf_get_name(session.buf), "gents://" .. session.id .. "/" .. session.label)
+  eq(ready_count, 0)
+end
+
+T["Codex only removes a known spinner at the end of a title"] = function()
+  local parser = require("gents.titles").codex
+  for _, title in ipairs({
+    "⠋ Keep this title",
+    "Keep ⠋ inside",
+    "Attached⠋",
+    "Other braille ⠁",
+  }) do
+    eq(parser(title), title)
+  end
+  eq(parser("Keep ⠋ ⠙"), "Keep ⠋")
+end
+
 T["built-in and custom tools without parsers use cleaned terminal titles"] = function()
   require("gents.config").get().tools.cat.title = nil
   local custom, builtin = new_stream(), new_stream("gemini")

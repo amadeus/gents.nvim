@@ -20,6 +20,18 @@ end
 ---@param title string
 ---@return string?
 function M.codex(title)
+  -- Codex appends a spinner while generating the thread name, even in
+  -- thread-only titles.
+  for _, frame in ipairs({ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }) do
+    if title == frame then
+      return nil
+    end
+    local suffix = " " .. frame
+    if vim.endswith(title, suffix) then
+      title = title:sub(1, -#suffix - 1)
+      break
+    end
+  end
   -- The thread title item falls back to a thread UUID before it has a name.
   local uuid =
     title:match("^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$")

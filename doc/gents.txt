@@ -681,7 +681,7 @@ Built-in parsers behave as follows:
     claude      Removes the leading activity marker (✳, ◐, or ◑ followed
                 by a space); "Claude Code" clears the title.
     codex       Expects the thread-only title format configured in Codex.
-                Removes the trailing title-generation spinner. "Codex", unnamed
+                Removes leading and trailing spinners. "Codex", unnamed
                 thread UUIDs, and spinner-only titles clear the title. See the
                 Codex setup below.
     opencode    Keeps text following the "OC | " prefix. Other titles clear

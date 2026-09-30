@@ -283,6 +283,8 @@ end
 T["Codex title generation spinners preserve the conversation title"] = function()
   local session = new_stream("codex")
   for _, frame in ipairs({ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }) do
+    send(session, { frame .. " Keep ⠋ in this title" })
+    eq(session.title, "Keep ⠋ in this title")
     send(session, { "Keep ⠋ in this title " .. frame })
     eq(session.title, "Keep ⠋ in this title")
   end
@@ -300,12 +302,14 @@ T["Codex title generation spinners do not turn placeholders into titles"] = func
   for _, frame in ipairs({ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }) do
     for _, placeholder in ipairs({
       "",
-      "Codex ",
-      "019C6E27-E55B-73D1-87D8-4E01F1F75043 ",
-      session.cwd .. " ",
-      vim.fs.basename(session.cwd) .. " ",
+      "Codex",
+      "019C6E27-E55B-73D1-87D8-4E01F1F75043",
+      session.cwd,
+      vim.fs.basename(session.cwd),
     }) do
-      send(session, { "Task", placeholder .. frame })
+      send(session, { "Task", frame .. " " .. placeholder })
+      eq(session.title, nil)
+      send(session, { "Task", placeholder .. " " .. frame })
       eq(session.title, nil)
     end
   end
@@ -313,16 +317,18 @@ T["Codex title generation spinners do not turn placeholders into titles"] = func
   eq(ready_count, 0)
 end
 
-T["Codex only removes a known spinner at the end of a title"] = function()
+T["Codex only removes known spinners separated from the title at its edges"] = function()
   local parser = require("gents.titles").codex
   for _, title in ipairs({
-    "⠋ Keep this title",
     "Keep ⠋ inside",
+    "⠋Attached",
     "Attached⠋",
+    "⠁ Other braille",
     "Other braille ⠁",
   }) do
     eq(parser(title), title)
   end
+  eq(parser("⠋ Keep this title"), "Keep this title")
   eq(parser("Keep ⠋ ⠙"), "Keep ⠋")
 end
 

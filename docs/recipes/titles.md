@@ -72,8 +72,8 @@ No helper script or gents.nvim command override is needed: the built-in command
 is simply `codex`. Keeping the setting in the config file avoids forcing Codex
 into embedded mode with a command-line configuration override.
 
-The parser removes the trailing spinner Codex adds while generating the thread
-name, so `Fix tests ⠋` becomes `Fix tests`. Spinner changes do not rename the
+The parser removes leading and trailing Codex spinners, so `⠋ Fix tests` and
+`Fix tests ⠋` both become `Fix tests`. Spinner changes do not rename the
 buffer or emit another title event. `Codex`, unnamed thread UUIDs, and
 spinner-only titles clear the title.
 

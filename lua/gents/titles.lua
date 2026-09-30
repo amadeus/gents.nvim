@@ -20,11 +20,16 @@ end
 ---@param title string
 ---@return string?
 function M.codex(title)
-  -- Codex appends a spinner while generating the thread name, even in
-  -- thread-only titles.
+  -- Activity and title-generation spinners can appear even in thread-only
+  -- titles.
   for _, frame in ipairs({ "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }) do
     if title == frame then
       return nil
+    end
+    local prefix = frame .. " "
+    if vim.startswith(title, prefix) then
+      title = title:sub(#prefix + 1)
+      break
     end
     local suffix = " " .. frame
     if vim.endswith(title, suffix) then

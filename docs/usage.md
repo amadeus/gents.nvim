@@ -567,6 +567,39 @@ To choose placement, pass `{ layout = "float" }` to `resume_at_cursor`. You can
 also pass `args` and `label`; `cmd` and `resume` overrides are rejected because
 the reference supplies the tool and selector. No mapping is installed by default.
 
+## Extend `gf` for conversation references
+
+Enable `extend_gf` to use Normal-mode `gf` on `tool:id` or `tool:[identifier]`:
+
+```lua
+require("gents").setup({ extend_gf = true })
+```
+
+It is off by default. Ordinary text delegates to the previous effective `gf`
+mapping, or native file opening when there was no mapping. Counts, file lookup
+options, callback/expression maps, remapping, and script-local mappings are
+preserved. Recognized references that fail to launch report an error.
+
+The extension applies to existing and newly entered buffers, including terminal
+output in Normal mode. It leaves Visual `gf`, `gF`, window-opening variants, and
+Terminal input alone. Wrappers are installed after buffer/filetype handlers
+finish; disabling the option restores mappings still owned by Gents. Later user
+or plugin replacements take precedence and remain intact on repeated setup.
+
+With lazy.nvim, load Gents at startup for this feature:
+
+```lua
+{
+  "amadeus/gents.nvim",
+  lazy = false,
+  opts = { extend_gf = true },
+}
+```
+
+A spec loaded only by `cmd = "Gents"` cannot extend `gf` before that command has
+loaded the plugin. You can also keep the feature disabled and use the explicit
+`resume_at_cursor` mapping above.
+
 ## Copy a conversation reference
 
 Inside an agent buffer, run `:Gents copy` to copy its current `tool:id` reference

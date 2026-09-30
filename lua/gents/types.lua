@@ -87,6 +87,7 @@
 ---@field float? gents.FloatOptions
 ---@field buflisted? boolean List newly created session buffers in normal buffer lists; defaults to false.
 ---@field insert_on_focus? boolean Enter terminal input when focusing a live session; defaults to false.
+---@field extend_gf? boolean Extend Normal-mode gf for conversation references; defaults to false.
 ---@field picker? gents.Picker
 ---@field picker_help? boolean Show binding hints in the built-in Snacks picker; defaults to true.
 ---@field icons? gents.IconsOptions
@@ -100,6 +101,7 @@
 ---@field float gents.FloatConfig
 ---@field buflisted boolean
 ---@field insert_on_focus boolean
+---@field extend_gf boolean
 ---@field picker? gents.Picker
 ---@field picker_help boolean
 ---@field icons gents.Icons

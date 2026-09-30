@@ -18,6 +18,9 @@ function M.setup(opts)
   if next(config.keys) ~= nil or package.loaded["gents.keys"] then
     require("gents.keys").setup(config.keys)
   end
+  if config.extend_gf or package.loaded["gents.gf"] then
+    require("gents.gf").setup(config.extend_gf)
+  end
 end
 
 ---@param tool? string

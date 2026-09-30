@@ -203,7 +203,9 @@ require("gents").new("codex", { resume = "<thread-id>" })
 See [resuming conversations](docs/usage.md#resume-a-saved-conversation) for tool
 support, history-file selectors, and picker behavior.
 Use `require("gents").resume_at_cursor()` to follow a `tool:id` reference in text;
-the guide also shows an optional keymap.
+enable `extend_gf = true` to follow references with Normal-mode `gf`, or use
+your own mapping. The [guide](docs/usage.md#extend-gf-for-conversation-references)
+shows startup loading and fallback behavior.
 
 ## Documentation
 
@@ -236,7 +238,9 @@ your snacks.nvim checkout, `MINI_PICK_DIR` to your mini.nvim or mini.pick
 checkout, both `TELESCOPE_DIR` and `PLENARY_DIR` to your telescope.nvim and
 plenary.nvim checkouts, or `FZF_LUA_DIR` to your fzf-lua checkout (with
 `FZF_BIN` pointing at fzf when it is not on your PATH) when running
-`make test`.
+`make test`. Optional `gf` integration coverage also accepts `FUGITIVE_DIR`,
+`DIFFVIEW_DIR`, and `CANOLA_DIR`; `SNACKS_DIR` includes its terminal coverage.
+Canola tests use a local fake SSH transport.
 
 ## Inspiration
 

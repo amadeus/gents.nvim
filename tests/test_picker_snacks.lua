@@ -266,7 +266,7 @@ T["built-in tool shortcuts"] = test.new_set({
     for _, from in ipairs(windows) do
       local origin, tab = vim.api.nvim_get_current_win(), vim.api.nvim_get_current_tabpage()
       set_input(function(opts, callback)
-        test.expect.equality(assert(opts).default, "cat")
+        test.expect.equality(assert(opts).default, "cat ")
         callback("cat -u")
       end)
       require("gents").new()
@@ -355,7 +355,7 @@ T["built-in session shortcuts"] = test.new_set({
 T["actions ordering"] = test.new_set({
   parametrize = {
     { "empty", { "new", "send" } },
-    { "session", { "focus", "hide", "toggle", "close", "pick", "send", "new" } },
+    { "session", { "copy", "focus", "hide", "toggle", "close", "pick", "send", "new" } },
     { "editor", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
   },
 }, {

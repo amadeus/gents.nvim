@@ -415,6 +415,7 @@ Complete defaults (the empty tools override preserves all built-in tools):
       float = { width = 0.8, height = 0.8, border = "rounded" },
       buflisted = false,
       insert_on_focus = false,
+      extend_gf = false,
       picker = nil,
       picker_help = true,
       icons = { visible = "●", hidden = "○" },
@@ -459,6 +460,32 @@ buflisted                                            *gents-config.buflisted*
     Hiding a session or retaining its output after exit preserves this value.
     Changing setup does not alter existing buffers. See |gents-health| for
     finding unlisted buffers.
+
+extend_gf                                           *gents-config.extend_gf*
+    Type: boolean. Default: false.
+    Extend Normal-mode gf to follow |gents-conversation-references| through
+    |gents.resume_at_cursor()|. Ordinary text delegates to the previous effective
+    global/buffer mapping, or native gf when unmapped. Counts, expression and
+    callback maps, remapping, script-local references, and file lookup options
+    are preserved. Errors on recognized references notify without filename
+    fallback. Visual gf, gF, window-opening variants, and Terminal input retain
+    their behavior.
+
+    Buffer-local wrappers install on the next scheduled event-loop turn, after
+    setup or buffer/filetype/terminal entry handlers. Disabling restores maps
+    still owned by Gents. Later user or plugin replacements take precedence;
+    the extension stops managing that buffer until disabled and enabled again.
+    Changes to a global gf take precedence where the wrapper was extending a
+    global or native mapping. A previous buffer-local gf retains precedence
+    over global mappings, following Neovim's normal rules.
+
+    Setup must run before the feature can work. With lazy.nvim, use a startup
+    spec such as:
+>lua
+    { "amadeus/gents.nvim", lazy = false, opts = { extend_gf = true } }
+<
+    Command-only lazy loading cannot extend gf until Gents has been loaded.
+    Leave this off to choose another key for |gents.resume_at_cursor()|.
 
 insert_on_focus                                *gents-config.insert_on_focus*
     Type: boolean. Default: false.
@@ -2253,6 +2280,7 @@ Fields accepted by |gents.setup()|; all are optional:
     float?            gents.FloatOptions    80% width/height, rounded border
     buflisted?        boolean               false
     insert_on_focus?  boolean               false
+    extend_gf?        boolean               false
     picker?           gents.Picker          nil (vim.ui.select)
     picker_help?      boolean               true
     icons?            gents.IconsOptions    visible = "●", hidden = "○"
@@ -2267,7 +2295,7 @@ See |gents-config| for validation, merging, and when each setting applies.
 
                                                                *gents.Config*
 The resolved configuration has the same field names. layout, float,
-buflisted, insert_on_focus, picker_help, icons, on_exit, tools, prompts, and
+buflisted, insert_on_focus, extend_gf, picker_help, icons, on_exit, tools, prompts, and
 keys are present; picker may be nil. float is |gents.FloatConfig|, icons is
 |gents.Icons|, and tools maps names to complete |gents.Tool| objects. This type
 describes resolved values; |gents.setup()| does not return the configuration.

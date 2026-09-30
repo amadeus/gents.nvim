@@ -207,6 +207,10 @@ enable `extend_gf = true` to follow references with Normal-mode `gf`, or use
 your own mapping. The [guide](docs/usage.md#extend-gf-for-conversation-references)
 shows startup loading and fallback behavior.
 
+With `extend_gf = true`, load gents.nvim at startup (`lazy = false` in lazy.nvim).
+Command or key triggers alone leave the extension inactive until Gents loads;
+pressing `gf` does not load it.
+
 ## Documentation
 
 Use `:help gents.nvim` for the complete reference, or start with these guides:

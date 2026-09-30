@@ -479,12 +479,13 @@ extend_gf                                           *gents-config.extend_gf*
     global or native mapping. A previous buffer-local gf retains precedence
     over global mappings, following Neovim's normal rules.
 
-    Setup must run before the feature can work. With lazy.nvim, use a startup
-    spec such as:
+    With extend_gf enabled, load gents.nvim at startup so gf works immediately.
+    With lazy.nvim, set lazy = false, even if the spec defines cmd or keys:
 >lua
     { "amadeus/gents.nvim", lazy = false, opts = { extend_gf = true } }
 <
-    Command-only lazy loading cannot extend gf until Gents has been loaded.
+    Command or key triggers alone leave the extension inactive until Gents
+    loads. Pressing gf does not load the plugin.
     Leave this off to choose another key for |gents.resume_at_cursor()|.
 
 insert_on_focus                                *gents-config.insert_on_focus*

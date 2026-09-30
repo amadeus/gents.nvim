@@ -586,7 +586,8 @@ Terminal input alone. Wrappers are installed after buffer/filetype handlers
 finish; disabling the option restores mappings still owned by Gents. Later user
 or plugin replacements take precedence and remain intact on repeated setup.
 
-With lazy.nvim, load Gents at startup for this feature:
+With `extend_gf = true`, load gents.nvim at startup so `gf` works immediately.
+With lazy.nvim, set `lazy = false`, even if your spec also defines `cmd` or `keys`:
 
 ```lua
 {
@@ -596,9 +597,9 @@ With lazy.nvim, load Gents at startup for this feature:
 }
 ```
 
-A spec loaded only by `cmd = "Gents"` cannot extend `gf` before that command has
-loaded the plugin. You can also keep the feature disabled and use the explicit
-`resume_at_cursor` mapping above.
+Command or key triggers alone leave the extension inactive until Gents loads;
+pressing `gf` does not load it. You can also keep the feature disabled and use
+the explicit `resume_at_cursor` mapping above.
 
 ## Copy a conversation reference
 

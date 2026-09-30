@@ -525,6 +525,48 @@ Custom tools can supply `resume = function(identifier, cwd)` returning an
 argument list. Set `resume = false` in a tool override to disable its inherited
 adapter. See `:help gents.ResumeArgs` for the callback contract.
 
+### Follow a reference under the cursor
+
+You can keep a conversation reference in notes, comments, or terminal output,
+then open it from Neovim. Put the cursor on either reference form and call
+`require("gents").resume_at_cursor()`:
+
+```text
+codex:123e4567-e89b-12d3-a456-426614174000
+claude:[review authentication]
+aider:[./saved [old] history.md]
+```
+
+Use the exact configured tool name followed by a colon. Bare identifiers end
+at whitespace, backticks, quotes, parentheses, square/curly/angle brackets,
+commas, semicolons, exclamation marks, or question marks. Dots and path
+separators stay in the identifier, so use `codex:[identifier].` when a sentence
+ends with a period. The bracketed form preserves spaces and punctuation;
+inner square brackets must balance, and backslashes are literal.
+
+The action follows only the reference containing the cursor on the current
+line. It works inside inline backticks and Markdown links, and on terminal
+output in Normal mode. Ordinary files, URLs, and unknown prefixes return nil.
+A malformed reference or unsupported tool raises an error. The CLI checks
+whether the conversation exists after launch.
+
+Add your own Normal-mode keymap, such as `<leader>ar` or `ga`:
+
+```lua
+vim.keymap.set("n", "<leader>ar", function()
+  local ok, session = pcall(require("gents").resume_at_cursor)
+  if not ok then
+    vim.notify(tostring(session), vim.log.levels.ERROR)
+  elseif not session then
+    vim.notify("gents.nvim: no conversation reference under the cursor")
+  end
+end, { desc = "Resume conversation under cursor" })
+```
+
+To choose placement, pass `{ layout = "float" }` to `resume_at_cursor`. You can
+also pass `args` and `label`; `cmd` and `resume` overrides are rejected because
+the reference supplies the tool and selector. No mapping is installed by default.
+
 ## Configure CLI tools
 
 Use `tools` to change how a CLI starts, add a tool, or remove one you do not

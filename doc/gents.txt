@@ -687,6 +687,53 @@ actions. A custom tool can implement |gents.ResumeArgs|:
 Omitted fields retain built-in callbacks. :Gents new continues to pass CLI
 arguments through unchanged; its --resume arguments are not Gents options.
 
+Following references ~                         *gents-conversation-references*
+
+Use |gents.resume_at_cursor()| to open a saved conversation referenced in text.
+Place the cursor anywhere on a reference in the current line and call the Lua
+action. It creates and focuses a new terminal through |gents.new()|. This also
+works on terminal output in Normal mode. Example reference forms:
+>
+    codex:123e4567-e89b-12d3-a456-426614174000
+    claude:[review authentication]
+    aider:[./saved [old] history.md]
+<
+Use the configured tool name exactly, including hyphens or other characters
+in custom tool names. Bare references use tool:identifier. Whitespace and these
+characters delimit a bare reference:
+>
+    ` " ' ( ) [ ] { } < > , ; ! ?
+<
+Dots, colons, slashes, and backslashes remain part of a bare identifier. In
+prose, use codex:[identifier]. to keep a sentence's period outside the selector.
+Use tool:[identifier] for spaces or delimiter characters. Inner square brackets
+must balance; their contents and backslashes remain literal, with no escaping.
+Only the reference containing the cursor is followed. Wrapping backticks,
+quotes, parentheses, and Markdown link syntax are outside the reference.
+
+Ordinary filenames, URLs, and unknown tool prefixes return nil. Removed tools
+are unknown prefixes; enabled = false only hides a tool from the picker and
+does not prevent an explicit reference. A recognized reference with an empty
+selector or an unclosed bracket raises an error. The normal resume validation
+rejects invalid selectors, unsupported/disabled adapters, and missing Aider
+history files. It never substitutes a fresh conversation or a tool picker.
+The CLI still owns checking whether the saved conversation exists.
+
+gents.nvim installs no mapping for this action. Bind a key explicitly:
+>lua
+    vim.keymap.set("n", "<leader>ar", function()
+      local ok, session = pcall(require("gents").resume_at_cursor)
+      if not ok then
+        vim.notify(tostring(session), vim.log.levels.ERROR)
+      elseif not session then
+        vim.notify("gents.nvim: no conversation reference under the cursor")
+      end
+    end, { desc = "Resume conversation under cursor" })
+<
+You can use ga or another key in this example. The binding reports errors
+without trying to open the reference as a filename. See |gents.ResumeAtCursorOptions|
+for per-call layout, label, and additional CLI arguments.
+
 Commands and environments ~
 
 cmd is an argv list passed directly to the job, not a shell command string.
@@ -1897,6 +1944,21 @@ new({tool}?, {opts}?) -> gents.Session?
       layout = "vsplit",
     })
 <
+                                                  *gents.resume_at_cursor()*
+resume_at_cursor({opts}?) -> gents.Session?
+    Follow a configured tool:identifier or tool:[identifier] reference under
+    the cursor on the current line; see |gents-conversation-references|.
+    {opts}: |gents.ResumeAtCursorOptions|. On success, return the new session
+    with the same launch/focus behavior as |gents.new()|. The invoking window's
+    directory is used, including for relative Aider history paths.
+    With no reference, return nil and leave the editor unchanged. Malformed
+    references, invalid selectors, unsupported adapters, invalid options, and
+    synchronous process-launch failures raise errors. A CLI that launches but
+    cannot restore the conversation reports that failure in its terminal.
+    Does not open a picker, install mappings, or modify the caller's options.
+>lua
+    require("gents").resume_at_cursor({ layout = "float", label = "review" })
+<
                                                           *gents.sessions()*
 sessions() -> gents.Session[]
     Return a new list of all registered sessions, sorted by ascending ID.
@@ -2169,6 +2231,17 @@ cmd is mutually exclusive with args and resume. A cmd list must contain at
 least one string and start with a nonempty executable name. Arguments are literal;
 they are not parsed by a shell. Omitting label generates one from the tool
 name. See |gents.new()| and |gents-sessions|.
+
+                                                *gents.ResumeAtCursorOptions*
+An optional table passed to |gents.resume_at_cursor()|:
+
+    args?    string[]        Append after the generated resume arguments.
+    layout?  gents.Layout    Placement for the new session; default: setup layout.
+    label?   string          A unique, nonblank targeting label.
+
+cmd and resume are not accepted. The reference chooses the tool and selector;
+the configured tool command and its resume adapter build argv. Arguments remain
+literal and the caller's table is unchanged. See |gents-resume|.
 
                                                           *gents.ShowOptions*
 An optional table passed to |gents.show()|:

@@ -32,6 +32,26 @@ function M.new(tool, opts)
   return new_session(tool, opts)
 end
 
+---Resume the conversation reference under the cursor; nil means no reference.
+---@param opts? gents.ResumeAtCursorOptions
+---@return gents.Session?
+function M.resume_at_cursor(opts)
+  local reference = require("gents.references").parse(
+    vim.api.nvim_get_current_line(),
+    vim.api.nvim_win_get_cursor(0)[2],
+    require("gents.config").get().tools
+  )
+  if not reference then
+    return
+  end
+  ---@type gents.NewOptions
+  local launch_opts = vim.deepcopy(opts or {})
+  assert(launch_opts.cmd == nil, "gents: resume_at_cursor does not accept a cmd override")
+  assert(launch_opts.resume == nil, "gents: resume_at_cursor uses the identifier under the cursor")
+  launch_opts.resume = reference.identifier
+  return M.new(reference.tool, launch_opts)
+end
+
 ---@return gents.Session[]
 function M.sessions()
   return require("gents.session").list()

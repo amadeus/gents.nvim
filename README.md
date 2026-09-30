@@ -200,6 +200,8 @@ require("gents").new("codex", { resume = "<thread-id>" })
 
 See [resuming conversations](docs/usage.md#resume-a-saved-conversation) for tool
 support, history-file selectors, and picker behavior.
+Use `require("gents").resume_at_cursor()` to follow a `tool:id` reference in text;
+the guide also shows an optional keymap.
 
 ## Documentation
 

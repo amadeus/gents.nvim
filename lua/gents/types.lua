@@ -52,6 +52,10 @@
 ---@field layout? gents.Layout
 ---@field label? string
 
+---@class gents.ResumeAtCursorOptions: gents.NewOptions
+---@field cmd? nil Complete argv overrides are not supported.
+---@field resume? nil The selector is taken from the reference under the cursor.
+
 ---@class gents.ShowOptions
 ---@field layout? gents.Layout Explicit placement; preserves existing session views.
 

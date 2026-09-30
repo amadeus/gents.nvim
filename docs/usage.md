@@ -567,6 +567,27 @@ To choose placement, pass `{ layout = "float" }` to `resume_at_cursor`. You can
 also pass `args` and `label`; `cmd` and `resume` overrides are rejected because
 the reference supplies the tool and selector. No mapping is installed by default.
 
+## Copy a conversation reference
+
+Inside an agent buffer, run `:Gents copy` to copy its current `tool:id` reference
+to the unnamed register. Use `:Gents copy --register a` for a named register, or
+`--register +` for the clipboard. The Actions menu also offers **copy** inside
+agent buffers, including retained buffers after the CLI exits.
+
+The CLI must report its current conversation ID. Configure the optional
+[conversation integration](recipes/conversations.md) for your tool first; until
+an ID is reported, copying raises an error and leaves the register untouched.
+Fresh conversations and conversation switches use the IDs reported by the CLI.
+
+The Lua equivalent returns the copied text:
+
+```lua
+local reference = require("gents").copy_reference({ register = "a" })
+```
+
+References containing spaces or delimiters use `tool:[identifier]`. Paste the
+reference into a file, then follow it with your `resume_at_cursor` mapping.
+
 ## Configure CLI tools
 
 Use `tools` to change how a CLI starts, add a tool, or remove one you do not

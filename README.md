@@ -173,9 +173,11 @@ Adapters for [mini.pick](https://github.com/nvim-mini/mini.pick),
 | `:Gents toggle`           | Hide visible sessions in the current tab, or summon a session.           |
 | `:Gents hide`             | Hide the selected visible session's windows in the current tab.         |
 | `:Gents close`            | Stop the selected CLI and delete its buffer.                            |
+| `:Gents copy`             | Copy the current agent buffer's conversation reference.                 |
 | `:Gents send`             | Choose file references or text to send to an agent.                     |
 
-Commands that need a session use the session in the current buffer, the only
+`:Gents copy` requires an agent buffer and a configured [conversation ID
+integration](docs/recipes/conversations.md). Other commands that need a session use the session in the current buffer, the only
 session, or a picker if there are multiple sessions running. Specify an ID or
 label to choose one directly. Commands also compose under `actions`:
 
@@ -209,6 +211,7 @@ Use `:help gents.nvim` for the complete reference, or start with these guides:
 
 - [Usage guide](docs/usage.md)
 - [Sending context](docs/recipes/context.md)
+- [Copy conversation references](docs/recipes/conversations.md)
 - [Agent ready notifications](docs/recipes/ready.md)
 - [Conversation titles](docs/recipes/titles.md)
 - [Oh My Pi setup](docs/recipes/omp.md)

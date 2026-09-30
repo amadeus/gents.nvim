@@ -19,6 +19,7 @@ local actions = {
   focus = true,
   hide = true,
   close = true,
+  copy = true,
   send = true,
 }
 ---@type table<gents.KeyMode, boolean>
@@ -58,7 +59,7 @@ function M.validate(entries)
     assert(
       type(key[2]) == "function" or (type(key[2]) == "string" and actions[key[2]]),
       prefix
-        .. " action must be actions, new, toggle, pick, focus, hide, close, send, or a function"
+        .. " action must be actions, new, toggle, pick, focus, hide, close, copy, send, or a function"
     )
     assert(
       key.mode == nil
@@ -96,6 +97,8 @@ local function callback(action)
   return function()
     if type(action) == "function" then
       action()
+    elseif action == "copy" then
+      require("gents.commands").run({ args = "copy" })
     else
       require("gents")[action]()
     end

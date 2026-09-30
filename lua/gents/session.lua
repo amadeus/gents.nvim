@@ -12,6 +12,7 @@ local next_id = 0
 ---@field title? string
 ---@field cmd string[]
 ---@field resume? string Requested CLI conversation selector; restoration is owned by the CLI.
+---@field conversation? string Confirmed current resumable selector, reported by the CLI.
 ---@field cwd string
 ---@field buf integer
 ---@field job? integer Assigned after the terminal job starts.

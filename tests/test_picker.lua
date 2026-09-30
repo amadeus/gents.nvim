@@ -263,12 +263,12 @@ end
 T["actions context"] = test.new_set({
   parametrize = {
     { "none", { "new", "send" } },
-    { "inside", { "focus", "hide", "toggle", "close", "pick", "send", "new" } },
+    { "inside", { "copy", "focus", "hide", "toggle", "close", "pick", "send", "new" } },
     { "outside", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
     { "hidden", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
     { "other tab", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
-    { "exited only", { "new", "send" } },
-    { "exited with live", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
+    { "exited only", { "copy", "new", "send" } },
+    { "exited with live", { "copy", "send", "toggle", "focus", "pick", "hide", "close", "new" } },
   },
 }, {
   ---@param context string
@@ -311,6 +311,7 @@ T["actions context"] = test.new_set({
     ---@type table<gents.CommandName, string>
     local descriptions = {
       close = "Hide and kill a session",
+      copy = "Copy conversation reference",
       focus = "Switch focus between a session and your last buffer",
       hide = "Hide a session without killing it",
       new = "Start a new session",
@@ -320,7 +321,10 @@ T["actions context"] = test.new_set({
     }
     ---@type string[]
     local names = {}
-    local width = #expected == 2 and 4 or 6
+    local width = 0
+    for _, name in ipairs(expected) do
+      width = math.max(width, #name)
+    end
     for _, item in ipairs(received.items) do
       names[#names + 1] = item.data
       ---@type string

@@ -158,12 +158,15 @@ local function contextual_commands()
       break
     end
   end
-  if not running then
-    return { "new", "send" }
-  end
   local current = registry.current()
+  if not running then
+    return current and { "copy", "new", "send" } or { "new", "send" }
+  end
   if current and current.state ~= "exited" then
-    return { "focus", "hide", "toggle", "close", "pick", "send", "new" }
+    return { "copy", "focus", "hide", "toggle", "close", "pick", "send", "new" }
+  end
+  if current then
+    return { "copy", "send", "toggle", "focus", "pick", "hide", "close", "new" }
   end
   return { "send", "toggle", "focus", "pick", "hide", "close", "new" }
 end
@@ -176,6 +179,7 @@ function M.commands(callback)
   ---@type table<gents.CommandName, string>
   local descriptions = {
     close = "Hide and kill a session",
+    copy = "Copy conversation reference",
     focus = "Switch focus between a session and your last buffer",
     hide = "Hide a session without killing it",
     new = "Start a new session",

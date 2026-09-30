@@ -1994,13 +1994,14 @@ Unbalanced square brackets cannot be represented and raise before copying.
 
 The CLI must confirm its actual conversation ID through
 |gents.report_conversation()|. This is independent of session.resume, which
-may contain a name or prefix. Gents does not guess IDs from titles or history
+may contain a name or prefix. The CLI controls when history is saved and whether
+a selector can be restored. Gents does not guess IDs from titles or history
 files. Configure the optional hooks/plugins in the conversation recipe:
 https://github.com/amadeus/gents.nvim/blob/main/docs/recipes/conversations.md
 
-Integrations must report startup, resume, switches, and forks synchronously,
-and clear the ID when there is no active resumable conversation. Preserve the
-last ID on ordinary exit so retained buffers can copy it. Ignore subagents and
+Integrations must report foreground startup, resume, switches, and forks in
+lifecycle order. Clear the ID when there is no active resumable conversation.
+Preserve the last ID on ordinary exit so retained buffers can copy it. Ignore subagents and
 background conversations. Delayed clears should supply the previous ID as
 {expected}; delayed unguarded reports can otherwise overwrite a newer ID.
 

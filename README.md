@@ -177,9 +177,9 @@ Adapters for [mini.pick](https://github.com/nvim-mini/mini.pick),
 | `:Gents send`             | Choose file references or text to send to an agent.                     |
 
 `:Gents copy` requires an agent buffer and a configured [conversation ID
-integration](docs/recipes/conversations.md). Other commands that need a session use the session in the current buffer, the only
-session, or a picker if there are multiple sessions running. Specify an ID or
-label to choose one directly. Commands also compose under `actions`:
+integration](docs/recipes/conversations.md). Other commands that need a session
+use the session in the current buffer, the only session, or a picker if there
+are multiple sessions running. Specify an ID or label to choose one directly. Commands also compose under `actions`:
 
 ```vim
 :Gents actions hide claude #2

@@ -611,6 +611,7 @@ The CLI must report its current conversation ID. Configure the optional
 [conversation integration](recipes/conversations.md) for your tool first; until
 an ID is reported, copying raises an error and leaves the register untouched.
 Fresh conversations and conversation switches use the IDs reported by the CLI.
+The CLI controls when history is saved and whether a selector can be restored.
 
 The Lua equivalent returns the copied text:
 

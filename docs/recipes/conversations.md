@@ -2,13 +2,15 @@
 
 Copy a conversation from an agent buffer with `:Gents copy`, paste the reference
 into your notes, then follow it with `require("gents").resume_at_cursor()`.
+Enable `extend_gf = true` to follow these references with Normal-mode `gf`.
 Use `:Gents copy --register +` for the clipboard or `--register a` for a named
 register. The default unnamed register respects Neovim's `clipboard` option.
 
 The CLI must report the actual conversation it is displaying. A requested
 resume selector can be a name or prefix, so Gents keeps that selector separate
 from the confirmed ID. Copying fails without changing registers until an ID
-has been reported. No identity integration is installed automatically.
+has been reported. No identity integration is installed automatically. The CLI
+controls when history is saved and whether a copied selector can be restored.
 
 ## Reporting helper
 
@@ -23,7 +25,8 @@ installation directory. Use your Neovim executable's absolute path if `nvim`
 is unavailable in CLI subprocesses. The helper reads JSON on stdin and sends
 literal RPC arguments to the editor identified by `NVIM`, using `GENTS_SESSION`
 to select the exact terminal. Outside Gents, it does nothing. It prints `{}`
-and exits successfully even if the editor/session has closed, so a failed report produces no hook decision or context.
+and exits successfully even if the editor/session has closed, so a failed report
+produces no hook decision or context.
 
 Keep lifecycle reports synchronous and bound to the foreground conversation.
 Do not report every server-wide session event or asynchronous turn completion:
@@ -132,7 +135,8 @@ export default {
 Add `"./cli-plugins/gents-conversation"` to `plugins` in
 `~/.config/opencode/cli.json`. With `XDG_CONFIG_HOME`, use its `opencode/`
 directory. The plugin must run in the CLI process that inherits the terminal's
-environment. See [CLI plugin loading](https://opencode.ai/v2/docs/cli/plugins/)
+environment. The home/new-conversation route clears the confirmed ID until a
+session route is active. See [CLI plugin loading](https://opencode.ai/v2/docs/cli/plugins/)
 and the [route and slot API](https://opencode.ai/v2/docs/build/plugins/cli/).
 
 ## Other built-in tools

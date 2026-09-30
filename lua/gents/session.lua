@@ -11,6 +11,7 @@ local next_id = 0
 ---@field label string
 ---@field title? string
 ---@field cmd string[]
+---@field resume? string Requested CLI conversation selector; restoration is owned by the CLI.
 ---@field cwd string
 ---@field buf integer
 ---@field job? integer Assigned after the terminal job starts.
@@ -127,28 +128,9 @@ end
 ---@return gents.Session
 function M.new(tool, opts, cwd)
   opts = opts or {}
-  assert(opts.cmd == nil or opts.args == nil, "gents: cmd and args are mutually exclusive")
-  local cmd = vim.deepcopy(tool.cmd)
-  local override = opts.cmd
-  if override ~= nil then
-    cmd = vim.deepcopy(override)
-  end
-  assert(
-    type(cmd) == "table" and vim.islist(cmd) and #cmd > 0 and cmd[1] ~= "",
-    "gents: cmd must be a non-empty list of strings starting with an executable"
-  )
-  for _, arg in ipairs(cmd) do
-    assert(type(arg) == "string", "gents: cmd must be a list of strings")
-  end
-  if opts.args ~= nil then
-    assert(vim.islist(opts.args), "gents: args must be a list of strings")
-    for _, arg in ipairs(opts.args) do
-      assert(type(arg) == "string", "gents: args must be a list of strings")
-      cmd[#cmd + 1] = arg
-    end
-  end
-  local label = label_for(tool, opts.label)
   cwd = cwd or vim.fn.getcwd(0)
+  local cmd = require("gents.tools").command(tool, opts, cwd)
+  local label = label_for(tool, opts.label)
   local config = require("gents.config").get()
   local on_exit = config.on_exit
   -- Allocate in the destination so Neovim associates its window options there.
@@ -160,6 +142,7 @@ function M.new(tool, opts, cwd)
     tool = vim.deepcopy(tool),
     label = label,
     cmd = cmd,
+    resume = opts.resume,
     cwd = cwd,
     buf = vim.api.nvim_create_buf(false, true),
     state = "starting",

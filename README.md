@@ -192,6 +192,15 @@ selection, ranges, and the Lua equivalents.
 Generally speaking we recommend setting up keybinds to map back into these
 actions or functions instead of calling them directly.
 
+To resume a saved CLI conversation in a new terminal, pass its identifier:
+
+```lua
+require("gents").new("codex", { resume = "<thread-id>" })
+```
+
+See [resuming conversations](docs/usage.md#resume-a-saved-conversation) for tool
+support, history-file selectors, and picker behavior.
+
 ## Documentation
 
 Use `:help gents.nvim` for the complete reference, or start with these guides:

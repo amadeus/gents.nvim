@@ -205,11 +205,14 @@ function M.commands(callback)
   })
 end
 
----@param callback fun(tool: gents.Tool, opts: gents.NewOptions)
+---@param callback fun(tool: gents.Tool, opts: gents.NewOptions, cwd: string)
 ---@param opts? gents.NewOptions
 function M.tools(callback, opts)
   local config = require("gents.config").get()
   local origin = M.origin()
+  local cwd = vim.api.nvim_win_call(origin, function()
+    return vim.fn.getcwd(0)
+  end)
   ---@type gents.PickerItem<gents.Tool>[]
   local items = {}
   ---@type gents.PickerItem<gents.Tool>[]
@@ -230,7 +233,15 @@ function M.tools(callback, opts)
   end
   for _, item in ipairs(unavailable) do
     items[#items + 1] = item
-    descriptions[#items] = "Not installed"
+  end
+  for index, item in ipairs(items) do
+    local missing = vim.fn.executable(item.data.cmd[1]) == 0
+    local unsupported = opts and opts.resume ~= nil and type(item.data.resume) ~= "function"
+    descriptions[index] = missing and "Not installed" or ""
+    if unsupported then
+      descriptions[index] = (missing and "Not installed; " or "") .. "Resume unsupported"
+      item.hl = "Comment"
+    end
   end
   describe_items(items, descriptions)
 
@@ -241,6 +252,10 @@ function M.tools(callback, opts)
       return
     end
     local tool = item.data
+    assert(
+      launch_opts.resume == nil or type(tool.resume) == "function",
+      "gents: tool does not support resume: " .. tool.name
+    )
     local cmd = launch_opts.cmd or tool.cmd
     if vim.fn.executable(cmd[1]) == 0 then
       vim.notify("gents.nvim: executable not found: " .. cmd[1], vim.log.levels.ERROR)
@@ -249,7 +264,7 @@ function M.tools(callback, opts)
       end
       return
     end
-    callback(tool, launch_opts)
+    callback(tool, launch_opts, cwd)
   end
 
   ---@type gents.PickerSpec<gents.Tool>
@@ -268,8 +283,7 @@ function M.tools(callback, opts)
           return
         end
         local launch_opts = vim.deepcopy(opts or {})
-        local cmd = vim.deepcopy(launch_opts.cmd or item.data.cmd)
-        vim.list_extend(cmd, launch_opts.args or {})
+        local cmd = require("gents.tools").command(item.data, launch_opts, cwd)
         vim.ui.input(
           { prompt = "Gents: command: ", default = table.concat(cmd, " ") .. " " },
           function(value)
@@ -285,7 +299,7 @@ function M.tools(callback, opts)
               vim.notify("gents.nvim: command must not be empty", vim.log.levels.ERROR)
               return
             end
-            launch_opts.cmd, launch_opts.args = edited, nil
+            launch_opts.cmd, launch_opts.args, launch_opts.resume = edited, nil, nil
             launch(item, launch_opts)
           end
         )

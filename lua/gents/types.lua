@@ -3,6 +3,9 @@
 ---Normalize a CLI terminal title; nil means the current conversation is unnamed.
 ---@alias gents.TitleParser fun(title: string, session: gents.Session): string?
 
+---Build arguments selecting a saved conversation in the launch directory.
+---@alias gents.ResumeArgs fun(identifier: string, cwd: string): string[]
+
 ---@class gents.Tool
 ---@field name string
 ---@field cmd string[]
@@ -10,6 +13,7 @@
 ---@field url? string
 ---@field location? fun(path: string, range?: gents.Range): string
 ---@field title? gents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
+---@field resume? gents.ResumeArgs|false Select a saved conversation; false disables support.
 ---@field enabled? boolean
 
 ---Tool fields supplied to setup; the table key supplies the name.
@@ -19,6 +23,7 @@
 ---@field url? string
 ---@field location? fun(path: string, range?: gents.Range): string
 ---@field title? gents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
+---@field resume? gents.ResumeArgs|false Select a saved conversation; false disables support.
 ---@field enabled? boolean
 
 ---Evaluated when a float opens and on VimResized.
@@ -41,8 +46,9 @@
 ---@alias gents.Layout string|gents.FloatConfig|fun(): integer
 
 ---@class gents.NewOptions
----@field cmd? string[] Complete argv override; mutually exclusive with args.
+---@field cmd? string[] Complete argv override; mutually exclusive with args and resume.
 ---@field args? string[]
+---@field resume? string Saved CLI conversation selector, independent of the Gents session ID.
 ---@field layout? gents.Layout
 ---@field label? string
 

@@ -480,6 +480,51 @@ reference to that range. Ranges also work through `actions send`. Calling
 See [sending context](recipes/context.md) for all providers, saved prompts,
 custom providers, and optional message submission.
 
+## Resume a saved conversation
+
+Pass `resume` to open a saved conversation in a new Gents terminal. This is
+useful when you already have the CLI's conversation ID:
+
+```lua
+require("gents").new("codex", { resume = "<thread-id>" })
+require("gents").new("claude", { resume = "<session-id>", layout = "float" })
+require("gents").new("opencode", { resume = "<session-id>" })
+```
+
+The CLI restores the conversation using its own history and project lookup.
+Each call creates a new terminal. Its numeric Gents session ID stays separate
+from the requested CLI selector, stored as `session.resume`. Gents keeps the
+invoking window's working directory; deferred tool selection captures that
+directory when the picker opens. The CLI may prompt about a saved project's
+directory or fail if it cannot find the conversation.
+
+Built-in tools support identifier-based resume except Amazon Q, which only
+offers “resume previous” for a directory. Aider uses a readable history-file
+path instead of an ID:
+
+```lua
+require("gents").new("aider", { resume = "./chat.history.md" })
+```
+
+Relative Aider paths resolve from the launch directory. Gents checks the file
+before opening a terminal so a missing path cannot quietly start new history.
+See `:help gents-resume` for the arguments and selector forms for every tool.
+
+You can combine `resume` with `args`, which append after the generated resume
+arguments. A complete `cmd` override cannot be combined with `resume`. Selectors
+must be nonblank strings without control characters or a leading `-`; spaces
+and shell expressions are passed literally.
+
+Use `new(nil, { resume = "<id>" })` to choose the tool. Unsupported tools are
+marked in the picker. Editing the command includes the generated resume
+arguments in its preview; confirmation uses your edited command and clears
+the launch selector. The command editor splits on whitespace, so use the Lua
+API to preserve an identifier containing spaces.
+
+Custom tools can supply `resume = function(identifier, cwd)` returning an
+argument list. Set `resume = false` in a tool override to disable its inherited
+adapter. See `:help gents.ResumeArgs` for the callback contract.
+
 ## Configure CLI tools
 
 Use `tools` to change how a CLI starts, add a tool, or remove one you do not

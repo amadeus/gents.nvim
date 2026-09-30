@@ -1120,6 +1120,70 @@ T["edit arguments runs the full argv and retains the original tool"] = function(
   test.expect.equality(get_sessions().items[1].text:find("printf %%s\\n edited%-argv") ~= nil, true)
 end
 
+T["resume survives deferred picker placement and uses the captured cwd"] = function()
+  local directory = vim.fn.tempname()
+  vim.fn.mkdir(directory, "p")
+  directory = assert(vim.uv.fs_realpath(directory))
+  vim.fn.writefile({ "history" }, directory .. "/history.md")
+  test.finally(function()
+    vim.fn.delete(directory, "rf")
+  end)
+  require("gents").setup({
+    tools = { aider = {
+      cmd = { "sh", "-c", 'printf "%s\\n" "$@"', "probe" },
+    } },
+  })
+  local get_spec = capture_tools()
+  vim.cmd.lcd(directory)
+  local opts = { resume = "history.md", args = { "extra" }, label = "restored" }
+  require("gents").new(nil, opts)
+  local spec = get_spec()
+  -- Change the origin's cwd too: restoring the window alone is insufficient.
+  vim.cmd.lcd("..")
+  vim.cmd.tabnew()
+  spec.actions.float(assert(find_tool(spec, "aider")))
+  local session = assert(require("gents").current())
+  test.expect.equality(session.cwd, directory)
+  test.expect.equality(session.cmd[6], directory .. "/history.md")
+  test.expect.equality(session.cmd[8], "extra")
+  test.expect.equality(session.resume, "history.md")
+  test.expect.equality(session.label, "restored")
+  test.expect.equality(vim.api.nvim_win_get_config(0).relative, "editor")
+  test.expect.equality(opts, { resume = "history.md", args = { "extra" }, label = "restored" })
+end
+
+T["resume command editing previews generated argv and clears launch selectors"] = function()
+  require("gents").setup({ tools = { codex = { cmd = { "printf", "%s\\n" } } } })
+  local get_spec = capture_tools()
+  set_input(function(opts, callback)
+    test.expect.equality(assert(opts).default, "printf %s\\n resume saved extra ")
+    callback("printf %s\\n resume edited extra")
+  end)
+  local opts = { resume = "saved", args = { "extra" }, label = "edited" }
+  require("gents").new(nil, opts)
+  local spec = get_spec()
+  spec.actions.edit_args(assert(find_tool(spec, "codex")))
+  local session = assert(require("gents").current())
+  test.expect.equality(session.cmd, { "printf", "%s\\n", "resume", "edited", "extra" })
+  test.expect.equality(session.resume, nil)
+  test.expect.equality(session.label, "edited")
+  test.expect.equality(opts, { resume = "saved", args = { "extra" }, label = "edited" })
+end
+
+T["resume picker marks unsupported tools and rejects all their launch actions"] = function()
+  local get_spec = capture_tools()
+  require("gents").new(nil, { resume = "saved" })
+  local spec = get_spec()
+  local cat = assert(find_tool(spec, "cat"))
+  test.expect.equality(cat.text:find("Resume unsupported", 1, true) ~= nil, true)
+  for _, action in ipairs({ "new", "edit_args", "vsplit", "split", "tabnew", "float", "current" }) do
+    test.expect.error(function()
+      spec.actions[action](cat)
+    end, "tool does not support resume: cat")
+  end
+  test.expect.equality(require("gents").sessions(), {})
+end
+
 T["edit arguments treats shell syntax as literal argv"] = function()
   local get_spec = capture_tools()
   set_input(function(_, callback)

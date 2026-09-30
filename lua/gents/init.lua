@@ -1,5 +1,15 @@
 local M = {}
 
+---@param tool string
+---@param opts? gents.NewOptions
+---@param cwd? string
+---@return gents.Session
+local function new_session(tool, opts, cwd)
+  local definition = require("gents.config").get().tools[tool]
+  assert(definition, "gents: unknown tool: " .. tostring(tool))
+  return require("gents.session").new(definition, opts, cwd)
+end
+
 ---@param opts? gents.SetupOptions
 function M.setup(opts)
   local config = require("gents.config").setup(opts)
@@ -15,13 +25,11 @@ end
 ---@return gents.Session?
 function M.new(tool, opts)
   if tool == nil then
-    return require("gents.picker").tools(function(selected, launch_opts)
-      return M.new(selected.name, launch_opts)
+    return require("gents.picker").tools(function(selected, launch_opts, cwd)
+      new_session(selected.name, launch_opts, cwd)
     end, opts)
   end
-  local definition = require("gents.config").get().tools[tool]
-  assert(definition, "gents: unknown tool: " .. tostring(tool))
-  return require("gents.session").new(definition, opts)
+  return new_session(tool, opts)
 end
 
 ---@return gents.Session[]

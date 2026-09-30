@@ -108,6 +108,26 @@ T["tool overrides replace individual fields and remove names"] = function()
   })
 end
 
+T["resume callbacks can be inherited, replaced, disabled, or added"] = function()
+  ---@type gents.ResumeArgs
+  local resume = function(id)
+    return { "restore", id }
+  end
+  local result = config.setup({
+    tools = {
+      codex = { cmd = { "wrapper" } },
+      claude = { resume = false },
+      opencode = { resume = resume },
+      custom = { cmd = { "custom" }, resume = resume },
+    },
+  })
+  expect(result.tools.codex.resume, tools.defaults.codex.resume)
+  expect(result.tools.claude.resume, false)
+  expect(result.tools.opencode.resume, resume)
+  expect(result.tools.custom.resume, resume)
+  expect(config.setup().tools.claude.resume, tools.defaults.claude.resume)
+end
+
 T["setup resets defaults and does not retain caller tables"] = function()
   local opts = {
     buflisted = true,
@@ -234,6 +254,8 @@ T["invalid configuration fails before replacing current config"] = function()
     { { tools = { claude = { location = true } } }, "tools.claude.location must be" },
     { { tools = { claude = { title = true } } }, "tools.claude.title must be" },
     { { tools = { claude = { title = "title" } } }, "tools.claude.title must be" },
+    { { tools = { claude = { resume = true } } }, "tools.claude.resume must be" },
+    { { tools = { claude = { resume = "resume" } } }, "tools.claude.resume must be" },
     { { tools = { claude = { cmd = {} } } }, "tools.claude.cmd must be" },
     { { tools = { claude = { cmd = { "" } } } }, "tools.claude.cmd must be" },
     { { tools = { claude = { cmd = "claude" } } }, "tools.claude.cmd must be" },

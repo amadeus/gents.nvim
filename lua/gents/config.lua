@@ -72,6 +72,10 @@ local function validate(config)
   end
   for name, tool in pairs(config.tools) do
     assert(
+      tool.resume == nil or tool.resume == false or type(tool.resume) == "function",
+      "gents: tools." .. name .. ".resume must be a function or false"
+    )
+    assert(
       tool.title == nil or tool.title == false or type(tool.title) == "function",
       "gents: tools." .. name .. ".title must be a function or false"
     )

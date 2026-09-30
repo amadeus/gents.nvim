@@ -613,6 +613,80 @@ The new-session picker includes tools whose executable is missing, marked
 "Not installed". Selecting one reports the missing executable and opens the
 tool's url when present. See |gents-pickers| for editing launch arguments.
 
+Resuming saved conversations ~                                   *gents-resume*
+
+Use resume to open a saved CLI conversation in a new Gents terminal:
+>lua
+    require("gents").new("codex", { resume = "<thread-id>" })
+    require("gents").new("claude", { resume = "<session-id>", layout = "float" })
+    require("gents").new("opencode", { resume = "<session-id>" })
+    require("gents").new("aider", { resume = "./chat.history.md" })
+<
+The CLI owns saved history and restoration. Each call creates a separate
+terminal instance; it does not reuse an existing Gents session. The requested
+selector is recorded in session.resume, independent of the numeric session.id.
+It records the request, not confirmation that the CLI restored that conversation.
+
+Built-in adapters append these arguments to the configured cmd:
+
+    Tool          Arguments                             Selector
+    claude        --resume {id}                          ID/name/transcript path
+    codex         resume {id}                            ID/name
+    opencode      --session {id}                         ID (OpenCode v2)
+    amp           threads continue {id}                  Thread ID
+    aider         --chat-history-file {path}             History-file path
+                  --restore-chat-history
+    copilot       --resume={id}                          ID/prefix/name
+    crush         --session {id}                         ID/hash/prefix
+    cursor-agent  --resume {id}                          Chat ID
+    gemini        --resume {id}                          UUID/index
+    grok          --session {id}                         Session ID
+    omp           --resume {id}                          ID prefix/file path
+    pi            --session {id}                         Path/ID/prefix
+    q             Unsupported                            No ID selector
+    qwen          --resume {id}                          Saved session ID
+
+Prefer persistent IDs over names or changing history indices for references.
+Lookup and directory prompts depend on the CLI and its installed version.
+Gents uses the invoking window's working directory, captured when the tool
+picker opens for deferred launches. It does not locate private history stores
+or change Neovim's directory to match the saved conversation. Qwen requires
+chat recording. Pi may offer to fork a match from another project.
+
+Aider resolves a relative path from the launch directory and passes an absolute
+path. A leading ~ expands to the home directory; environment variables remain
+literal. The history file must already exist and be readable. Amazon Q only
+offers resuming the previous conversation in a directory, so resume with an
+identifier raises an error. Ordinary launches remain available. Upstream:
+https://aider.chat/docs/config/options.html#history-files
+https://github.com/aws/amazon-q-developer-cli/blob/main/crates/chat-cli/src/cli/chat/mod.rs
+
+resume must be a nonblank string without control characters or a leading '-'.
+Selectors remain literal arguments, including spaces and shell metacharacters.
+resume and cmd are mutually exclusive. With args, the order is configured cmd,
+generated resume arguments, then args. Avoid competing CLI session flags in
+cmd or args. Invalid selectors, unsupported tools, and invalid callback results
+raise errors before a window or session is created.
+
+Omit the tool name to select one: new(nil, { resume = "<id>" }). The picker marks
+tools without a resume callback as "Resume unsupported" and rejects their resume
+actions. A custom tool can implement |gents.ResumeArgs|:
+>lua
+    require("gents").setup({
+      tools = {
+        mycli = {
+          cmd = { "mycli", "chat" },
+          resume = function(identifier, cwd)
+            return { "--resume", identifier }
+          end,
+        },
+        claude = { resume = false }, -- Disable the built-in resume adapter.
+      },
+    })
+<
+Omitted fields retain built-in callbacks. :Gents new continues to pass CLI
+arguments through unchanged; its --resume arguments are not Gents options.
+
 Commands and environments ~
 
 cmd is an argv list passed directly to the job, not a shell command string.
@@ -1070,7 +1144,8 @@ New Session (`Gents: New Session`):
     `float`, `current`, and `edit_args`.
 
     `edit_args` opens `vim.ui.input` containing the complete command,
-    including per-call arguments. Confirming replaces the complete argv;
+    including generated resume arguments and per-call arguments. Confirming
+    replaces the complete argv and clears the resume and args launch options;
     words are split on whitespace. Quotes, escapes, and shell expressions
     have no special meaning. Empty input reports an error; cancellation
     does nothing. Use |gents.new()| for individual arguments with spaces.
@@ -1805,13 +1880,16 @@ new({tool}?, {opts}?) -> gents.Session?
     the tool argv. They are mutually exclusive. `layout` defaults to the
     configured layout; `label` defaults to a unique session label based on the
     tool name.
+    `resume` selects a saved CLI conversation through the tool's callback;
+    see |gents-resume|. It can be combined with `args`, but not `cmd`.
     With a name, create, show, and focus the session and enter terminal input.
-    The working directory is the current window's directory at launch. With no
-    name, pass the options through the tool picker and return nil. With a
-    name, return the new live |gents.Session| in "starting" state. Unknown
-    tools, invalid argv, duplicate or blank labels, invalid layouts, and
-    failed process launches raise errors. A missing executable selected
-    through the picker reports an error and opens its tool URL when available.
+    The working directory is the current window's directory at launch, or at
+    picker opening when tool selection is deferred. With no name, pass the
+    options through the tool picker and return nil. With a name, return the
+    new live |gents.Session| in "starting" state. Unknown tools, invalid argv,
+    duplicate or blank labels, invalid layouts, and failed process launches raise
+    errors. A missing executable selected through the picker reports an error and
+    opens its tool URL when available.
 >lua
     local session = require("gents").new("claude", {
       args = { "Explain this project" },
@@ -2083,11 +2161,12 @@ An optional table passed to |gents.new()|:
 
     cmd?     string[]        Replace the complete tool argv for this launch.
     args?    string[]        Append arguments to the configured tool argv.
+    resume?  string          Saved CLI conversation selector; see |gents-resume|.
     layout?  gents.Layout    Placement for this launch; default: setup layout.
     label?   string          A unique, nonblank targeting label.
 
-cmd and args are mutually exclusive. A cmd list must contain at least one
-string and start with a nonempty executable name. Arguments are literal;
+cmd is mutually exclusive with args and resume. A cmd list must contain at
+least one string and start with a nonempty executable name. Arguments are literal;
 they are not parsed by a shell. Omitting label generates one from the tool
 name. See |gents.new()| and |gents-sessions|.
 
@@ -2159,6 +2238,7 @@ snapshots. A session's buffer is shared by all of its views.
     label       string               Stable, unique targeting label.
     title?      string               Tool-provided conversation title.
     cmd         string[]             Actual argv used for this session.
+    resume?     string               Requested CLI selector; see |gents-resume|.
     cwd         string               Working directory chosen at launch.
     buf         integer              Terminal buffer handle.
     job?        integer              Terminal job ID, assigned on startup.
@@ -2210,6 +2290,8 @@ A resolved tool definition:
                                Format a file reference for this CLI.
     title?    gents.TitleParser or false
                                Normalize titles, or disable them with false.
+    resume?   gents.ResumeArgs or false
+                               Select saved history, or disable with false.
     enabled?  boolean          false hides the tool from New Session.
 
 Without a location callback, references use the default formatter. Without
@@ -2230,6 +2312,17 @@ Called with cleaned title text from the CLI and its session. Return
 the conversation title, or nil to clear it. Returned strings are cleaned
 before storage. Parsers should not mutate the session. See
 |gents-tool-titles| for reset signals and tool-specific behavior.
+
+                                                           *gents.ResumeArgs*
+    fun(identifier: string, cwd: string): string[]
+
+Called before creating a window or session, with the requested selector and
+launch directory. Return a nonempty list of nonempty strings to append to the
+configured tool.cmd, before per-call args. Validate tool-specific selectors
+here and raise an error when they cannot be used. The command editor also calls
+this callback to build its preview. Do not mutate configuration or create a
+session from the callback. nil or false in a tool's resume field means that
+identifier-based resume is unsupported. See |gents-resume|.
 
                                                                *gents.Layout*
 One of:

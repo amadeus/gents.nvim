@@ -205,17 +205,6 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     CLI arguments depend on that tool. The Lua API supports arguments with
     spaces and complete argv overrides: |gents.new()|.
 
-                                                               *:Gents-copy*
-:Gents copy [--register <register>]
-    Copy the invoking agent buffer's confirmed current conversation reference
-    as characterwise text without a newline. Default: unnamed register. Accepts
-    lowercase named registers, `"`, `+`, and `*`; uppercase append registers
-    are rejected. Unnamed copies also respect 'clipboard'.
-    This action has no target argument or session-picker fallback. It requires
-    a CLI integration reporting the actual ID; see |gents-copy-reference|.
-    Retained exited buffers can copy the last confirmed ID. Errors preserve
-    register contents. Also available as `:Gents actions copy`.
-
                                                                *:Gents-pick*
 :Gents pick [target]
     With no target, always open the session picker, even from a session or
@@ -320,7 +309,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
         :Gents actions new claude --resume
         :Gents actions send file --no-focus --target claude #2
 <
-    `actions` accepts new, pick, focus, toggle, hide, close, copy, and send. It does
+    `actions` accepts new, pick, focus, toggle, hide, close, and send. It does
     not nest another actions menu. Ranges apply to send; see below.
 
 Choosing a session ~                                         *gents-targets*
@@ -343,9 +332,8 @@ Hidden sessions, sessions in other tabs, and retained exited sessions are
 included, except that hide selects only sessions visible in the invoking tab.
 An existing target with no view there is a no-op for hide. Sending to an
 exited session fails instead of restarting its CLI.
-The Actions menu offers copy only inside a registered agent buffer, including
-an exited one. Other contextual choices count running sessions. This does not
-restrict direct commands or the session picker.
+The Actions menu counts only running sessions when choosing which actions to
+offer; that does not restrict direct commands or the session picker.
 
 Untargeted pick always opens a picker. Untargeted focus from a session returns
 to the previously accessed window. With no sessions, pick, focus, and toggle
@@ -1156,7 +1144,7 @@ zero-argument callback, with an optional mode:
       },
     })
 <
-Named actions are actions, new, toggle, pick, focus, hide, close, copy, and send.
+Named actions are actions, new, toggle, pick, focus, hide, close, and send.
 Each calls the matching require("gents") function without arguments.
 Use a callback for a specific tool, target, or send payload. The callback
 receives no arguments and its return value is ignored.
@@ -1207,11 +1195,9 @@ Menus and ordering ~
 
 Actions (`Gents: Actions`):
     With no running sessions: new, send.
-    Inside a running session: copy, focus, hide, toggle, close, pick, send, new.
+    Inside a running session: focus, hide, toggle, close, pick, send, new.
     Otherwise, while any session is running: send, toggle, focus, pick,
     hide, close, new.
-
-    Inside a retained exited session, copy is also offered as the first action.
 
     Each command has a short description. The default action `run` invokes
     the selected command. Retained exited sessions count as sessions for
@@ -1986,26 +1972,6 @@ new({tool}?, {opts}?) -> gents.Session?
       layout = "vsplit",
     })
 <
-                                                   *gents-copy-reference*
-Copy the current conversation ~
-
-|:Gents-copy| and |gents.copy_reference()| copy `tool:identifier` for the agent
-buffer you are using. Spaces and delimiter characters use `tool:[identifier]`.
-Unbalanced square brackets cannot be represented and raise before copying.
-
-The CLI must confirm its actual conversation ID through
-|gents.report_conversation()|. This is independent of session.resume, which
-may contain a name or prefix. The CLI controls when history is saved and whether
-a selector can be restored. Gents does not guess IDs from titles or history
-files. Configure the optional hooks/plugins in the conversation recipe:
-https://github.com/amadeus/gents.nvim/blob/main/docs/recipes/conversations.md
-
-Integrations must report foreground startup, resume, switches, and forks in
-lifecycle order. Clear the ID when there is no active resumable conversation.
-Preserve the last ID on ordinary exit so retained buffers can copy it. Ignore subagents and
-background conversations. Delayed clears should supply the previous ID as
-{expected}; delayed unguarded reports can otherwise overwrite a newer ID.
-
                                                   *gents.resume_at_cursor()*
 resume_at_cursor({opts}?) -> gents.Session?
     Follow a configured tool:identifier or tool:[identifier] reference under
@@ -2021,27 +1987,6 @@ resume_at_cursor({opts}?) -> gents.Session?
 >lua
     require("gents").resume_at_cursor({ layout = "float", label = "review" })
 <
-                                                   *gents.copy_reference()*
-copy_reference({opts}?) -> string
-    Copy the current agent buffer's confirmed reference and return that text.
-    {opts}: |gents.CopyReferenceOptions|. Preserves buffer, window, and mode.
-    Raises an error outside a registered session buffer, without a confirmed
-    ID, with a disabled/unavailable resume adapter, an invalid register, or
-    a selector that cannot round-trip through the reference parser. Validation
-    happens before writing. See |gents-copy-reference| and |:Gents-copy|.
-
-                                                *gents.report_conversation()*
-report_conversation({id}, {identifier}?, {expected}?) -> boolean
-    CLI integration API. {id} is the numeric GENTS_SESSION environment value
-    for that terminal. {identifier} is its actual current resumable selector;
-    nil clears it. Never pass a title, requested alias, or another terminal
-    instance's conversation ID. A supplied {expected} makes the update conditional
-    on the current confirmed selector still matching it, for delayed clears.
-    Returns true for an accepted report, false for unknown/closed/exited
-    sessions or a mismatched expected selector. Invalid identifiers raise.
-    Identifiers must be nonblank strings without control characters or a
-    leading dash. Reporting neither starts a job nor copies a register.
-
                                                           *gents.sessions()*
 sessions() -> gents.Session[]
     Return a new list of all registered sessions, sorted by ascending ID.
@@ -2385,11 +2330,6 @@ Lua string targets always mean labels, even if the string contains only
 digits; pass a number for an ID. Command targets interpret numeric text as
 an ID. Targets do not match conversation titles. See |gents-targets|.
 
-                                                  *gents.CopyReferenceOptions*
-An optional table passed to |gents.copy_reference()|:
-
-    register? string   Lowercase named register, `"` (default), `+`, or `*`.
-
                                                               *gents.Session*
 Session objects are returned by operations that complete synchronously,
 |gents.sessions()|, and |gents.current()|. They are live objects, not copied
@@ -2401,7 +2341,6 @@ snapshots. A session's buffer is shared by all of its views.
     title?      string               Tool-provided conversation title.
     cmd         string[]             Actual argv used for this session.
     resume?     string               Requested CLI selector; see |gents-resume|.
-    conversation? string             Confirmed current selector reported by CLI.
     cwd         string               Working directory chosen at launch.
     buf         integer              Terminal buffer handle.
     job?        integer              Terminal job ID, assigned on startup.
@@ -2544,7 +2483,7 @@ Resolved markers with both visible and hidden strings present.
 Keymaps ~
 
                                                           *gents.CommandName*
-"actions", "new", "pick", "focus", "toggle", "hide", "close", "copy", or "send".
+"actions", "new", "pick", "focus", "toggle", "hide", "close", or "send".
 
                                                             *gents.KeyAction*
 A named mapping action. Same values as |gents.CommandName|.

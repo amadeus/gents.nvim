@@ -83,22 +83,6 @@ function M.status()
   return result
 end
 
----Report this terminal's actual conversation selector, or nil to clear it.
----@param id integer GENTS_SESSION from the CLI environment.
----@param identifier? string
----@param expected? string Ignore the update if the current selector has changed.
----@return boolean Updated a live session; false for stale reports.
-function M.report_conversation(id, identifier, expected)
-  return require("gents.conversation").report(id, identifier, expected)
-end
-
----Copy the invoking agent buffer's confirmed resumable conversation reference.
----@param opts? gents.CopyReferenceOptions
----@return string
-function M.copy_reference(opts)
-  return require("gents.conversation").copy(opts)
-end
-
 ---@param id integer
 ---@return gents.ReadyEvent
 function M.ready(id)
@@ -210,7 +194,6 @@ end
 ---@param range? { line1: integer, line2: integer } Explicit Ex range for send.
 ---@return nil
 function M.actions(range)
-  local source = M.current()
   local ctx = range and require("gents.context").capture(range) or nil
   local mode = vim.fn.mode()
   if mode == "v" or mode == "V" or mode == "\22" or mode == "s" or mode == "S" or mode == "\19" then
@@ -220,9 +203,6 @@ function M.actions(range)
     vim.cmd.normal({ args = { "\27" }, bang = true })
   end
   require("gents.picker").commands(function(command)
-    if command == "copy" then
-      assert(source and M.current() == source, "gents: the source session buffer has changed")
-    end
     require("gents.commands").run({
       args = command,
       context = ctx,

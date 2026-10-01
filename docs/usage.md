@@ -601,28 +601,6 @@ Command or key triggers alone leave the extension inactive until Gents loads;
 pressing `gf` does not load it. You can also keep the feature disabled and use
 the explicit `resume_at_cursor` mapping above.
 
-## Copy a conversation reference
-
-Inside an agent buffer, run `:Gents copy` to copy its current `tool:id` reference
-to the unnamed register. Use `:Gents copy --register a` for a named register, or
-`--register +` for the clipboard. The Actions menu also offers **copy** inside
-agent buffers, including retained buffers after the CLI exits.
-
-The CLI must report its current conversation ID. Configure the optional
-[conversation integration](recipes/conversations.md) for your tool first; until
-an ID is reported, copying raises an error and leaves the register untouched.
-Fresh conversations and conversation switches use the IDs reported by the CLI.
-The CLI controls when history is saved and whether a selector can be restored.
-
-The Lua equivalent returns the copied text:
-
-```lua
-local reference = require("gents").copy_reference({ register = "a" })
-```
-
-References containing spaces or delimiters use `tool:[identifier]`. Paste the
-reference into a file, then follow it with your `resume_at_cursor` mapping.
-
 ## Configure CLI tools
 
 Use `tools` to change how a CLI starts, add a tool, or remove one you do not

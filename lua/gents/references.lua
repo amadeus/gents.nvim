@@ -82,26 +82,4 @@ function M.parse(line, column, configured_tools)
   end
 end
 
----Format a reference that the cursor parser can read without losing bytes.
----@param tool string
----@param identifier string
----@param configured_tools table<string, gents.Tool>
----@return string
-function M.format(tool, identifier, configured_tools)
-  local bracketed = false
-  for index = 1, #identifier do
-    if delimiter(identifier:sub(index, index)) then
-      bracketed = true
-      break
-    end
-  end
-  local text = tool .. ":" .. (bracketed and ("[" .. identifier .. "]") or identifier)
-  local ok, parsed = pcall(M.parse, text, 0, configured_tools)
-  assert(
-    ok and parsed and parsed.tool == tool and parsed.identifier == identifier,
-    "gents: conversation identifier cannot be represented as a reference"
-  )
-  return text
-end
-
 return M

@@ -1,7 +1,7 @@
 local M = {}
 
 ---@type gents.CommandName[]
-local subcommands = { "actions", "close", "copy", "focus", "hide", "new", "pick", "send", "toggle" }
+local subcommands = { "actions", "close", "focus", "hide", "new", "pick", "send", "toggle" }
 
 ---@param actions_only? boolean Exclude the actions menu from its own choices.
 ---@return gents.CommandName[]
@@ -118,16 +118,6 @@ function M.run(opts)
     return gents.new(name, #args > 0 and { args = args } or nil)
   end
 
-  if command == "copy" then
-    assert(
-      #args == 0 or (#args == 2 and args[1] == "--register"),
-      "gents: copy accepts only --register <register>"
-    )
-    local text = gents.copy_reference(#args == 2 and { register = args[2] } or nil)
-    vim.notify("Copied " .. text, vim.log.levels.INFO, { title = "gents.nvim" })
-    return
-  end
-
   if command == "hide" and args[1] == "--all" then
     assert(#args == 1, "gents: hide --all cannot be combined with a target")
     return gents.hide(nil, { all = true })
@@ -218,10 +208,6 @@ function M.complete(arglead, cmdline, cursorpos)
     end
     local tools = require("gents.tools")
     return matching(tools.names(require("gents.config").get().tools), arglead)
-  end
-
-  if command == "copy" then
-    return not remainder:find("%s") and matching({ "--register" }, arglead) or {}
   end
 
   if command == "send" then

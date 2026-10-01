@@ -123,6 +123,7 @@ T["resume callbacks can be inherited, replaced, disabled, or added"] = function(
     },
   })
   expect(result.tools.codex.resume, tools.defaults.codex.resume)
+  expect(result.tools.codex.cmd, { "wrapper" })
   expect(result.tools.claude.resume, false)
   expect(result.tools.opencode.resume, resume)
   expect(result.tools.custom.resume, resume)

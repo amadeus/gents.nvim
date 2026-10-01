@@ -60,7 +60,25 @@ T["built-in selectors"] = test.new_set({ parametrize = selectors }, {
   end,
 })
 
-T["Copilot keeps its configured banner and resume uses a fresh terminal each time"] = function()
+T["built-in options survive resume and each launch uses a fresh terminal"] = function()
+  local opts = { resume = "saved thread", args = { "--model", "chosen-model" } }
+  local original = vim.deepcopy(opts)
+  eq(tools.command(tools.defaults.codex, opts, vim.fn.getcwd()), {
+    "codex",
+    "resume",
+    "saved thread",
+    "--model",
+    "chosen-model",
+  })
+  eq(tools.defaults.codex.cmd, { "codex" })
+  eq(opts, original)
+  eq(tools.command(tools.defaults.codex, { args = { "prompt" } }, vim.fn.getcwd()), {
+    "codex",
+    "prompt",
+  })
+  eq(tools.command(tools.defaults.codex, { cmd = { "custom-codex" } }, vim.fn.getcwd()), {
+    "custom-codex",
+  })
   eq(
     tools.command(tools.defaults.copilot, { resume = "session" }, vim.fn.getcwd()),
     { "copilot", "--banner", "--resume=session" }

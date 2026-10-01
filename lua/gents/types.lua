@@ -56,9 +56,6 @@
 ---@field cmd? nil Complete argv overrides are not supported.
 ---@field resume? nil The selector is taken from the reference under the cursor.
 
----@class gents.CopyReferenceOptions
----@field register? string Lowercase named register, unnamed (default), +, or *.
-
 ---@class gents.ShowOptions
 ---@field layout? gents.Layout Explicit placement; preserves existing session views.
 
@@ -163,7 +160,7 @@
 
 ---@alias gents.Part { text: string }|{ path: string, range?: gents.Range }|{ code: string, ft?: string }
 ---@alias gents.Item string|gents.Part|{ any: gents.Item[] }|fun(ctx: gents.Context): gents.Part[]|nil
----@alias gents.CommandName "actions"|"close"|"copy"|"focus"|"hide"|"new"|"pick"|"send"|"toggle"
+---@alias gents.CommandName "actions"|"close"|"focus"|"hide"|"new"|"pick"|"send"|"toggle"
 ---@alias gents.KeyAction gents.CommandName
 ---@alias gents.KeyMode "n"|"i"|"x"|"s"|"v"|"t"
 

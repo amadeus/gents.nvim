@@ -355,7 +355,7 @@ T["built-in session shortcuts"] = test.new_set({
 T["actions ordering"] = test.new_set({
   parametrize = {
     { "empty", { "new", "send" } },
-    { "session", { "copy", "focus", "hide", "toggle", "close", "pick", "send", "new" } },
+    { "session", { "focus", "hide", "toggle", "close", "pick", "send", "new" } },
     { "editor", { "send", "toggle", "focus", "pick", "hide", "close", "new" } },
   },
 }, {

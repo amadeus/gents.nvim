@@ -17,7 +17,7 @@ local function report(session)
   if not reporting or not vim.api.nvim_ui_send then
     return
   end
-  local body = "state=done:id=gents/" .. session.id .. ":app=gents"
+  local body = "state=blocked:id=gents/" .. session.id .. ":app=gents"
   -- OSC 7501 rejects control characters and limits decoded titles to 192 bytes.
   local title = session.label:gsub("[%z\1-\31\127]", ""):gsub("\194[\128-\159]", "")
   if #title <= 192 then

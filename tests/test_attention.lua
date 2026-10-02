@@ -23,8 +23,8 @@ end
 
 ---@param session gents.Session
 ---@return string
-local function done(session)
-  return "\027]7501;state=done:id=gents/"
+local function blocked(session)
+  return "\027]7501;state=blocked:id=gents/"
     .. session.id
     .. ":app=gents:title="
     .. vim.base64.encode(session.label)
@@ -83,14 +83,14 @@ T["background ready remains pending through native navigation until focus return
   focus("FocusLost")
   eq(gents.ready(session.id).focused, true)
   eq(session.attention, true)
-  eq(sent, { done(session) })
+  eq(sent, { blocked(session) })
   vim.api.nvim_set_current_win(source)
   vim.api.nvim_set_current_win(terminal)
-  eq(sent, { done(session) })
+  eq(sent, { blocked(session) })
   eq(session.attention, true)
   focus("FocusGained")
   eq(session.attention, false)
-  eq(sent, { done(session), clear(session.id) })
+  eq(sent, { blocked(session), clear(session.id) })
 end
 
 T["returning to the editor preserves other sessions until each is focused"] = function()
@@ -103,7 +103,7 @@ T["returning to the editor preserves other sessions until each is focused"] = fu
   vim.api.nvim_set_current_win(source)
   gents.ready(first.id)
   gents.ready(second.id)
-  eq(sent, { done(first), done(second) })
+  eq(sent, { blocked(first), blocked(second) })
   focus("FocusLost")
   focus("FocusGained")
   eq({ first.attention, second.attention }, { true, true })
@@ -133,14 +133,14 @@ T["native buffer and tab navigation acknowledges the selected session"] = functi
   eq(sent[4], clear(session.id))
 end
 
-T["hidden sessions report done and focused sessions do not"] = function()
+T["hidden sessions report blocked and focused sessions do not"] = function()
   setup(true)
   local session = H.new()
   gents.ready(session.id)
   eq(sent, {})
   gents.hide(session.id)
   eq(gents.ready(session.id).visible, false)
-  eq(sent, { done(session) })
+  eq(sent, { blocked(session) })
 end
 
 T["real OSC notifications use the same attention tracking"] = function()
@@ -153,7 +153,7 @@ T["real OSC notifications use the same attention tracking"] = function()
   H.wait(function()
     return session.attention
   end)
-  eq(sent, { done(session) })
+  eq(sent, { blocked(session) })
 end
 
 T["exit clears attention before exit listeners and ignores later ready signals"] = function()
@@ -191,7 +191,7 @@ T["closing a session clears its record immediately"] = function()
   gents.ready(session.id)
   gents.close(session.id)
   eq(session.attention, false)
-  eq(sent, { done(session), clear(session.id) })
+  eq(sent, { blocked(session), clear(session.id) })
 end
 
 T["native buffer removal clears the session record"] = function()
@@ -201,7 +201,7 @@ T["native buffer removal clears the session record"] = function()
   gents.ready(session.id)
   vim.api.nvim_buf_delete(session.buf, { force = true })
   eq(session.attention, false)
-  eq(sent, { done(session), clear(session.id) })
+  eq(sent, { blocked(session), clear(session.id) })
 end
 
 T["reporting can be toggled without losing pending attention or outer focus"] = function()
@@ -210,14 +210,14 @@ T["reporting can be toggled without losing pending attention or outer focus"] = 
   gents.ready(session.id)
   eq(sent, {})
   setup(true)
-  eq(sent, { done(session) })
+  eq(sent, { blocked(session) })
   setup(true)
   eq(#sent, 1)
   setup(false)
   eq(sent[2], "\027]7501;state=clear:id=gents\027\\")
   eq(session.attention, true)
   setup(true)
-  eq(sent[3], done(session))
+  eq(sent[3], blocked(session))
   gents.ready(session.id)
   eq(session.attention, true)
   focus("FocusGained")
@@ -249,7 +249,7 @@ T["oversized labels omit the optional title without losing the report"] = functi
   gents.ready(session.id)
   eq(sent[1]:find(":title=", 1, true), nil)
   eq(sent[1]:sub(1, 7), "\027]7501;")
-  eq(sent[1]:match("state=done:id=gents/" .. session.id) ~= nil, true)
+  eq(sent[1]:match("state=blocked:id=gents/" .. session.id) ~= nil, true)
 end
 
 return T

@@ -2811,14 +2811,15 @@ to Neovim acknowledges its current session buffer, if any. Buffer navigation
 while the outer terminal is unfocused leaves attention pending.
 
 With |gents-config.terminal_status| enabled, pending attention is reported as
-`state=done` using OSC 7501, with a separate `id=gents/<session-id>` record for
+`state=blocked` using OSC 7501, with a separate `id=gents/<session-id>` record for
 each session. The targeting label is the record title, omitted if it exceeds
 the protocol's 192-byte limit; control characters are removed. The host chooses
 the UI. Acknowledgement clears that session's record. Disabling reporting or
 exiting Neovim clears the `gents` record subtree without clearing other apps.
 
-The ready signal does not identify completion, permission requests, or
-questions, so reporting does not infer working, blocked, or successful work.
+The ready signal marks a session as waiting for user input. It does not
+identify completion, permission requests, or questions, so reports omit kind
+and do not infer working or successful work.
 It does not send desktop notifications; your |GentsReady| callback can handle
 those independently. The draft protocol is documented at:
 https://gist.github.com/mitchellh/7acae3abd8355c1c00287d67e96c913a

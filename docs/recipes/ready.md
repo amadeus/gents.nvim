@@ -45,7 +45,7 @@ enable reporting:
 require("gents").setup({ terminal_status = true })
 ```
 
-Reporting is off by default. Each pending session gets a `state=done` record
+Reporting is off by default. Each pending session gets a `state=blocked` record
 under `gents/<session-id>` with its targeting label. Acknowledgement clears
 only that record; disabling reporting or exiting Neovim clears Gents' records.
 Enabling reporting also publishes already pending sessions. Your popup callback
@@ -60,9 +60,10 @@ the terminal must forward focus changes. Gents initially assumes Neovim has
 focus until one of those events arrives. Buffer navigation while the terminal
 is unfocused does not acknowledge attention.
 
-`GentsReady` does not distinguish completed responses from questions or
-permission requests. Reporting uses `done` for the unacknowledged signal; it
-does not infer `working`, `blocked`, or successful work.
+`GentsReady` marks a session as waiting for user input. Reporting uses `blocked`
+until acknowledgement. The signal does not distinguish completed responses,
+questions, or permission requests, so reports omit `kind` and do not infer
+working or successful work.
 
 ## CLI setup
 

@@ -30,8 +30,8 @@ in the [help reference](../../doc/gents.txt) for the full event details.
 ## Terminal status indicators
 
 Gents tracks each session's unacknowledged ready signals as `attention` in
-`require("gents").status()`. A ready signal sets attention whether the session
-is hidden or visible, unless both its buffer and the outer terminal have focus.
+`require("gents").status()`. Every ready signal sets attention, regardless of
+the session's visibility or the focus of its buffer and the outer terminal.
 Returning to that buffer with the outer terminal focused acknowledges only that
 session. Other sessions keep their attention state. Session exit, close, or
 buffer removal clears it. This is separate from the startup `"ready"` state

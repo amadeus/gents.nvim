@@ -63,7 +63,7 @@ T["attention is tracked without terminal reporting and preserves startup state"]
   local session = H.new()
   eq(session.attention, false)
   gents.ready(session.id)
-  eq(session.attention, false)
+  eq(session.attention, true)
   vim.api.nvim_set_current_win(source)
   local data = gents.ready(session.id)
   eq({ data.visible, data.focused }, { true, false })
@@ -133,22 +133,31 @@ T["native buffer and tab navigation acknowledges the selected session"] = functi
   eq(sent[4], clear(session.id))
 end
 
-T["hidden sessions report blocked and focused sessions do not"] = function()
+T["focused ready reports remain pending until a later focus event"] = function()
   setup(true)
+  local source = vim.api.nvim_get_current_win()
   local session = H.new()
+  local terminal = vim.api.nvim_get_current_win()
+  eq(gents.ready(session.id).focused, true)
+  eq(session.attention, true)
+  eq(sent, { blocked(session) })
   gents.ready(session.id)
-  eq(sent, {})
+  eq(sent, { blocked(session), blocked(session) })
+  vim.api.nvim_set_current_win(source)
+  eq(session.attention, true)
+  vim.api.nvim_set_current_win(terminal)
+  eq(session.attention, false)
+  eq(sent[3], clear(session.id))
   gents.hide(session.id)
   eq(gents.ready(session.id).visible, false)
-  eq(sent, { blocked(session) })
+  eq(sent[4], blocked(session))
 end
 
-T["real OSC notifications use the same attention tracking"] = function()
+T["real OSC notifications report even while the agent is focused"] = function()
   setup(true)
   local session = H.new({
     cmd = { "sh", "-c", [[read signal; printf '\033]9;done\007'; exec cat]] },
   })
-  gents.hide(session.id)
   vim.fn.chansend(session.job, "go\n")
   H.wait(function()
     return session.attention

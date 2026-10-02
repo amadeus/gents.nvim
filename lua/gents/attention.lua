@@ -92,10 +92,7 @@ end
 
 ---@param session gents.Session
 function M.ready(session)
-  if
-    session.state == "exited"
-    or (terminal_focused and vim.api.nvim_get_current_buf() == session.buf)
-  then
+  if session.state == "exited" then
     M.clear(session)
     return
   end

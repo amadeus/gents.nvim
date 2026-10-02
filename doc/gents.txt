@@ -2798,8 +2798,8 @@ Ready notifications                                 *gents-ready-notifications*
 
 Attention tracking                                            *gents-attention*
 
-A ready signal sets the session's attention flag unless both the session buffer
-and the outer terminal have focus. Visibility alone does not acknowledge it.
+Every ready signal sets the session's attention flag, regardless of visibility
+or the focus of its buffer and the outer terminal.
 Entering that buffer while the outer terminal is focused clears only its flag;
 other sessions remain pending. Session exit, close, or buffer removal clears
 attention. |gents.status()| returns the flag even when terminal reporting is off.

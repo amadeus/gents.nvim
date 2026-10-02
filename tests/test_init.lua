@@ -36,7 +36,7 @@ local function child(script)
     :wait()
 end
 
-T["startup loads only the configuration modules"] = function()
+T["startup initializes attention tracking without loading session or UI modules"] = function()
   local result = child(table.concat({
     "require('gents').setup({ layout = 'split' })",
     "local loaded = vim.tbl_filter(function(name) return vim.startswith(name, 'gents') end, vim.tbl_keys(package.loaded))",
@@ -44,7 +44,7 @@ T["startup loads only the configuration modules"] = function()
     "io.stdout:write(table.concat(loaded, ' '))",
   }, "; "))
   test.expect.equality(result.code, 0)
-  test.expect.equality(result.stdout, "gents gents.config gents.tools")
+  test.expect.equality(result.stdout, "gents gents.attention gents.config gents.tools")
 end
 
 T["custom adapters see the picker highlight groups"] = function()

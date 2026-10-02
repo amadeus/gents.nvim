@@ -85,6 +85,7 @@
 ---@field buflisted? boolean List newly created session buffers in normal buffer lists; defaults to false.
 ---@field insert_on_focus? boolean Enter terminal input when focusing a live session; defaults to false.
 ---@field extend_gf? boolean Extend Normal-mode gf for conversation references; defaults to false.
+---@field terminal_status? boolean Report attention to the host terminal using OSC 7501; defaults to false.
 ---@field picker? gents.Picker
 ---@field picker_help? boolean Show binding hints in the built-in Snacks picker; defaults to true.
 ---@field icons? gents.IconsOptions
@@ -99,6 +100,7 @@
 ---@field buflisted boolean
 ---@field insert_on_focus boolean
 ---@field extend_gf boolean
+---@field terminal_status boolean
 ---@field picker? gents.Picker
 ---@field picker_help boolean
 ---@field icons gents.Icons
@@ -139,6 +141,7 @@
 ---@field title? string Conversation title; does not change the targeting label.
 ---@field visible boolean Shown in a window in the current tab.
 ---@field state gents.SessionState
+---@field attention boolean Unacknowledged ready signal; independent of startup/exit state.
 ---@field cwd string
 
 ---Inclusive endpoints: one-based rows and zero-based byte columns.

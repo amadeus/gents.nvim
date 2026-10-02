@@ -44,6 +44,7 @@ end
 ---@param source "osc"|"hook"
 ---@return gents.ReadyEvent
 function M.ready(session, source)
+  require("gents.attention").ready(session)
   local focused = vim.api.nvim_get_current_buf() == session.buf
   local win = focused and vim.api.nvim_get_current_win() or require("gents.window").find(session)
   ---@type gents.ReadyEvent
@@ -63,6 +64,7 @@ end
 
 ---@param session gents.Session
 function M.attach(session)
+  require("gents.attention").setup(require("gents.config").get().terminal_status)
   vim.api.nvim_create_autocmd("TermRequest", {
     buffer = session.buf,
     desc = "Receive session titles and ready notifications",

@@ -63,6 +63,9 @@ vim.opt.statusline:append(" %{v:lua.GentsCount()}")
 `visible` means shown in the current tab. A session displayed only in another
 tab counts as hidden. `state` describes startup or exit; it does not tell you
 whether the agent is thinking, waiting for input, or finished with a task.
+`attention` indicates an unacknowledged ready signal. It clears when the session
+buffer and outer terminal both have focus; see
+[terminal status indicators](ready.md#terminal-status-indicators).
 
 ## Refresh when session information changes
 

@@ -209,6 +209,12 @@ With `extend_gf = true`, load gents.nvim at startup (`lazy = false` in lazy.nvim
 Command or key triggers alone leave the extension inactive until Gents loads;
 pressing `gf` does not load it.
 
+Gents tracks unacknowledged ready signals in `require("gents").status()` as
+`attention`. Enable `terminal_status = true` to report them to a host terminal
+that supports OSC 7501, such as Rex. See
+[terminal status indicators](docs/recipes/ready.md#terminal-status-indicators)
+for setup and focus behavior.
+
 ## Documentation
 
 Use `:help gents.nvim` for the complete reference, or start with these guides:

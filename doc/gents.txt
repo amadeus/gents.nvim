@@ -1,13 +1,13 @@
 *gents.txt*   Run CLI agents in Neovim terminal buffers
 
-gents.nvim                                                       *gents.nvim*
+gents.nvim                                                         *gents.nvim*
 
 gents.nvim runs your existing CLI agents in Neovim terminal buffers. Start
 several sessions, arrange their windows, and send context from your editor.
 Commands, Lua functions, pickers, and User events let you fit those sessions
 into your own workflow.
 
-CONTENTS                                                    *gents-contents*
+CONTENTS                                                       *gents-contents*
 
   1. Getting started .................................. |gents-install|
   2. Commands and targeting ........................... |gents-commands|
@@ -26,7 +26,7 @@ Jump to a linked topic with CTRL-], and return with CTRL-T. You can also use
 `:help gents.new()`, `:help gents-config.layout`, or `:help GentsReady`.
 
 ==============================================================================
-1. GETTING STARTED                                           *gents-install*
+1. GETTING STARTED                                              *gents-install*
 
 Terminology ~
 
@@ -52,7 +52,7 @@ want the defaults; loading the plugin registers |:Gents|. Put custom options
 in one setup call. Calling setup again replaces the previous configuration
 with defaults plus the options in that call; see |gents-config|.
 
-lazy.nvim ~                                               *gents-install-lazy*
+lazy.nvim ~                                                *gents-install-lazy*
 
 Add this spec to your lazy.nvim configuration: >lua
     {
@@ -86,7 +86,7 @@ another built-in adapter, declare that plugin instead and set the matching
 
 Manager instructions: https://lazy.folke.io/spec
 
-Neovim's built-in plugin manager ~                        *gents-install-pack*
+Neovim's built-in plugin manager ~                         *gents-install-pack*
 
 Add this to your init.lua. |vim.pack.add()| installs missing plugins and makes
 their Lua modules available before setup. Pass plugin options directly to
@@ -109,7 +109,7 @@ built-in adapters work the same way with their plugin; see
 
 Manager instructions: |vim.pack| and https://neovim.io/doc/user/pack/
 
-vim-plug ~                                            *gents-install-vim-plug*
+vim-plug ~                                             *gents-install-vim-plug*
 
 Add the declaration inside your existing plug#begin()/plug#end() block: >vim
     Plug 'amadeus/gents.nvim'
@@ -136,7 +136,7 @@ configuration is Vimscript.
 
 Manager instructions: https://github.com/junegunn/vim-plug
 
-Manual native packages ~                                *gents-install-manual*
+Manual native packages ~                                 *gents-install-manual*
 
 Neovim also loads packages without a plugin manager. Find your data directory
 with `:echo stdpath('data')`. Clone the repository into this location, using
@@ -160,7 +160,7 @@ Generate help tags for a manual installation with: >
 Use the opt path if you chose that directory. Package directories are found
 through 'packpath'. See |packages|, |:packadd|, and |:helptags|.
 
-Your first session ~                                     *gents-first-session*
+Your first session ~                                      *gents-first-session*
 
 Run `:Gents new` and choose an installed tool. Its CLI opens in a full-height
 vertical split on the right, ready for terminal input. The CLI handles its
@@ -182,16 +182,16 @@ and |gents-sessions|. For floating windows, see |gents-layouts|.
 After loading gents.nvim, run `:checkhealth gents` to check your setup.
 
 ==============================================================================
-2. COMMANDS AND TARGETING                                     *gents-commands*
+2. COMMANDS AND TARGETING                                      *gents-commands*
 
 `:Gents` is the single user command. Its subcommands are also available as
 Lua functions; see |gents-api|. Names and examples are case-sensitive.
 
-                                                               *:Gents*
+                                                                       *:Gents*
 :Gents
     Same as `:Gents pick`.
 
-                                                               *:Gents-new*
+                                                                   *:Gents-new*
 :Gents new [tool] [args...]
     With no tool, open New Session to choose a tool and start its CLI. With
     a tool name, start it directly. Extra arguments are appended to the
@@ -205,7 +205,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     CLI arguments depend on that tool. The Lua API supports arguments with
     spaces and complete argv overrides: |gents.new()|.
 
-                                                               *:Gents-pick*
+                                                                  *:Gents-pick*
 :Gents pick [target]
     With no target, always open the session picker, even from a session or
     when only one session exists. With no sessions, open New Session.
@@ -216,7 +216,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     With a built-in picker adapter, the session picker also offers
     placement, hide, and close shortcuts. See |gents-picker-adapters|.
 
-                                                               *:Gents-focus*
+                                                                 *:Gents-focus*
 :Gents focus [target]
     With no target, calling from a session switches to the previous window
     and leaves terminal input mode. The session stays visible. The previous
@@ -231,7 +231,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     An explicit target always shows that session. Showing a running session
     enters terminal input mode; exited sessions remain in Normal mode.
 
-                                                               *:Gents-toggle*
+                                                                *:Gents-toggle*
 :Gents toggle [target]
     Show or hide an existing session. Hidden sessions continue to run in the
     background and are never paused or closed.
@@ -251,7 +251,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     preserving views in other tabs. If none are visible, show the sole session
     or open the session picker when several sessions exist.
 
-                                                               *:Gents-hide*
+                                                                  *:Gents-hide*
 :Gents hide [target]
     Hide every window showing the selected session in the current tab,
     including floating windows. The buffer and CLI keep running; views in
@@ -263,7 +263,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     Hide all visible sessions in the current tab without opening a picker.
     Cannot be combined with a target. Also accepts the `actions` prefix.
 
-                                                               *:Gents-close*
+                                                                 *:Gents-close*
 :Gents close [target]
     Stop the selected CLI, remove its session, and delete its buffer. All
     its views are hidden. With no sessions and no target, do nothing.
@@ -272,7 +272,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     `on_exit = "keep"`. To keep the CLI running, use |:Gents-hide|. To keep
     its final output after quitting inside the CLI, see |gents-on-exit|.
 
-                                                               *:Gents-send*
+                                                                  *:Gents-send*
 :[range]Gents send [name...] [--no-focus] [--target target]
     Choose context to send, or provide one or more provider/prompt names.
     Send uses |gents-targets| after the context has been chosen. If there
@@ -300,7 +300,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
         :Gents send line --no-focus
         :Gents send selection --target claude #2
 <
-                                                              *:Gents-actions*
+                                                               *:Gents-actions*
 :[range]Gents actions [command [arguments...]]
     With no command, open a menu of actions ordered for your current context;
     see |gents-pickers|. A command after `actions` runs directly with the
@@ -312,7 +312,7 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     `actions` accepts new, pick, focus, toggle, hide, close, and send. It does
     not nest another actions menu. Ranges apply to send; see below.
 
-Choosing a session ~                                         *gents-targets*
+Choosing a session ~                                            *gents-targets*
 
 A command target is an integer session ID or its complete, case-sensitive
 label, such as `claude #2`. Do not quote labels containing spaces. Command
@@ -343,7 +343,7 @@ close do nothing. Explicit targets that do not match still report an error.
 Lua targets can also be predicates. Matching candidates then use the same
 current/only/picker rule. See |gents.Target|.
 
-Ranges and selections ~                                *gents-command-ranges*
+Ranges and selections ~                                  *gents-command-ranges*
 
 An explicit Ex range is linewise. With no provider names, send copies that
 range with the selection provider. With `line`, it sends a file reference to
@@ -366,7 +366,7 @@ selection before opening. Choosing send opens the context picker with that
 selection, while other actions remain available. Choosing send from a session
 buffer warns and sends nothing. See |gents.Context| and |gents.Range|.
 
-Argument syntax and completion ~                    *gents-command-arguments*
+Argument syntax and completion ~                      *gents-command-arguments*
 
 Command arguments and the New Session command editor split at whitespace.
 Quotes are ordinary characters: they do not group arguments. There is no
@@ -383,7 +383,7 @@ hidden from New Session with `enabled = false` can still be completed and
 launched directly. CLI arguments after a tool name are not completed.
 
 ==============================================================================
-3. CONFIGURATION                                                *gents-config*
+3. CONFIGURATION                                                 *gents-config*
 
 Call require("gents").setup({opts}) after the plugin is available on
 'runtimepath'. Every option is optional; using the plugin without setup uses
@@ -404,6 +404,7 @@ Complete defaults (the empty tools override preserves all built-in tools):
       buflisted = false,
       insert_on_focus = false,
       extend_gf = false,
+      terminal_status = false,
       picker = nil,
       picker_help = true,
       icons = { visible = "●", hidden = "○" },
@@ -421,8 +422,10 @@ current layout and float defaults. Changing setup does not rearrange existing
 windows; float views retain their original geometry settings for later resizes.
 Configured keymaps update immediately, including existing session buffers. The
 current insert_on_focus setting applies when entering an existing session.
+The current terminal_status setting applies to all sessions; disabling it clears
+Gents' terminal records, and enabling it reports already pending attention.
 
-layout                                                  *gents-config.layout*
+layout                                                    *gents-config.layout*
     Type: gents.Layout. Default: "botright vsplit".
     Chooses the window when starting a session or showing one with no existing
     view. The default creates a full-height split on the right. An ordinary
@@ -430,14 +433,14 @@ layout                                                  *gents-config.layout*
     restores remembered floats using |gents-config.float|. See |gents-layouts|
     for strings, inline floats, callbacks, and per-call placement overrides.
 
-float                                                    *gents-config.float*
+float                                                      *gents-config.float*
     Type: gents.FloatOptions.
     Default: { width = 0.8, height = 0.8, border = "rounded" }.
     Supplies window options when layout is "float". Partial setup overrides
     merge with these defaults. An inline layout table is independent of this
     option. See |gents-float|.
 
-buflisted                                            *gents-config.buflisted*
+buflisted                                              *gents-config.buflisted*
     Type: boolean. Default: false.
     Sets 'buflisted' on newly created session buffers. With true,
     sessions appear in normal buffer lists and native buffer navigation.
@@ -449,7 +452,7 @@ buflisted                                            *gents-config.buflisted*
     Changing setup does not alter existing buffers. See |gents-health| for
     finding unlisted buffers.
 
-extend_gf                                           *gents-config.extend_gf*
+extend_gf                                              *gents-config.extend_gf*
     Type: boolean. Default: false.
     Extend Normal-mode gf to follow |gents-conversation-references| through
     |gents.resume_at_cursor()|. Ordinary text delegates to the previous effective
@@ -476,7 +479,13 @@ extend_gf                                           *gents-config.extend_gf*
     loads. Pressing gf does not load the plugin.
     Leave this off to choose another key for |gents.resume_at_cursor()|.
 
-insert_on_focus                                *gents-config.insert_on_focus*
+terminal_status                                  *gents-config.terminal_status*
+    Type: boolean. Default: false.
+    Reports unacknowledged ready signals to the host terminal using the draft
+    OSC 7501 Program Status Protocol. Enable only when the host implements it;
+    the terminal decides how to display the records. See |gents-attention|.
+
+insert_on_focus                                  *gents-config.insert_on_focus*
     Type: boolean. Default: false.
     Enter terminal input whenever window, buffer, or tab navigation brings you
     into a live session, so you can type into the CLI immediately. With false,
@@ -490,7 +499,7 @@ insert_on_focus                                *gents-config.insert_on_focus*
     not change the current mode. Explicit show actions still enter input with
     either value. See |gents-sessions| and |gents.focus()|.
 
-picker                                                  *gents-config.picker*
+picker                                                    *gents-config.picker*
     Type: nil, "snacks", "mini", "telescope", "fzf-lua", or
     gents.PickerAdapter. Default: nil.
     Selects the adapter for new menus. Nil uses |vim.ui.select()|. A string
@@ -499,14 +508,14 @@ picker                                                  *gents-config.picker*
     and shortcuts. A function receives a |gents.PickerSpec|; see
     |gents-picker-custom|.
 
-picker_help                                        *gents-config.picker_help*
+picker_help                                          *gents-config.picker_help*
     Type: boolean. Default: true.
     Shows shortcut hints in newly opened built-in Snacks picker menus. False
     hides the hints but shortcuts still work. It has no effect on
     vim.ui.select, the native help of the other built-in adapters, or custom
     picker adapters.
 
-icons                                                    *gents-config.icons*
+icons                                                      *gents-config.icons*
     Type: gents.IconsOptions.
     Default: { visible = "●", hidden = "○" }.
     Marks session rows according to whether a window shows the session in the
@@ -516,7 +525,7 @@ icons                                                    *gents-config.icons*
 >lua
     require("gents").setup({ icons = { visible = "+", hidden = "-" } })
 <
-on_exit                                                *gents-config.on_exit*
+on_exit                                                  *gents-config.on_exit*
     Type: "keep" or "close". Default: "keep".
     Controls what happens when a session's CLI quits on its own. With "keep",
     the program stops but its terminal buffer remains: the output stays
@@ -527,7 +536,7 @@ on_exit                                                *gents-config.on_exit*
     apply to sessions created afterward. Explicit buffer removal ignores
     this option. See |gents-on-exit|.
 
-tools                                                    *gents-config.tools*
+tools                                                      *gents-config.tools*
     Type: table<string, gents.ToolOverride|false>.
     Default: all definitions in |gents-tools|.
     Adds custom tools, overrides fields of built-ins, or removes names. Each
@@ -535,7 +544,7 @@ tools                                                    *gents-config.tools*
     false removes that tool. Changes affect subsequent launches and menus;
     existing sessions retain their tool definition.
 
-prompts                                                *gents-config.prompts*
+prompts                                                  *gents-config.prompts*
     Type: table<string, gents.Item[]>. Default: {}.
     Adds named item lists to the context menu and to :Gents send completion.
     Prompt names must be nonempty strings without whitespace. Each value must
@@ -543,7 +552,7 @@ prompts                                                *gents-config.prompts*
     alternatives, and callbacks; they are resolved when used. Prompt item
     lists are replaced, not appended. See |gents-context| and |gents.Item|.
 
-keys                                                      *gents-config.keys*
+keys                                                        *gents-config.keys*
     Type: gents.Keymap[]. Default: {}.
     Installs optional action or callback mappings. The list replaces earlier
     configured mappings on each setup call. Normal, Insert, Visual, and Select
@@ -551,7 +560,7 @@ keys                                                      *gents-config.keys*
     See |gents-keymaps|.
 
 ==============================================================================
-4. TOOLS                                                         *gents-tools*
+4. TOOLS                                                          *gents-tools*
 
 Install the CLI programs separately. A tool definition tells gents.nvim how
 to start a program and format its file references and terminal titles; it does
@@ -715,7 +724,7 @@ actions. A custom tool can implement |gents.ResumeArgs|:
 Omitted fields retain built-in callbacks. :Gents new continues to pass CLI
 arguments through unchanged; its --resume arguments are not Gents options.
 
-Following references ~                         *gents-conversation-references*
+Following references ~                          *gents-conversation-references*
 
 Use |gents.resume_at_cursor()| to open a saved conversation referenced in text.
 Place the cursor anywhere on a reference in the current line and call the Lua
@@ -788,7 +797,7 @@ ID as a string, overriding any supplied value. Neovim supplies the terminal
 job's own variables, including TERM and NVIM; see |jobstart()|. Use
 GENTS_SESSION for readiness hooks described in |gents-events|.
 
-Location writers                                       *gents-tool-locations*
+Location writers                                         *gents-tool-locations*
 
 A tool's location(path, range) callback returns the string pasted for a path
 part. The path has already been normalized relative to the captured source
@@ -817,7 +826,7 @@ columns. A path reference does not copy file contents.
 There is no false opt-out for location: omit it on a custom tool to use the
 default, or supply a callback to replace a built-in writer.
 
-Conversation titles                                      *gents-tool-titles*
+Conversation titles                                         *gents-tool-titles*
 
 Terminal title signals (OSC 0 or OSC 2) from a session's CLI can supply a
 conversation title. Titles appear in session rows, native buffer names,
@@ -895,7 +904,7 @@ Exit retains the last title and ignores later updates. See |gents-events|
 for GentsSessionTitle and |gents.TitleParser| for the callback signature.
 
 ==============================================================================
-5. SESSIONS AND WINDOWS                                      *gents-sessions*
+5. SESSIONS AND WINDOWS                                        *gents-sessions*
 
 Each session owns a native terminal buffer and one CLI process. It can have
 zero, one, or several windows showing that same buffer. Its buffer has
@@ -938,7 +947,7 @@ that the CLI is at an input prompt or that a response has finished. The
 |gents-events|. A retained exited session remains available to show, hide,
 pick, and close, but it cannot receive sent context or continue a chat.
 
-Lifetime, hiding, and exit                                     *gents-on-exit*
+Lifetime, hiding, and exit                                      *gents-on-exit*
 
     Action                    Process               Buffer ~
     :Gents hide               Keeps running         Remains, views hidden
@@ -968,7 +977,7 @@ their views, and all session buffers and running CLIs remain available.
 Sessions live within the current Neovim instance. Saving a native Vim session
 does not preserve or restore these processes; see |gents-health|.
 
-Placement and multiple views                                   *gents-layouts*
+Placement and multiple views                                    *gents-layouts*
 
 layout accepts these |gents.Layout| forms:
 
@@ -1038,7 +1047,7 @@ placement is remembered, not inline float options, manual geometry changes,
 split arrangements, or tab placement. show, focus, and send continue to use
 their normal placement rules.
 
-Floating windows                                                 *gents-float*
+Floating windows                                                  *gents-float*
 
 Floats adapt to the editor size, so a centered view stays centered and a
 custom placement can follow an edge when Neovim resizes. width, height, row,
@@ -1119,7 +1128,7 @@ live session.
 See |gents-api| for targeting and return values.
 
 ==============================================================================
-6. KEYMAPS                                                     *gents-keymaps*
+6. KEYMAPS                                                      *gents-keymaps*
 
 gents.nvim installs no mappings by default. Add |gents.Keymap| entries to
 keys inside setup. Each entry contains a key and a named action or
@@ -1179,7 +1188,7 @@ For context capture and native terminal navigation, see |gents-context| and
 |gents-sessions|.
 
 ==============================================================================
-7. PICKERS                                                     *gents-pickers*
+7. PICKERS                                                      *gents-pickers*
 
 The plugin opens menus for actions, tools, sessions, and context. By default,
 these use |vim.ui.select()|. Each row displays its `text`; confirming a row
@@ -1268,7 +1277,7 @@ preserving the same buffer, job, and other views. `current` uses the window
 that opened the picker. `float` uses the configured float settings.
 See |gents-layouts| and |gents-float|.
 
-Session rows ~                                    *gents-picker-session-rows*
+Session rows ~                                      *gents-picker-session-rows*
 
 Rows show a visibility marker, a name, a conversation title, and the working
 directory, with aligned columns and ` · ` separators. The default markers
@@ -1354,7 +1363,7 @@ colorscheme, or use a callback: >lua
 Each picker plugin adds its own match highlighting on top; fzf-lua receives
 the groups as ANSI colors.
 
-Snacks adapter                                           *gents-picker-snacks*
+Snacks adapter                                            *gents-picker-snacks*
 
 Install folke/snacks.nvim, then select the adapter: >lua
     require("gents").setup({ picker = "snacks" })
@@ -1397,7 +1406,7 @@ shortcuts still work and your configured sizing remains in effect: >lua
 Snacks renders context previews as text in its preview window. Row
 highlighting use the groups listed under |gents-picker-highlights|.
 
-mini.pick adapter                                          *gents-picker-mini*
+mini.pick adapter                                           *gents-picker-mini*
 
 Set up nvim-mini/mini.nvim or the standalone mini.pick module, then select
 the adapter: >lua
@@ -1446,7 +1455,7 @@ Menus have no preview, so the `toggle_preview` mapping is disabled.
 groups listed under |gents-picker-highlights|, and mini.pick's match
 highlighting is kept.
 
-Telescope adapter                                     *gents-picker-telescope*
+Telescope adapter                                      *gents-picker-telescope*
 
 Install nvim-telescope/telescope.nvim with its nvim-lua/plenary.nvim
 dependency, then select the adapter: >lua
@@ -1488,7 +1497,7 @@ highlighting is kept. A menu requested from a Telescope mapping opens after
 Telescope closes that picker and returns to its original window before
 running an action.
 
-fzf-lua adapter                                             *gents-picker-fzf*
+fzf-lua adapter                                              *gents-picker-fzf*
 
 Install ibhagwan/fzf-lua and the fzf executable, then select the adapter: >lua
     require("gents").setup({ picker = "fzf-lua" })
@@ -1528,7 +1537,7 @@ Matching uses the visible text only, and the fzf field and preview options
 these menus depend on override your global `fzf_opts`. `picker_help` has no
 effect on this adapter.
 
-Custom adapters                                          *gents-picker-custom*
+Custom adapters                                           *gents-picker-custom*
 
 Set `picker` to a function accepting |gents.PickerSpec|. The adapter owns
 the menu UI and receives:
@@ -1582,7 +1591,7 @@ position. Treat supplied data as read-only; invoke the provided callbacks
 to act on a session or launch a tool.
 
 ==============================================================================
-8. SENDING CONTEXT                                             *gents-context*
+8. SENDING CONTEXT                                              *gents-context*
 
 Use |:Gents-send| or |gents.send()| to choose or compose context. The
 selected context is pasted into a session's terminal input. Submission
@@ -1626,7 +1635,7 @@ list is unavailable and is omitted from the context picker. The built-in order
 is line, selection, file, buffer, messages, diagnostics, quickfix,
 locationlist, terminal.
 
-                                                         *gents-provider.line*
+                                                          *gents-provider.line*
 line
     Reference the current line or all lines covered by the captured selection.
     Available when the source has a name and 'buftype' is empty or "help".
@@ -1634,7 +1643,7 @@ line
     the default writer produces `@lua/main.lua:12-15`. No buffer text
     is copied.
 
-                                                    *gents-provider.selection*
+                                                     *gents-provider.selection*
 selection
     Copy selected text into a code block using the source 'filetype'.
     Available only when the captured context has a range. Common leading
@@ -1642,25 +1651,25 @@ selection
     'tabstop'. This includes unsaved text and preserves the shape of a
     block selection.
 
-                                                         *gents-provider.file*
+                                                          *gents-provider.file*
 file
     Reference the source file, for example `@lua/main.lua`. Available when the
     source has a name and 'buftype' is empty or "help". No text is copied and
     the plugin does not save the file or check that it exists on disk.
 
-                                                       *gents-provider.buffer*
+                                                        *gents-provider.buffer*
 buffer
     Copy the entire source buffer into a code block using its 'filetype'.
     Available for every captured source buffer, including unnamed buffers.
     Includes unsaved edits; no file reference is added automatically.
 
-                                                     *gents-provider.messages*
+                                                      *gents-provider.messages*
 messages
     Copy the output of `:messages` as plain text. Available when the message
     history contains a non-whitespace character. This is Neovim's global
     message history, independent of the source buffer.
 
-                                                  *gents-provider.diagnostics*
+                                                   *gents-provider.diagnostics*
 diagnostics
     Copy diagnostics from the source buffer as plain text, one per line:
         path:line:column: SEVERITY: message
@@ -1671,7 +1680,7 @@ diagnostics
     Without a range, include all diagnostics in the buffer. Available only
     when at least one diagnostic remains.
 
-                                                     *gents-provider.quickfix*
+                                                      *gents-provider.quickfix*
 quickfix
     Copy the current global quickfix list as plain text in its existing order.
     Each entry contains its available path, positive line and column numbers,
@@ -1679,7 +1688,7 @@ quickfix
     Available when the list is nonempty. This does not read a window's
     location list or filter entries to the source buffer or selection.
 
-                                                 *gents-provider.locationlist*
+                                                  *gents-provider.locationlist*
 locationlist
     Copy the source window's current location list as plain text in its
     existing order, including when the source is a location-list window.
@@ -1690,7 +1699,7 @@ locationlist
     Use `:Gents send locationlist` or
     `require("gents").send({ "locationlist" })`.
 
-                                                     *gents-provider.terminal*
+                                                      *gents-provider.terminal*
 terminal
     Copy the last 1,000 source terminal buffer lines into a `text` code block,
     after removing trailing whitespace-only lines. Available only when the
@@ -1918,7 +1927,7 @@ optional Enter. Closing, wiping, or exiting a session discards any remaining
 queued input.
 
 ==============================================================================
-9. LUA API                                                         *gents-api*
+9. LUA API                                                          *gents-api*
 
 Load the facade with `local gents = require("gents")`. The following
 functions form its public surface. Public values and callbacks are described
@@ -1938,7 +1947,7 @@ unsupported target types raise errors. The no-session exceptions are listed
 per function. Errors from user callbacks and Neovim operations can
 also propagate.
 
-                                                             *gents.setup()*
+                                                                *gents.setup()*
 setup({opts}?) -> nil
     {opts}: |gents.SetupOptions|, default `{}`. Configure the plugin and
     install configured keymaps. Each call starts from defaults, not the
@@ -1948,7 +1957,7 @@ setup({opts}?) -> nil
 >lua
     require("gents").setup({ layout = "float" })
 <
-                                                               *gents.new()*
+                                                                  *gents.new()*
 new({tool}?, {opts}?) -> gents.Session?
     {tool}: configured tool name; nil opens the New Session picker. {opts}:
     |gents.NewOptions|. `cmd` replaces the complete argv; `args` appends to
@@ -1972,7 +1981,7 @@ new({tool}?, {opts}?) -> gents.Session?
       layout = "vsplit",
     })
 <
-                                                  *gents.resume_at_cursor()*
+                                                     *gents.resume_at_cursor()*
 resume_at_cursor({opts}?) -> gents.Session?
     Follow a configured tool:identifier or tool:[identifier] reference under
     the cursor on the current line; see |gents-conversation-references|.
@@ -1987,7 +1996,7 @@ resume_at_cursor({opts}?) -> gents.Session?
 >lua
     require("gents").resume_at_cursor({ layout = "float", label = "review" })
 <
-                                                          *gents.sessions()*
+                                                             *gents.sessions()*
 sessions() -> gents.Session[]
     Return a new list of all registered sessions, sorted by ascending ID.
     Includes hidden and retained exited sessions. Returns `{}` when empty.
@@ -1998,7 +2007,7 @@ sessions() -> gents.Session[]
       print(session.id, session.label, session.state)
     end
 <
-                                                           *gents.current()*
+                                                              *gents.current()*
 current() -> gents.Session?
     Return the registered session whose buffer is current, or nil for any
     other buffer. Retained exited sessions can be current. The returned record
@@ -2009,7 +2018,7 @@ current() -> gents.Session?
       print(session.label)
     end
 <
-                                                            *gents.status()*
+                                                               *gents.status()*
 status() -> gents.Status[]
     Return fresh status snapshots for all sessions in ascending ID order.
     `visible` means shown in the current tab. Includes retained exited
@@ -2021,7 +2030,7 @@ status() -> gents.Status[]
       print(status.label, status.visible, status.state)
     end
 <
-                                                             *gents.ready()*
+                                                                *gents.ready()*
 ready({id}) -> gents.ReadyEvent
     {id}: required numeric session ID; labels and predicates are not accepted.
     Emit |GentsReady| with `source = "hook"` and return its
@@ -2035,7 +2044,7 @@ ready({id}) -> gents.ReadyEvent
       require("gents").ready(session.id)
     end
 <
-                                                              *gents.send()*
+                                                                 *gents.send()*
 send({items}?, {opts}?) -> gents.Session?
     {items}: |gents.Item| list; nil opens the context picker.
     {opts}: |gents.SendOptions|; defaults are no target, `focus = true`, and
@@ -2057,7 +2066,7 @@ send({items}?, {opts}?) -> gents.Session?
       focus = false,
     })
 <
-                                                          *gents.provider()*
+                                                             *gents.provider()*
 provider({name}, {spec}) -> nil
     {name}: nonempty string without whitespace. {spec}: |gents.Provider| with
     string `desc` and function `render`. Register or replace a provider
@@ -2073,7 +2082,7 @@ provider({name}, {spec}) -> nil
       end,
     })
 <
-                                                              *gents.show()*
+                                                                 *gents.show()*
 show({target}?, {opts}?) -> gents.Session?
     {target}: |gents.Target|; {opts}: |gents.ShowOptions|. Show and focus
     the resolved session; enter terminal input if it is running. Without
@@ -2085,7 +2094,7 @@ show({target}?, {opts}?) -> gents.Session?
 >lua
     require("gents").show("review", { layout = "float" })
 <
-                                                             *gents.focus()*
+                                                                *gents.focus()*
 focus({target}?) -> gents.Session?
     {target}: |gents.Target|. An explicit target behaves like `show(target)`.
     With no target while a session buffer is current, switch to the previous
@@ -2102,7 +2111,7 @@ focus({target}?) -> gents.Session?
 >lua
     require("gents").focus()
 <
-                                                              *gents.hide()*
+                                                                 *gents.hide()*
 hide({target}?, {opts}?) -> gents.Session?
     {target}: |gents.Target|; {opts}: |gents.HideOptions|. Hide every view of
     the resolved session in the invoking tab. Only visible sessions are
@@ -2121,7 +2130,7 @@ hide({target}?, {opts}?) -> gents.Session?
     require("gents").hide("review")
     require("gents").hide(nil, { all = true })
 <
-                                                             *gents.close()*
+                                                                *gents.close()*
 close({target}?) -> gents.Session?
     {target}: |gents.Target|. Remove the resolved session from the registry,
     discard queued sends, stop its running CLI, hide its views, and remove its
@@ -2133,7 +2142,7 @@ close({target}?) -> gents.Session?
 >lua
     require("gents").close("review")
 <
-                                                              *gents.pick()*
+                                                                 *gents.pick()*
 pick({target}?) -> gents.Session?
     {target}: |gents.Target|. With no target, always open the session picker
     when sessions exist, even for one session; open the tool picker otherwise.
@@ -2145,7 +2154,7 @@ pick({target}?) -> gents.Session?
 >lua
     require("gents").pick()
 <
-                                                           *gents.actions()*
+                                                              *gents.actions()*
 actions({range}?) -> nil
     {range}: optional `{ line1 = integer, line2 = integer }`, inclusive
     one-based source lines. Open the Actions picker. With an explicit range,
@@ -2164,7 +2173,7 @@ actions({range}?) -> nil
     -- Or choose an action with lines 3 through 8 captured for sending:
     require("gents").actions({ line1 = 3, line2 = 8 })
 <
-                                                            *gents.toggle()*
+                                                               *gents.toggle()*
 toggle({target}?, {opts}?) -> gents.Session?
     {target}: |gents.Target|. If the resolved session is visible in the
     current tab, hide its views in this tab only, regardless of opts.layout.
@@ -2189,7 +2198,7 @@ toggle({target}?, {opts}?) -> gents.Session?
     require("gents").toggle("review", { layout = "float" })
     require("gents").toggle("review", { layout = { width = 80, height = 0.8 } })
 <
-                                               *gents.providers.terminal()*
+                                                   *gents.providers.terminal()*
 require("gents.providers").terminal({ctx}, {limit}?) -> gents.Part[]?
     {ctx}: |gents.Context| whose `buf` identifies the terminal to read.
     {limit}: positive integer; default 1000. Invalid limits raise "gents:
@@ -2210,7 +2219,7 @@ require("gents.providers").terminal({ctx}, {limit}?) -> gents.Part[]?
 <
 
 ==============================================================================
-10. PUBLIC TYPES                                                *gents-types*
+10. PUBLIC TYPES                                                  *gents-types*
 
 Types are available to LuaLS through the plugin's Lua annotations. A trailing
 `?` below means the field can be absent (nil); `{}` denotes a Lua table and
@@ -2220,7 +2229,7 @@ session objects as read-only; use the public functions to change sessions.
 
 Setup and per-call options ~
 
-                                                         *gents.SetupOptions*
+                                                           *gents.SetupOptions*
 Fields accepted by |gents.setup()|; all are optional:
 
     layout?           gents.Layout          "botright vsplit"
@@ -2228,6 +2237,7 @@ Fields accepted by |gents.setup()|; all are optional:
     buflisted?        boolean               false
     insert_on_focus?  boolean               false
     extend_gf?        boolean               false
+    terminal_status?  boolean               false
     picker?           gents.Picker          nil (vim.ui.select)
     picker_help?      boolean               true
     icons?            gents.IconsOptions    visible = "●", hidden = "○"
@@ -2240,14 +2250,15 @@ Fields accepted by |gents.setup()|; all are optional:
 
 See |gents-config| for validation, merging, and when each setting applies.
 
-                                                               *gents.Config*
-The resolved configuration has the same field names. layout, float,
-buflisted, insert_on_focus, extend_gf, picker_help, icons, on_exit, tools, prompts, and
-keys are present; picker may be nil. float is |gents.FloatConfig|, icons is
-|gents.Icons|, and tools maps names to complete |gents.Tool| objects. This type
-describes resolved values; |gents.setup()| does not return the configuration.
+                                                                 *gents.Config*
+The resolved configuration has the same field names. layout, float, buflisted,
+insert_on_focus, extend_gf, terminal_status, picker_help, icons, on_exit,
+tools, prompts, and keys are present; picker may be nil. float is
+|gents.FloatConfig|, icons is |gents.Icons|, and tools maps names to complete
+|gents.Tool| objects. This type describes resolved values; |gents.setup()|
+does not return the configuration.
 
-                                                           *gents.NewOptions*
+                                                             *gents.NewOptions*
 An optional table passed to |gents.new()|:
 
     cmd?     string[]        Replace the complete tool argv for this launch.
@@ -2261,7 +2272,7 @@ least one string and start with a nonempty executable name. Arguments are litera
 they are not parsed by a shell. Omitting label generates one from the tool
 name. See |gents.new()| and |gents-sessions|.
 
-                                                *gents.ResumeAtCursorOptions*
+                                                  *gents.ResumeAtCursorOptions*
 An optional table passed to |gents.resume_at_cursor()|:
 
     args?    string[]        Append after the generated resume arguments.
@@ -2272,7 +2283,7 @@ cmd and resume are not accepted. The reference chooses the tool and selector;
 the configured tool command and its resume adapter build argv. Arguments remain
 literal and the caller's table is unchanged. See |gents-resume|.
 
-                                                          *gents.ShowOptions*
+                                                            *gents.ShowOptions*
 An optional table passed to |gents.show()|:
 
     layout?  gents.Layout    Explicit placement, even if another view exists.
@@ -2280,7 +2291,7 @@ An optional table passed to |gents.show()|:
 Omitting layout reuses an existing window when possible. An explicit layout
 keeps other views of the session. See |gents-layouts|.
 
-                                                          *gents.HideOptions*
+                                                            *gents.HideOptions*
 An optional table passed to |gents.hide()|:
 
     all?     boolean         Hide every visible session in the current tab.
@@ -2288,7 +2299,7 @@ An optional table passed to |gents.hide()|:
 Defaults to false. With true, omit target; the operation skips the picker
 and returns nil. Buffers, jobs, and views in other tabs remain.
 
-                                                        *gents.ToggleOptions*
+                                                          *gents.ToggleOptions*
 An optional table passed to |gents.toggle()|:
 
     layout?  gents.Layout|false  Placement when showing; omitted uses memory.
@@ -2304,7 +2315,7 @@ When no sessions exist, an explicit layout is passed to the New Session
 picker; omitted or false uses the configured default. A newly opened view
 still updates the session's remembered placement. See |gents-layouts|.
 
-                                                          *gents.SendOptions*
+                                                            *gents.SendOptions*
 An optional table passed to |gents.send()|:
 
     target?  gents.Target    Destination; omitted uses |gents-targets|.
@@ -2317,7 +2328,7 @@ how providers choose the source. See |gents-context|.
 
 Targets, sessions, and status ~
 
-                                                               *gents.Target*
+                                                                 *gents.Target*
 An integer session ID, exact label string, or predicate:
 
     fun(session: gents.Session): boolean
@@ -2330,7 +2341,7 @@ Lua string targets always mean labels, even if the string contains only
 digits; pass a number for an ID. Command targets interpret numeric text as
 an ID. Targets do not match conversation titles. See |gents-targets|.
 
-                                                              *gents.Session*
+                                                                *gents.Session*
 Session objects are returned by operations that complete synchronously,
 |gents.sessions()|, and |gents.current()|. They are live objects, not copied
 snapshots. A session's buffer is shared by all of its views.
@@ -2345,6 +2356,7 @@ snapshots. A session's buffer is shared by all of its views.
     buf         integer              Terminal buffer handle.
     job?        integer              Terminal job ID, assigned on startup.
     state       gents.SessionState   Startup/exit state, defined below.
+    attention   boolean              Unacknowledged ready signal.
     exit_code?  integer              Process exit code after it exits.
     tab?        integer              Last tab used by gents.nvim.
     last_float? boolean              Last gents.nvim placement was floating.
@@ -2354,7 +2366,7 @@ Native window changes can leave it unchanged. Closed sessions are removed
 from the registry; holding a returned object does not keep its CLI alive.
 See |gents-sessions| for lifetime and naming.
 
-                                                         *gents.SessionState*
+                                                           *gents.SessionState*
 One of these strings:
 
     "starting"  CLI launched; the initial send delay has not completed.
@@ -2364,7 +2376,7 @@ One of these strings:
 This is not a busy/idle indicator for the agent's conversation. "ready" does
 not mean the CLI has finished a reply. |GentsReady| is a separate event.
 
-                                                               *gents.Status*
+                                                                 *gents.Status*
 Each entry from |gents.status()| is a fresh snapshot:
 
     id        integer              Session ID.
@@ -2373,14 +2385,16 @@ Each entry from |gents.status()| is a fresh snapshot:
     title?    string               Conversation title, if available.
     visible   boolean              Has a window in the current tab.
     state     gents.SessionState   Startup/exit state.
+    attention boolean              Unacknowledged ready signal.
     cwd       string               Session working directory.
 
-The list includes retained exited sessions. Call status() again when you
-need current visibility or title values; no cached list is updated for you.
+The list includes retained exited sessions. Call status() again when you need
+current visibility, title, or attention values; no cached list is updated for
+you. See |gents-attention| for acknowledgement and terminal reporting.
 
 Tools and layouts ~
 
-                                                                 *gents.Tool*
+                                                                   *gents.Tool*
 A resolved tool definition:
 
     name      string           Name used in commands and setup's tools map.
@@ -2400,14 +2414,14 @@ Without a location callback, references use the default formatter. Without
 a title callback, cleaned terminal titles are used directly. Built-in tools
 can supply their own callbacks. See |gents-tools|.
 
-                                                         *gents.ToolOverride*
+                                                           *gents.ToolOverride*
 The fields supplied under `setup({ tools = { name = ... } })`. It has the
 same fields as |gents.Tool| except name, which comes from the map key.
 All fields are optional for a built-in tool. A new tool must provide cmd.
 Use false in place of a tool table to remove that definition entirely.
 See |gents-config.tools| for the difference from enabled = false.
 
-                                                          *gents.TitleParser*
+                                                            *gents.TitleParser*
     fun(title: string, session: gents.Session): string?
 
 Called with cleaned title text from the CLI and its session. Return
@@ -2415,7 +2429,7 @@ the conversation title, or nil to clear it. Returned strings are cleaned
 before storage. Parsers should not mutate the session. See
 |gents-tool-titles| for reset signals and tool-specific behavior.
 
-                                                           *gents.ResumeArgs*
+                                                             *gents.ResumeArgs*
     fun(identifier: string, cwd: string): string[]
 
 Called before creating a window or session, with the requested selector and
@@ -2426,7 +2440,7 @@ this callback to build its preview. Do not mutate configuration or create a
 session from the callback. nil or false in a tool's resume field means that
 identifier-based resume is unsupported. See |gents-resume|.
 
-                                                               *gents.Layout*
+                                                                 *gents.Layout*
 One of:
 
 - An Ex command string that creates a window, such as "botright vsplit",
@@ -2439,13 +2453,13 @@ One of:
 gents.nvim assigns the session buffer to the chosen window. Inline float
 tables do not inherit setup's float table. See |gents-layouts|.
 
-                                                           *gents.FloatValue*
+                                                             *gents.FloatValue*
 A finite number or a function taking no arguments and returning a finite
 number. Used for width, height, row, and col. Functions run when the float
 opens and on |VimResized|; their results follow the same geometry rules as
 numeric values. See |gents-float|.
 
-                                                         *gents.FloatOptions*
+                                                           *gents.FloatOptions*
 Partial floating-window defaults for setup. Accepts the floating-window
 configuration fields supported by |nvim_open_win()|. gents.nvim resolves
 these fields when opening the view and on |VimResized|:
@@ -2462,13 +2476,13 @@ fields, such as relative, anchor, border, title, and zindex, use Neovim's
 configuration types. See |gents.FloatValue| and |gents-float| for placement
 and resize details.
 
-                                                          *gents.FloatConfig*
+                                                            *gents.FloatConfig*
 An inline float layout or the resolved setup float table. Same fields as
 |gents.FloatOptions|, but width and height are required. Callback results
 must be finite numbers; the resolved options must satisfy Neovim's window
 configuration constraints.
 
-                                                          *gents.IconsOptions*
+                                                           *gents.IconsOptions*
 Partial visibility markers:
 
     visible?  string  Default "●".
@@ -2477,22 +2491,22 @@ Partial visibility markers:
 Each must be nonempty and contain no whitespace or control characters.
 See |gents-config.icons|.
 
-                                                                *gents.Icons*
+                                                                  *gents.Icons*
 Resolved markers with both visible and hidden strings present.
 
 Keymaps ~
 
-                                                          *gents.CommandName*
+                                                            *gents.CommandName*
 "actions", "new", "pick", "focus", "toggle", "hide", "close", or "send".
 
-                                                            *gents.KeyAction*
+                                                              *gents.KeyAction*
 A named mapping action. Same values as |gents.CommandName|.
 
-                                                              *gents.KeyMode*
+                                                                *gents.KeyMode*
 "n" (Normal), "i" (Insert), "x" (Visual), "s" (Select),
 "v" (Visual and Select), or "t" (Terminal input).
 
-                                                               *gents.Keymap*
+                                                                 *gents.Keymap*
 An entry in setup's keys list:
 
     [1]    string                     Left-hand key sequence.
@@ -2508,7 +2522,7 @@ See |gents-keymaps| for examples and repeated setup behavior.
 
 Context and composition ~
 
-                                                              *gents.Context*
+                                                                *gents.Context*
 The source supplied to provider and item callbacks:
 
     win      integer          Source window handle.
@@ -2523,7 +2537,7 @@ is invoked, or when actions is invoked with a range or active Visual or Select
 selection. See |gents-context| for source selection, picker timing, and
 provider availability.
 
-                                                                *gents.Range*
+                                                                  *gents.Range*
 An inclusive range:
 
     kind    "char", "line", or "block"
@@ -2537,7 +2551,7 @@ sort the rows; custom writers receive the supplied range. Exact block text,
 including partial tabs and virtual columns, is preserved separately during
 selection capture. These are not LSP ranges, whose ends are exclusive.
 
-                                                             *gents.Provider*
+                                                               *gents.Provider*
 A provider registered with |gents.provider()|:
 
     desc    string
@@ -2549,7 +2563,7 @@ Provider callbacks should inspect the supplied context, because the current
 window may show a session or a picker. An empty returned list also means no
 usable context. See |gents-context| for registration and error handling.
 
-                                                                 *gents.Part*
+                                                                   *gents.Part*
 A table containing exactly one of these content forms:
 
     { text = string }
@@ -2564,7 +2578,7 @@ are rendered for the target CLI; built-in writers include only row numbers.
 They do not copy the file's contents. See |gents-context| for path bases and
 tool location writers.
 
-                                                                 *gents.Item*
+                                                                   *gents.Item*
 One item in a send or prompt list:
 
 - A string naming a provider. It is never literal message text.
@@ -2579,19 +2593,19 @@ Use `{ text = "Explain this" }` for literal words. See |gents-context|.
 
 Picker contracts ~
 
-                                                               *gents.Picker*
+                                                                 *gents.Picker*
 "snacks", "mini", "telescope", "fzf-lua", or a |gents.PickerAdapter|
 function. Omit the setup picker field to use |vim.ui.select()|. See
 |gents-picker-adapters|.
 
-                                                        *gents.PickerAdapter*
+                                                          *gents.PickerAdapter*
     fun<T>(spec: gents.PickerSpec<T>)
 
 Open a picker for the supplied items. On selection, invoke an action with
 the original PickerItem. The return value is ignored; selection can happen
 later. Cancellation invokes no action. See |gents-picker-custom|.
 
-                                                           *gents.PickerSpec*
+                                                             *gents.PickerSpec*
 A generic specification, where T is the item data type:
 
     title    string                          Picker heading.
@@ -2605,7 +2619,7 @@ even when the menu is choosing a destination for hide, close, or send; invoke
 the supplied callback instead of implementing behavior from its name.
 See |gents-pickers| for action names and origin-window handling.
 
-                                                           *gents.PickerItem*
+                                                             *gents.PickerItem*
 One generic picker choice:
 
     text      string                Complete plain-text label.
@@ -2618,7 +2632,7 @@ Data types are gents.CommandName for Actions, gents.Tool for New Session,
 gents.Session for Sessions, and gents.Part[] for Send Context. Display text
 is not an ID; pass the original item to the selected action.
 
-                                                          *gents.PickerChunk*
+                                                            *gents.PickerChunk*
 One part of a picker label:
 
     text   string
@@ -2637,7 +2651,7 @@ Event data ~
 All event payloads are in `event.data` in a User autocmd callback. See
 |gents-events| for exactly when each event is emitted.
 
-                                                         *gents.SessionEvent*
+                                                           *gents.SessionEvent*
 Payload for GentsSessionStart, GentsSessionShow, GentsSessionHide,
 and GentsSessionExit:
 
@@ -2645,19 +2659,19 @@ and GentsSessionExit:
     win?        integer  Newly shown window; present for Show.
     exit_code?  integer  Process exit code; present for Exit.
 
-                                                            *gents.SendEvent*
+                                                              *gents.SendEvent*
 Payload for GentsSend:
 
     id      integer  Destination session ID.
     submit  boolean  Whether this send requested submission after pasting.
 
-                                                           *gents.TitleEvent*
+                                                             *gents.TitleEvent*
 Payload for GentsSessionTitle:
 
     id      integer  Session ID.
     title?  string   New title; absent when it becomes unnamed.
 
-                                                           *gents.ReadyEvent*
+                                                             *gents.ReadyEvent*
 Payload for GentsReady, also returned by |gents.ready()|:
 
     id       integer           Session ID.
@@ -2673,7 +2687,7 @@ A session shown only in another tab has visible = false, focused = false,
 and no win field. These values describe the editor when the event is emitted.
 
 ==============================================================================
-11. EVENTS AND INTEGRATIONS                                     *gents-events*
+11. EVENTS AND INTEGRATIONS                                      *gents-events*
 
 gents.nvim emits |User| autocommands.
 Read each event's payload from `ev.data`:
@@ -2692,7 +2706,7 @@ queued sends, and process exits can run after the public function returns.
 The payload describes that event; read |gents.status()| when you need a
 fresh status snapshot. Fields listed below are the full event payloads.
 
-                                                      *GentsSessionStart*
+                                                            *GentsSessionStart*
 GentsSessionStart
     A terminal job has started successfully and the session's buffer,
     mappings, and `gents_terminal` filetype are set up. Startup does not
@@ -2700,7 +2714,7 @@ GentsSessionStart
 
     Data: `{ id = integer }` (|gents.SessionEvent|).
 
-                                                      *GentsSessionExit*
+                                                             *GentsSessionExit*
 GentsSessionExit
     The terminal job's exit callback has run. The session's state is
     `"exited"` and its `exit_code` has been recorded. The code is the job's
@@ -2712,7 +2726,7 @@ GentsSessionExit
     Data: `{ id = integer, exit_code = integer }`
     (|gents.SessionEvent|).
 
-                                                      *GentsSessionShow*
+                                                             *GentsSessionShow*
 GentsSessionShow
     A gents.nvim operation has added a view of the session. This includes
     the initial launch, an explicit placement that adds another view, and a
@@ -2722,7 +2736,7 @@ GentsSessionShow
 
     Data: `{ id = integer, win = integer }` (|gents.SessionEvent|).
 
-                                                      *GentsSessionHide*
+                                                             *GentsSessionHide*
 GentsSessionHide
     A gents.nvim hide or close operation removed at least one view,
     leaving no view of the session in any tab. Hiding only current-tab views
@@ -2731,7 +2745,7 @@ GentsSessionHide
 
     Data: `{ id = integer }` (|gents.SessionEvent|).
 
-                                                      *GentsSessionTitle*
+                                                            *GentsSessionTitle*
 GentsSessionTitle
     A terminal title update changed the session's normalized conversation
     title. The buffer name has also been updated. An absent `title` field
@@ -2741,7 +2755,7 @@ GentsSessionTitle
 
     Data: `{ id = integer, title = string? }` (|gents.TitleEvent|).
 
-                                                      *GentsReady*
+                                                                   *GentsReady*
 GentsReady
     A session's terminal emitted a supported OSC notification, or
     an integration called |gents.ready()|. The CLI's signal may indicate
@@ -2763,7 +2777,7 @@ GentsReady
     for sessions hidden from the current tab, test `not ev.data.visible`,
     as in the example above.
 
-                                                      *GentsSend*
+                                                                    *GentsSend*
 GentsSend
     One queued message has been pasted into the destination terminal.
     It fires on delivery, after any startup wait, rather than at enqueue
@@ -2780,7 +2794,34 @@ or read `gents.status()` when rendering. Its visibility is relative to the
 current tab. Display `status.title or status.label` for the session name.
 See |gents.Status| and |gents.status()|.
 
-Ready notifications                               *gents-ready-notifications*
+Ready notifications                                 *gents-ready-notifications*
+
+Attention tracking                                            *gents-attention*
+
+A ready signal sets the session's attention flag unless both the session buffer
+and the outer terminal have focus. Visibility alone does not acknowledge it.
+Entering that buffer while the outer terminal is focused clears only its flag;
+other sessions remain pending. Session exit, close, or buffer removal clears
+attention. |gents.status()| returns the flag even when terminal reporting is off.
+It is independent of the startup/exit state described below.
+
+Outer focus follows |FocusLost| and |FocusGained|. The terminal must forward
+focus changes; Gents assumes focus initially until an event arrives. Returning
+to Neovim acknowledges its current session buffer, if any. Buffer navigation
+while the outer terminal is unfocused leaves attention pending.
+
+With |gents-config.terminal_status| enabled, pending attention is reported as
+`state=done` using OSC 7501, with a separate `id=gents/<session-id>` record for
+each session. The targeting label is the record title, omitted if it exceeds
+the protocol's 192-byte limit; control characters are removed. The host chooses
+the UI. Acknowledgement clears that session's record. Disabling reporting or
+exiting Neovim clears the `gents` record subtree without clearing other apps.
+
+The ready signal does not identify completion, permission requests, or
+questions, so reporting does not infer working, blocked, or successful work.
+It does not send desktop notifications; your |GentsReady| callback can handle
+those independently. The draft protocol is documented at:
+https://gist.github.com/mitchellh/7acae3abd8355c1c00287d67e96c913a
 
 The `"starting"` to `"ready"` session-state transition governs when queued
 input can be sent after launch. It uses terminal output settling and a
@@ -2849,7 +2890,7 @@ when you need session buffers or commands. The title recipe in
 `docs/recipes/titles.md` explains native names and tool-specific formats.
 
 ==============================================================================
-12. HEALTH AND TROUBLESHOOTING                                  *gents-health*
+12. HEALTH AND TROUBLESHOOTING                                   *gents-health*
 
 Run `:checkhealth gents` after installation or when a tool or picker fails.
 The report inspects the current configuration without starting sessions:
@@ -2924,7 +2965,7 @@ popup until your configuration handles |GentsReady|.
 If agent edits are not reloading, check 'autoread' and use |:checktime| to
 ask Neovim to check files now. gents.nvim does not change 'autoread' for you.
 
-Terminal customization                          *gents-terminal-customization*
+Terminal customization                           *gents-terminal-customization*
 
 Sessions are native terminal buffers with `filetype=gents_terminal` and
 the buffer-local integer marker `b:gents_session`. They support ordinary
@@ -2951,7 +2992,7 @@ Explicit gents.nvim show actions enter input for running sessions. Exited
 sessions remain readable without starting input. See |gents-sessions| and
 |gents-keymaps|.
 
-Ordinary buffer lists                                   *gents-buffer-listing*
+Ordinary buffer lists                                    *gents-buffer-listing*
 
 Use the built-in gents.nvim session picker for normal session navigation.
 Session buffers are unlisted by default. `buflisted = true` is an advanced
@@ -2977,7 +3018,7 @@ they are not ways to hide it. Use |:Gents-hide| to keep the buffer and
 process available. Retained exited buffers remain listed until removed.
 See |gents-on-exit|.
 
-Native session files                               *gents-session-restoration*
+Native session files                                *gents-session-restoration*
 
 Plugin sessions cannot be restored by |:mksession|. We recommend excluding
 terminal buffers from native saved sessions: >lua

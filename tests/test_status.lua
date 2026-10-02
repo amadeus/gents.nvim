@@ -17,12 +17,15 @@ T["status returns independent snapshots with live visibility"] = function()
       cwd = session.cwd,
       visible = true,
       state = "starting",
+      attention = false,
     },
   })
   status[1].label = "changed"
   status[1].title = "changed"
+  status[1].attention = true
   eq(session.label, "review")
   eq(session.title, "Investigate flaky tests")
+  eq(session.attention, false)
   session.title = nil
   eq(gents.status()[1].title, nil)
   vim.cmd.enew()

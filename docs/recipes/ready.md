@@ -27,6 +27,43 @@ vim.api.nvim_create_autocmd("User", {
 Sessions shown only in another tab count as hidden. See `:help GentsReady`
 in the [help reference](../../doc/gents.txt) for the full event details.
 
+## Terminal status indicators
+
+Gents tracks each session's unacknowledged ready signals as `attention` in
+`require("gents").status()`. A ready signal sets attention whether the session
+is hidden or visible, unless both its buffer and the outer terminal have focus.
+Returning to that buffer with the outer terminal focused acknowledges only that
+session. Other sessions keep their attention state. Session exit, close, or
+buffer removal clears it. This is separate from the startup `"ready"` state
+that controls queued input.
+
+To show status indicators in a host terminal that implements the draft
+[Program Status Protocol (OSC 7501)](https://gist.github.com/mitchellh/7acae3abd8355c1c00287d67e96c913a),
+enable reporting:
+
+```lua
+require("gents").setup({ terminal_status = true })
+```
+
+Reporting is off by default. Each pending session gets a `state=done` record
+under `gents/<session-id>` with its targeting label. Acknowledgement clears
+only that record; disabling reporting or exiting Neovim clears Gents' records.
+Enabling reporting also publishes already pending sessions. Your popup callback
+can keep its own visibility rule.
+
+The host terminal chooses how to display these records. In Rex, enable
+**Program status in tabs** in **Settings > Developer**. No Rex-specific API or
+environment check is used.
+
+Outer focus is tracked through Neovim's `FocusLost` and `FocusGained` events, so
+the terminal must forward focus changes. Gents initially assumes Neovim has
+focus until one of those events arrives. Buffer navigation while the terminal
+is unfocused does not acknowledge attention.
+
+`GentsReady` does not distinguish completed responses from questions or
+permission requests. Reporting uses `done` for the unacknowledged signal; it
+does not infer `working`, `blocked`, or successful work.
+
 ## CLI setup
 
 Some CLIs, including Codex, can notify gents.nvim without any additional CLI

@@ -8,6 +8,7 @@ local defaults = {
   buflisted = false,
   insert_on_focus = false,
   extend_gf = false,
+  terminal_status = false,
   picker = nil,
   picker_help = true,
   icons = { visible = "●", hidden = "○" },
@@ -48,6 +49,7 @@ local function validate(config)
   assert(type(config.buflisted) == "boolean", "gents: buflisted must be a boolean")
   assert(type(config.insert_on_focus) == "boolean", "gents: insert_on_focus must be a boolean")
   assert(type(config.extend_gf) == "boolean", "gents: extend_gf must be a boolean")
+  assert(type(config.terminal_status) == "boolean", "gents: terminal_status must be a boolean")
   assert(type(config.icons) == "table", "gents: icons must be a table")
   for name, icon in pairs({ visible = config.icons.visible, hidden = config.icons.hidden }) do
     assert(

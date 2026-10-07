@@ -16,7 +16,6 @@ local next_id = 0
 ---@field buf integer
 ---@field job? integer Assigned after the terminal job starts.
 ---@field state gents.SessionState
----@field attention boolean Unacknowledged ready signal.
 ---@field exit_code? integer
 ---@field tab? integer
 ---@field last_float? boolean Whether the most recent gents placement was floating.
@@ -72,9 +71,8 @@ local function label_for(tool, requested)
 end
 
 ---@param tool gents.Tool
----@param id integer
 ---@return table<string, string>
-local function environment(tool, id)
+local function environment(tool)
   -- jobstart serializes false instead of unsetting it, so supply a full environment.
   ---@type table<string, string>
   local env = vim.fn.environ()
@@ -99,7 +97,6 @@ local function environment(tool, id)
   for name, value in pairs(tool.env or {}) do
     env[name] = value ~= false and value or nil
   end
-  env.GENTS_SESSION = tostring(id)
   return env
 end
 
@@ -109,8 +106,8 @@ function M.close(session)
   if registry[session.id] ~= session then
     return
   end
-  require("gents.attention").clear(session)
   registry[session.id] = nil
+  require("gents.terminal_status").detach(session, "close")
   require("gents.send").detach(session)
   local running = session.state ~= "exited" and session.job and session.job > 0
   if running then
@@ -148,7 +145,6 @@ function M.new(tool, opts, cwd)
     cwd = cwd,
     buf = vim.api.nvim_create_buf(false, true),
     state = "starting",
-    attention = false,
     last_float = vim.api.nvim_win_get_config(win).relative ~= "",
   }
   vim.bo[session.buf].bufhidden = "hide"
@@ -160,11 +156,11 @@ function M.new(tool, opts, cwd)
     once = true,
     callback = function()
       closing[session.id] = nil
-      require("gents.attention").clear(session)
       if registry[session.id] ~= session then
         return
       end
       registry[session.id] = nil
+      require("gents.terminal_status").detach(session, "buffer")
       require("gents.send").detach(session)
       if session.job and session.job > 0 and session.state ~= "exited" then
         vim.fn.jobstop(session.job)
@@ -181,12 +177,12 @@ function M.new(tool, opts, cwd)
       term = true,
       cwd = cwd,
       clear_env = true,
-      env = environment(tool, session.id),
+      env = environment(tool),
       on_exit = function(_, code)
         require("gents.send").detach(session)
         session.state = "exited"
         session.exit_code = code
-        require("gents.attention").clear(session)
+        require("gents.terminal_status").expire(session, "exit")
         if closing[session.id] then
           closing[session.id] = nil
           -- Deleting a terminal with pending PTY writes can hang Neovim.

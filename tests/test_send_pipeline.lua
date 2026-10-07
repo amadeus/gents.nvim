@@ -286,9 +286,13 @@ T["send target placement actions"] = test.new_set({
       eq(spec.title, "Gents: Sessions")
       vim.api.nvim_buf_set_lines(source, 0, -1, false, { "changed after capture" })
       vim.cmd.tabnew()
-      local item = assert(vim.iter(spec.items):find(function(row)
-        return row.data == second
-      end))
+      local item = assert(vim.iter(spec.items):find(
+        ---@param row gents.PickerItem<unknown>
+        ---@return boolean
+        function(row)
+          return row.data == second
+        end
+      ))
       ---@type { event: gents.SessionEvent, current: integer, tab: integer }[]
       local shown = {}
       vim.api.nvim_create_autocmd("User", {

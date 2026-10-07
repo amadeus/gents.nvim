@@ -637,7 +637,10 @@ starts from defaults, so collect your options in one call. See
 `:help gents-config` for configuration merging and timing.
 
 For Oh My Pi (`:Gents new omp`), see the [OMP recipe](recipes/omp.md) for
-large context pastes, conversation titles, and ready notifications.
+large context pastes and conversation titles.
+
+For native agent status, input-waiting autocmds, and optional host-terminal
+indicators, see [native status and readiness](recipes/ready.md).
 
 ## When a CLI exits
 

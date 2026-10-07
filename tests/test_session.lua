@@ -106,12 +106,12 @@ T["cwd and environment come from the invoking window and tool"] = function()
         cmd = {
           "sh",
           "-c",
-          'printf "%s\\n%s|%s|%s\\n%s\\n%s" "$PWD" "$GENTS_SESSION" "$GENTS_TEST_VALUE" "${GENTS_TEST_REMOVE-unset}" "$NVIM" "$TERM"',
+          'printf "%s\\n%s|%s|%s\\n%s\\n%s" "$PWD" "$GENTS_TEST_CUSTOM" "$GENTS_TEST_VALUE" "${GENTS_TEST_REMOVE-unset}" "$NVIM" "$TERM"',
         },
         env = {
           GENTS_TEST_VALUE = "tool-value",
           GENTS_TEST_REMOVE = false,
-          GENTS_SESSION = "wrong",
+          GENTS_TEST_CUSTOM = "custom",
         },
       },
     },
@@ -129,12 +129,12 @@ T["cwd and environment come from the invoking window and tool"] = function()
   eq(vim.uv.fs_realpath(vim.fn.getcwd(0)), vim.uv.fs_realpath(destination_dir))
   eq(vim.uv.fs_realpath(session.cwd), real_dir)
   eq(output(session):gsub("\n", ""):find(real_dir, 1, true) ~= nil, true)
-  local expected = tostring(session.id) .. "|tool-value|unset"
+  local expected = "custom|tool-value|unset"
   eq(output(session):find(expected, 1, true) ~= nil, true)
   eq(output(session):gsub("\n", ""):find(vim.v.servername, 1, true) ~= nil, true)
   eq(output(session):find("xterm-256color", 1, true) ~= nil, true)
   eq(vim.env.GENTS_TEST_REMOVE, "inherited")
-  eq(assert(require("gents.config").get().tools.probe.env).GENTS_SESSION, "wrong")
+  eq(assert(require("gents.config").get().tools.probe.env).GENTS_TEST_CUSTOM, "custom")
 end
 
 T["natural exit"] = test.new_set({ parametrize = { { false }, { true } } }, {

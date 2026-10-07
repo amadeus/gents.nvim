@@ -170,7 +170,7 @@ Adapters for [mini.pick](https://github.com/nvim-mini/mini.pick),
 | `:Gents new`              | Pick a CLI tool and start a session.                                    |
 | `:Gents new claude`       | Start a Claude session directly.                                        |
 | `:Gents focus`            | Focus a session, or return to the previous window when called from one. |
-| `:Gents toggle`           | Hide visible sessions in the current tab, or summon a session.           |
+| `:Gents toggle`           | Hide visible sessions in the current tab, or summon a session.          |
 | `:Gents hide`             | Hide the selected visible session's windows in the current tab.         |
 | `:Gents close`            | Stop the selected CLI and delete its buffer.                            |
 | `:Gents send`             | Choose file references or text to send to an agent.                     |
@@ -209,11 +209,11 @@ With `extend_gf = true`, load gents.nvim at startup (`lazy = false` in lazy.nvim
 Command or key triggers alone leave the extension inactive until Gents loads;
 pressing `gf` does not load it.
 
-Gents tracks unacknowledged ready signals in `require("gents").status()` as
-`attention`. Enable `terminal_status = true` to report them to a host terminal
-that supports OSC 7501, such as Rex. See
-[terminal status indicators](docs/recipes/ready.md#terminal-status-indicators)
-for setup and focus behavior.
+Agents with native OSC 7501 support drive `GentsReady` input-waiting events and
+`GentsStatusChanged` record updates. Enable `terminal_status = true` to relay
+their separate records to a supporting host terminal such as Rex, which controls
+their display. See You can also use these events to trigger Neovim alerts. See
+[native agent status and readiness](docs/recipes/ready.md) for setup and events.
 
 ## Documentation
 
@@ -221,7 +221,7 @@ Use `:help gents.nvim` for the complete reference, or start with these guides:
 
 - [Usage guide](docs/usage.md)
 - [Sending context](docs/recipes/context.md)
-- [Agent ready notifications](docs/recipes/ready.md)
+- [Native status and readiness](docs/recipes/ready.md)
 - [Conversation titles](docs/recipes/titles.md)
 - [Oh My Pi setup](docs/recipes/omp.md)
 - [Use your preferred picker](docs/recipes/pickers.md)

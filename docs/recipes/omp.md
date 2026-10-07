@@ -56,13 +56,8 @@ file must exist. gents.nvim does not create or modify OMP configuration files.
 See OMP's [configuration precedence](https://github.com/unsigned-gg/omp/blob/0c6c981ee5838d97700180383077eb0a3790637c/docs/config-usage.md)
 and [paste settings](https://github.com/unsigned-gg/omp/blob/0c6c981ee5838d97700180383077eb0a3790637c/packages/coding-agent/src/config/settings-schema.ts).
 
-## Titles and notifications
+## Conversation titles
 
 gents.nvim removes OMP's brand and activity marker from terminal titles so
 `π > Fix tests` and `π ⠋ Fix tests` both appear as `Fix tests`. See
 [conversation titles](titles.md).
-
-OMP enables completion and ask notifications by default, but their transport
-depends on terminal detection. A bell does not trigger `GentsReady`. If native
-notifications do not reach Neovim, use the [OMP ready extension](ready.md#oh-my-pi)
-for completed responses. The recipe also explains avoiding duplicate events.

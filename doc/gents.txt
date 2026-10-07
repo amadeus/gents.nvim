@@ -423,7 +423,7 @@ windows; float views retain their original geometry settings for later resizes.
 Configured keymaps update immediately, including existing session buffers. The
 current insert_on_focus setting applies when entering an existing session.
 The current terminal_status setting applies to all sessions; disabling it clears
-Gents' terminal records, and enabling it reports already pending attention.
+Gents' host records, and enabling it republishes current native snapshots.
 
 layout                                                    *gents-config.layout*
     Type: gents.Layout. Default: "botright vsplit".
@@ -481,9 +481,11 @@ extend_gf                                              *gents-config.extend_gf*
 
 terminal_status                                  *gents-config.terminal_status*
     Type: boolean. Default: false.
-    Reports unacknowledged ready signals to the host terminal using the draft
-    OSC 7501 Program Status Protocol. Enable only when the host implements it;
-    the terminal decides how to display the records. See |gents-attention|.
+    Relays native OSC 7501 program-status records to a supporting host terminal.
+    The terminal application decides what to display and how. Local |GentsReady|
+    and |GentsStatusChanged| events work with this option off and can trigger
+    Neovim alerts through your callbacks. See
+    |gents-program-status| for support requirements and lifetime.
 
 insert_on_focus                                  *gents-config.insert_on_focus*
     Type: boolean. Default: false.
@@ -792,10 +794,8 @@ starts from Neovim's environment and removes these inherited values:
 NVIM, NVIM_LISTEN_ADDRESS, NVIM_LOG_FILE, VIM, VIMRUNTIME, TERM, COLORTERM,
 COLUMNS, LINES, TERMCAP, and COLORFGBG. It supplies COLORTERM=truecolor when
 'termguicolors' is enabled.
-The tool's env then applies, and GENTS_SESSION is always set to the session
-ID as a string, overriding any supplied value. Neovim supplies the terminal
-job's own variables, including TERM and NVIM; see |jobstart()|. Use
-GENTS_SESSION for readiness hooks described in |gents-events|.
+The tool's env then applies. Neovim supplies the terminal job's own variables,
+including TERM and NVIM; see |jobstart()|.
 
 Location writers                                         *gents-tool-locations*
 
@@ -2030,20 +2030,6 @@ status() -> gents.Status[]
       print(status.label, status.visible, status.state)
     end
 <
-                                                                *gents.ready()*
-ready({id}) -> gents.ReadyEvent
-    {id}: required numeric session ID; labels and predicates are not accepted.
-    Emit |GentsReady| with `source = "hook"` and return its
-    |gents.ReadyEvent| payload. Unknown IDs raise "gents: no session with id
-    ...". This does not change session state or release the startup queue. It
-    can report a retained exited session; callers should choose when a ready
-    notification is useful.
->lua
-    local session = require("gents").current()
-    if session then
-      require("gents").ready(session.id)
-    end
-<
                                                                  *gents.send()*
 send({items}?, {opts}?) -> gents.Session?
     {items}: |gents.Item| list; nil opens the context picker.
@@ -2356,7 +2342,6 @@ snapshots. A session's buffer is shared by all of its views.
     buf         integer              Terminal buffer handle.
     job?        integer              Terminal job ID, assigned on startup.
     state       gents.SessionState   Startup/exit state, defined below.
-    attention   boolean              Unacknowledged ready signal.
     exit_code?  integer              Process exit code after it exits.
     tab?        integer              Last tab used by gents.nvim.
     last_float? boolean              Last gents.nvim placement was floating.
@@ -2385,12 +2370,11 @@ Each entry from |gents.status()| is a fresh snapshot:
     title?    string               Conversation title, if available.
     visible   boolean              Has a window in the current tab.
     state     gents.SessionState   Startup/exit state.
-    attention boolean              Unacknowledged ready signal.
     cwd       string               Session working directory.
 
 The list includes retained exited sessions. Call status() again when you need
-current visibility, title, or attention values; no cached list is updated for
-you. See |gents-attention| for acknowledgement and terminal reporting.
+current visibility or title values; no cached list is updated for you.
+Native activity changes are reported through |GentsStatusChanged|.
 
 Tools and layouts ~
 
@@ -2646,7 +2630,8 @@ Event data ~
 
 *gents.EventName*
 "GentsSessionStart", "GentsSessionExit", "GentsSessionShow",
-"GentsSessionHide", "GentsSessionTitle", "GentsReady", or "GentsSend".
+"GentsSessionHide", "GentsSessionTitle", "GentsReady", "GentsStatusChanged",
+or "GentsSend".
 
 All event payloads are in `event.data` in a User autocmd callback. See
 |gents-events| for exactly when each event is emitted.
@@ -2671,20 +2656,59 @@ Payload for GentsSessionTitle:
     id      integer  Session ID.
     title?  string   New title; absent when it becomes unnamed.
 
-                                                             *gents.ReadyEvent*
-Payload for GentsReady, also returned by |gents.ready()|:
+                                                             *gents.AgentEvent*
+Shared session metadata for GentsReady and GentsStatusChanged:
 
-    id       integer           Session ID.
-    label    string            Stable targeting label.
-    tool     string            Tool name.
-    buf      integer           Session buffer handle.
-    win?     integer           View in the current tab; focused one preferred.
-    visible  boolean           Has a view in the current tab.
-    focused  boolean           The current window shows this session.
-    source   "osc" or "hook"   Where the signal came from.
+    id       integer   Session ID.
+    label    string    Stable targeting label.
+    tool     string    Tool name.
+    title?   string    Conversation title, distinct from a record title.
+    buf      integer   Session buffer handle.
+    win?     integer   View in the current tab; focused one preferred.
+    visible  boolean   Has a view in the current tab.
+    focused  boolean   The current window shows this session.
 
 A session shown only in another tab has visible = false, focused = false,
 and no win field. These values describe the editor when the event is emitted.
+
+                                                           *gents.ProgramState*
+"idle", "working", "blocked", "done", or "error". Independent of
+|gents.SessionState|; "clear" removes records rather than being a state.
+
+                                                            *gents.ProgramKind*
+"permission", "question", or "auth". Only applies to blocked records.
+
+                                                          *gents.ProgramStatus*
+A complete native record snapshot:
+
+    state     gents.ProgramState  Activity state.
+    kind?     gents.ProgramKind   Input needed for a blocked request.
+    msg?      string              Native message, decoded UTF-8 text.
+    progress? integer             0-100, for working or blocked records.
+    app?      string              Explicit producer app; not inherited here.
+    title?    string              Native record title, decoded UTF-8 text.
+
+Missing fields are absent, not retained from previous reports. Snapshots in
+callbacks are copies of stored records.
+
+                                                           *gents.StatusReason*
+"report", "clear", "prompt", "exit", "close", "buffer", "shutdown", or
+"evicted". The last means the least recently updated record was removed
+when a new record exceeded the per-terminal capacity of 256.
+
+                                                             *gents.ReadyEvent*
+Payload for |GentsReady|, extending |gents.AgentEvent|:
+
+    record_id string               Native ID; "" means the terminal root.
+    current   gents.ProgramStatus  Complete input-waiting snapshot.
+
+                                                     *gents.StatusChangedEvent*
+Payload for |GentsStatusChanged|, extending |gents.AgentEvent|:
+
+    record_id string                Native ID; "" means the terminal root.
+    previous? gents.ProgramStatus   Absent on creation.
+    current?  gents.ProgramStatus   Absent on removal.
+    reason    gents.StatusReason    Why the record changed.
 
 ==============================================================================
 11. EVENTS AND INTEGRATIONS                                      *gents-events*
@@ -2757,25 +2781,28 @@ GentsSessionTitle
 
                                                                    *GentsReady*
 GentsReady
-    A session's terminal emitted a supported OSC notification, or
-    an integration called |gents.ready()|. The CLI's signal may indicate
-    a completed response, an idle transition, or a request for attention;
-    this event does not certify successful work or change startup state.
+    A validated native record establishes input waiting: a new blocked
+    request, or a return to idle after an observed non-idle state on that
+    same record. Initial idle does not fire it. A blocked request is new
+    when the previous state was not blocked, or its kind or message changes.
+    Title/progress/app updates alone and identical repeats do not fire it.
+    Done/error alone do not establish input waiting. This event does not
+    change startup state or release queued sends.
 
-    Data (|gents.ReadyEvent|):
-        id        integer: session ID.
-        label     string: targeting label, not the conversation title.
-        tool      string: configured tool name.
-        buf       integer: terminal buffer ID.
-        win       integer?: view in the current tab; focused view preferred.
-        visible   boolean: a view exists in the current tab.
-        focused   boolean: the current window contains this session.
-        source    `"osc"` or `"hook"`.
+    Data: |gents.ReadyEvent|, including shared |gents.AgentEvent| metadata.
+    Works for focused and hidden sessions, with terminal_status on or off.
 
-    Sessions displayed only in another tab have `visible = false` and no
-    `win`. The event does not include the notification text. To notify only
-    for sessions hidden from the current tab, test `not ev.data.visible`,
-    as in the example above.
+                                                           *GentsStatusChanged*
+GentsStatusChanged
+    A native record was created, changed, or removed. Identical snapshots
+    do not fire it. Stored records are updated before callbacks run.
+    Reports and removals use the same pipeline, including clears, prompt,
+    exit, close, buffer removal, shutdown, and capacity eviction.
+
+    Data: |gents.StatusChangedEvent|, including |gents.AgentEvent| metadata.
+    previous/current hold complete snapshots; nil identifies creation or
+    removal. Fires before GentsReady for an input-waiting transition.
+    Works independently of terminal_status, visibility, and focus.
 
                                                                     *GentsSend*
 GentsSend
@@ -2794,86 +2821,53 @@ or read `gents.status()` when rendering. Its visibility is relative to the
 current tab. Display `status.title or status.label` for the session name.
 See |gents.Status| and |gents.status()|.
 
-Ready notifications                                 *gents-ready-notifications*
+Native program status                                    *gents-program-status*
 
-Attention tracking                                            *gents-attention*
+Agents must implement OSC 7501 to provide status and input-waiting events.
+This applies equally to Codex, Claude Code, OpenCode, and custom tools;
+check your CLI version's native support. Other terminals are not observed.
+Gents consumes validated reports through |TermRequest| on each session buffer.
+A capability query receives a fixed OSC 7501 ? reply in that child's PTY,
+including when outward reporting is disabled. The protocol is documented at:
+https://www.superlogical.com/rex/docs/build/program-status
 
-Every ready signal sets the session's attention flag, regardless of visibility
-or the focus of its buffer and the outer terminal.
-Entering that buffer while the outer terminal is focused clears only its flag;
-other sessions remain pending. Session exit, close, or buffer removal clears
-attention. |gents.status()| returns the flag even when terminal reporting is off.
-It is independent of the startup/exit state described below.
+Each report completely replaces its native record. Root and child records
+coexist; Gents does not combine them or pick an overall status. Clear removes
+its addressed record and native descendants; root clear affects only the
+emitting Gents session. Records are capped at 256 per session; a new report
+at capacity evicts the least recently updated record. Invalid reports are
+ignored without applying partial fields.
 
-Outer focus follows |FocusLost| and |FocusGained|. The terminal must forward
-focus changes; Gents assumes focus initially until an event arrives. Returning
-to Neovim acknowledges its current session buffer, if any. Buffer navigation
-while the outer terminal is unfocused leaves attention pending.
+Enable |gents-config.terminal_status| to relay these records to a supporting
+host terminal application. It defaults to false. Gents maps native IDs to
+bounded leaves under gents/<session-id>, preserving supplied state, kind,
+message, progress, app, and title. The relay resolves app from the nearest
+native ancestor when omitted. For a root record without a native title,
+it uses the session targeting label, removing controls and omitting labels
+outside the protocol's UTF-8/192-byte limit. Host IDs differ from record_id
+in event payloads, which always holds the original native identity.
 
-With |gents-config.terminal_status| enabled, pending attention is reported as
-`state=blocked` using OSC 7501, with a separate `id=gents/<session-id>` record for
-each session. The targeting label is the record title, omitted if it exceeds
-the protocol's 192-byte limit; control characters are removed. The host chooses
-the UI. Acknowledgement clears that session's record. Disabling reporting or
-exiting Neovim clears the `gents` record subtree without clearing other apps.
-
-The ready signal marks a session as waiting for user input. It does not
-identify completion, permission requests, or questions, so reports omit kind
-and do not infer working or successful work.
-It does not send desktop notifications; your |GentsReady| callback can handle
-those independently. The draft protocol is documented at:
-https://gist.github.com/mitchellh/7acae3abd8355c1c00287d67e96c913a
-
-The `"starting"` to `"ready"` session-state transition governs when queued
-input can be sent after launch. It uses terminal output settling and a
-timeout; see |gents-context|. It emits no GentsReady event. Conversely,
-OSC notifications and `gents.ready(id)` do not bypass that startup wait.
-
-gents.nvim receives supported terminal notifications automatically. If
-your CLI already emits them, no additional notification settings or hooks
-are needed. Use the CLI's settings to enable notifications if needed, or to
-change which events and focus conditions trigger them. A CLI hook that
-calls `gents.ready(id)` is an alternative. The plugin does not install or
-enable tool-specific hooks. Use one notification mechanism per tool to avoid
-duplicate events; repeated signals emit repeated events.
-
-Supported terminal notifications:
-    OSC 9:   notification payloads, excluding progress (`9;4` and `9;4;...`).
-    OSC 777: payloads beginning with `notify;`.
-    OSC 99:  completed title/body notifications. Metadata `d=0` marks an
-             incomplete notification; `d=1`, or no `d`, marks completion.
-             Metadata `p=title`, `p=body`, or no `p` supplies text. Other
-             kinds, such as queries and control messages, are ignored.
-
-These are received through |TermRequest| on session buffers. Plain
-terminals are not observed. A supported terminal notification sets
-`source = "osc"`. Terminal notifications are untested with Neovim inside
-tmux: some CLIs wrap them in tmux passthrough sequences that the terminal
-does not deliver. Hooks calling `gents.ready(id)` are unaffected.
-
-A CLI hook can call back into the parent Neovim using its inherited `NVIM`
-server address and `GENTS_SESSION` ID. Start the CLI through gents.nvim so
-those variables refer to its registered session. This POSIX shell body
-works where `nvim` is available on the hook's PATH: >sh
-    if [ -n "$NVIM" ] && [ -n "$GENTS_SESSION" ]; then
-      expr="v:lua.require'gents'.ready($GENTS_SESSION)"
-      nvim --server "$NVIM" --remote-expr "$expr" >/dev/null 2>&1
-    fi
-<
-Use an absolute path to Neovim if the hook cannot find `nvim`. Install the
-command in the CLI's response-finished or attention hook and preserve that
-hook's required stdin/stdout protocol. Calling |gents.ready()| sets
-`source = "hook"`. A missing or closed session ID raises an error; a
-retained exited session remains registered and can still receive a manual
-ready call.
-
-Practical tool-specific recipes are in `docs/recipes/ready.md`:
+Native statuses do not depend on visibility or focus. Navigating to a session
+does not clear its records; the producer owns its updates and the terminal
+application chooses which records to display and how. Disabling reporting
+clears owned host records and keeps local snapshots; enabling it republishes
+them. GUI clients without a host terminal cannot display indicators through
+this relay. Your |GentsReady| or |GentsStatusChanged| callback can use
+|vim.notify()| to display Neovim alerts independently of host reporting,
+including in GUI clients. The practical recipe is in docs/recipes/ready.md:
 https://github.com/amadeus/gents.nvim/tree/main/docs/recipes
-The signal's scope matters: an idle notification can also follow a
-cancellation, and an attention notification can request permission. Hook
-support varies by CLI and execution mode. OpenCode requires a CLI plugin
-loaded through `cli.json` so it can notify the correct gents.nvim session when
-a turn succeeds in the current conversation or an open CLI tab.
+
+A new shell prompt (OSC 133 A) or job exit removes idle, working, and blocked
+records. Done and error survive while the terminal buffer is retained. Session
+close, buffer removal, and Neovim shutdown clear owned records. No heartbeat
+is needed. Alternate-screen switches and soft resets preserve records.
+Neovim currently does not expose full terminal resets (RIS) to TermRequest,
+so Gents cannot clear records on RIS. Producers can explicitly report clear;
+full protocol conformance is limited by this missing Neovim signal.
+
+The starting-to-ready session transition governs initial input delivery
+using terminal output settling and a timeout; see |gents-context|. It emits
+no GentsReady event. Native status reports do not bypass that startup wait.
 
 Conversation titles and status ~
 
@@ -2946,7 +2940,7 @@ configuration already uses is left alone and shows there. If Snacks footer
 hints are clipped, widen the editor or disable them with
 `picker_help = false`.
 
-Context and notification problems ~
+Context and status problems ~
 
 An unavailable context provider is omitted from the picker. For example,
 `selection` needs a captured range and `file` needs a suitable named buffer.
@@ -2955,13 +2949,12 @@ See |gents-context| and |gents-keymaps|.
 
 Queued input can wait during CLI startup. The session's `"ready"` state
 does not mean a response has completed, and GentsReady does not release
-the queue. See |gents-ready-notifications| for that distinction.
+the queue. See |gents-program-status| for that distinction.
 
-If notifications are missing, check the CLI's hook or OSC settings and
-their focus conditions. A shell hook needs the terminal's `NVIM` and
-`GENTS_SESSION` values and access to the Neovim executable. Configure one
-mechanism if notifications are duplicated. The plugin does not display a
-popup until your configuration handles |GentsReady|.
+If native status events are missing, verify that the installed CLI emits
+OSC 7501. For host indicators, also enable terminal_status and use a host
+that supports the protocol. Gents does not display a popup unless your
+configuration handles |GentsReady| or |GentsStatusChanged|.
 
 If agent edits are not reloading, check 'autoread' and use |:checktime| to
 ask Neovim to check files now. gents.nvim does not change 'autoread' for you.

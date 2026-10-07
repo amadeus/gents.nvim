@@ -683,7 +683,7 @@ T["hide ignores existing nonvisible targets and rejects unknown targets"] = func
   local session = H.new()
   local win = vim.api.nvim_get_current_win()
   vim.cmd.tabnew()
-  eq(gents.ready(session.id).visible, false)
+  eq(gents.status()[1].visible, false)
   eq(gents.hide(session.id), nil)
   eq(gents.hide(session.label), nil)
   eq(

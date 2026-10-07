@@ -85,7 +85,7 @@
 ---@field buflisted? boolean List newly created session buffers in normal buffer lists; defaults to false.
 ---@field insert_on_focus? boolean Enter terminal input when focusing a live session; defaults to false.
 ---@field extend_gf? boolean Extend Normal-mode gf for conversation references; defaults to false.
----@field terminal_status? boolean Report attention to the host terminal using OSC 7501; defaults to false.
+---@field terminal_status? boolean Relay native program status to the host terminal using OSC 7501; defaults to false.
 ---@field picker? gents.Picker
 ---@field picker_help? boolean Show binding hints in the built-in Snacks picker; defaults to true.
 ---@field icons? gents.IconsOptions
@@ -124,7 +124,7 @@
 ---@field id integer
 ---@field title? string Absent when the conversation becomes unnamed.
 
----@class gents.ReadyEvent
+---@class gents.AgentEvent
 ---@field id integer
 ---@field label string
 ---@field tool string
@@ -132,7 +132,30 @@
 ---@field win? integer A window showing the session in the current tab; focused view preferred.
 ---@field visible boolean Shown in a window in the current tab.
 ---@field focused boolean
----@field source "osc"|"hook"
+---@field title? string Conversation title, distinct from a native record title.
+
+---@alias gents.ProgramState "idle"|"working"|"blocked"|"done"|"error"
+---@alias gents.ProgramKind "permission"|"question"|"auth"
+---@alias gents.StatusReason "report"|"clear"|"prompt"|"exit"|"close"|"buffer"|"shutdown"|"evicted"
+
+---Complete native snapshot; omitted fields are not retained from earlier reports.
+---@class gents.ProgramStatus
+---@field state gents.ProgramState
+---@field kind? gents.ProgramKind
+---@field msg? string
+---@field progress? integer
+---@field app? string Explicit producer app; relay resolves ancestor inheritance.
+---@field title? string Native record title.
+
+---@class gents.ReadyEvent: gents.AgentEvent
+---@field record_id string Native ID; empty string is the embedded terminal's root.
+---@field current gents.ProgramStatus Input-waiting snapshot.
+
+---@class gents.StatusChangedEvent: gents.AgentEvent
+---@field record_id string Native ID; empty string is the embedded terminal's root.
+---@field previous? gents.ProgramStatus Absent on creation.
+---@field current? gents.ProgramStatus Absent on removal.
+---@field reason gents.StatusReason
 
 ---@class gents.Status
 ---@field id integer
@@ -141,7 +164,6 @@
 ---@field title? string Conversation title; does not change the targeting label.
 ---@field visible boolean Shown in a window in the current tab.
 ---@field state gents.SessionState
----@field attention boolean Unacknowledged ready signal; independent of startup/exit state.
 ---@field cwd string
 
 ---Inclusive endpoints: one-based rows and zero-based byte columns.

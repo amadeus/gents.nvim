@@ -13,7 +13,9 @@ end
 ---@param opts? gents.SetupOptions
 function M.setup(opts)
   local config = require("gents.config").setup(opts)
-  require("gents.attention").setup(config.terminal_status)
+  if package.loaded["gents.terminal_status"] then
+    require("gents.terminal_status").setup(config.terminal_status)
+  end
   -- Keymap support loads once keys are configured, and stays active so a later
   -- setup call can remove them again.
   if next(config.keys) ~= nil or package.loaded["gents.keys"] then
@@ -78,19 +80,10 @@ function M.status()
       title = session.title,
       visible = require("gents.window").visible(session),
       state = session.state,
-      attention = session.attention,
       cwd = session.cwd,
     }
   end
   return result
-end
-
----@param id integer
----@return gents.ReadyEvent
-function M.ready(id)
-  local session = require("gents.session").get(id)
-  assert(session, "gents: no session with id " .. tostring(id))
-  return require("gents.events").ready(session, "hook")
 end
 
 ---Omitting items opens the context picker.

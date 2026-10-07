@@ -54,7 +54,7 @@ another title event. A directory-name fallback matching the gents.nvim session's
 cwd basename is omitted. Resuming an OMP session recorded in another directory
 can display that directory's basename as the conversation title. If an OMP
 extension supplies a different terminal title format, use a custom parser below.
-See the [OMP setup recipe](omp.md) for context sends and ready notifications.
+See the [OMP setup recipe](omp.md) for context sends.
 
 ## Codex setup
 
@@ -84,7 +84,7 @@ If you choose another format, use a custom parser or disable title reporting
 below.
 
 See the [Codex title settings](https://learn.chatgpt.com/docs/config-file/config-sample)
-and [ready notification setup](ready.md#codex) for other settings in `[tui]`.
+for other settings in `[tui]`.
 
 ## Customize or disable titles
 

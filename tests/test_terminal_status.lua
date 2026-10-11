@@ -94,7 +94,7 @@ T["native events include session metadata and are independent of startup and rel
   eq(ready[2].win, nil)
 end
 
-T["ready means a new blocked request or return to idle after activity"] = function()
+T["ready covers completion, new blocked requests and return to idle after activity"] = function()
   local session = H.new()
   report(session, "state=idle")
   eq(#ready, 0)
@@ -105,21 +105,92 @@ T["ready means a new blocked request or return to idle after activity"] = functi
   eq(#changes, 3)
   report(session, "state=done")
   report(session, "state=error")
-  eq(#ready, 1)
+  eq(#ready, 2)
   report(session, "state=blocked:kind=question:msg=" .. vim.base64.encode("A?"))
   report(
     session,
     "state=blocked:kind=question:msg=" .. vim.base64.encode("A?") .. ":progress=20:title=VGl0bGU="
   )
-  eq(#ready, 2)
-  report(session, "state=blocked:kind=question:msg=" .. vim.base64.encode("B?"))
   eq(#ready, 3)
-  report(session, "state=blocked")
+  report(session, "state=blocked:kind=question:msg=" .. vim.base64.encode("B?"))
   eq(#ready, 4)
+  report(session, "state=blocked")
+  eq(#ready, 5)
   report(session, "state=clear")
   report(session, "state=idle")
-  eq(#ready, 4)
+  eq(#ready, 5)
 end
+
+T["each new completion fires ready without repeating for metadata updates"] = function()
+  local session = H.new()
+  report(session, "state=done")
+  eq(#ready, 1)
+  report(session, "state=done")
+  report(session, "state=done:title=VGl0bGU=:msg=UmVzdWx0:app=agent")
+  eq(#ready, 1)
+  report(session, "state=working")
+  report(session, "state=done")
+  eq(#ready, 2)
+  report(session, "state=done:id=worker")
+  eq(#ready, 3)
+  eq(ready[3].record_id, "worker")
+  eq(#changes, 5)
+end
+
+T["native completion reports"] = test.new_set({ parametrize = { { false }, { true } } }, {
+  ---@param enabled boolean
+  ["emit ready once from a hidden PTY with or without host reporting"] = function(enabled)
+    setup(enabled)
+    ---@type string[]
+    local order = {}
+    vim.api.nvim_create_autocmd("User", {
+      group = group,
+      pattern = { "GentsStatusChanged", "GentsReady" },
+      callback = function(ev)
+        if ev.data.current then
+          order[#order + 1] = ev.match .. ":" .. ev.data.current.state
+        end
+      end,
+    })
+    local session = H.new({
+      cmd = {
+        "sh",
+        "-c",
+        [[read signal
+printf '\033]7501;state=working:app=agent\007'
+printf '\033]7501;state=done:app=agent:msg=UmVzdWx0\033\\'
+printf '\033]7501;state=done:app=agent:msg=UmVzdWx0\007'
+printf '\033]7501;state=done:app=agent:msg=UmVzdWx0:title=VGl0bGU=\007'
+printf '\033]2;After completion\007'
+exec cat]],
+      },
+    })
+    gents.hide(session.id)
+    vim.fn.chansend(session.job, "go\n")
+    H.wait(function()
+      return session.title == "After completion"
+    end)
+    eq(order, {
+      "GentsStatusChanged:working",
+      "GentsStatusChanged:done",
+      "GentsReady:done",
+      "GentsStatusChanged:done",
+    })
+    eq(#ready, 1)
+    eq(ready[1].id, session.id)
+    eq(ready[1].record_id, "")
+    eq(ready[1].current, { state = "done", app = "agent", msg = "Result" })
+    eq({ ready[1].visible, ready[1].focused }, { false, false })
+    eq(changes[2].previous, { state = "working", app = "agent" })
+    eq(changes[2].current, ready[1].current)
+    if enabled then
+      eq(#sent, 3)
+      eq(relayed(2).state, "done")
+    else
+      eq(sent, {})
+    end
+  end,
+})
 
 T["snapshots replace completely and callbacks cannot change stored state"] = function()
   local session = H.new()
@@ -239,10 +310,10 @@ T["prompt and process exit preserve done/error children when live parents disapp
   report(session, "state=done:id=worker")
   report(session, "state=error:id=failed")
   report(session, "state=blocked:id=waiting")
-  vim.api.nvim_exec_autocmds(
-    "TermRequest",
-    { buffer = session.buf, data = { sequence = "\027]133;A" } }
-  )
+  vim.api.nvim_exec_autocmds("TermRequest", {
+    buffer = session.buf,
+    data = { sequence = "\027]133;A", terminator = "\007", cursor = { 1, 0 } },
+  })
   eq(changes[#changes].reason, "prompt")
   eq(relayed(#sent).state, "clear")
   report(session, "state=working")
@@ -349,6 +420,8 @@ T["a short-lived native producer leaves its final result"] = function()
     return session.state == "exited"
   end)
   eq(#changes, 2)
+  eq(#ready, 1)
+  eq(ready[1].current, { state = "done", msg = "Result" })
   setup(true)
   eq(relayed(1).state, "done")
   eq(relayed(1).msg, "Result")
@@ -395,7 +468,8 @@ os.write(1, b'\x1b]7501;state=done\x07' if reply == b'\x1b]7501;?\x1b\\' else b'
   end)
   eq(session.exit_code, 0)
   eq(changes[1].current, { state = "done" })
-  eq(#ready, 0)
+  eq(#ready, 1)
+  eq(ready[1].current, { state = "done" })
   eq(sent, {})
 end
 

@@ -209,10 +209,11 @@ With `extend_gf = true`, load gents.nvim at startup (`lazy = false` in lazy.nvim
 Command or key triggers alone leave the extension inactive until Gents loads;
 pressing `gf` does not load it.
 
-Agents with native OSC 7501 support drive `GentsReady` input-waiting events and
-`GentsStatusChanged` record updates. Enable `terminal_status = true` to relay
-their separate records to a supporting host terminal such as Rex, which controls
-their display. See You can also use these events to trigger Neovim alerts. See
+Agents with native OSC 7501 support drive `GentsReady` completion and
+input-waiting events and `GentsStatusChanged` record updates. Enable
+`terminal_status = true` to relay their separate records to a supporting host
+terminal such as Rex, which controls their display. See You can also use these
+events to trigger Neovim alerts. See
 [native agent status and readiness](docs/recipes/ready.md) for setup and events.
 
 ## Documentation

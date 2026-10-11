@@ -256,11 +256,11 @@ function M.receive(session, sequence, terminator)
     return
   end
   changed(session, id, previous, current, "report")
-  local waiting = current.state == "blocked"
-      and (not previous or previous.state ~= "blocked" or previous.kind ~= current.kind or previous.msg ~= current.msg)
+  local ready = current.state == "done" and (not previous or previous.state ~= "done")
+    or current.state == "blocked" and (not previous or previous.state ~= "blocked" or previous.kind ~= current.kind or previous.msg ~= current.msg)
     or current.state == "idle" and previous ~= nil and previous.state ~= "idle"
   if
-    waiting
+    ready
     and sessions[session.id] == owner
     and owner.records[id]
     and owner.records[id].record == current

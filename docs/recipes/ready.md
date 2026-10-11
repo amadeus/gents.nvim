@@ -7,13 +7,15 @@ User autocmds. Native protocol support is required for these features; check the
 CLI version you use. This contract applies equally to Codex, Claude Code,
 OpenCode, and custom tools.
 
-## React when an agent needs input
+## React when an agent finishes or needs input
 
-`GentsReady` fires for a new `blocked` request or a return to `idle` after an
-observed non-idle state on the same record. Initial idle, identical reports,
-and changes to a blocked record's title or progress do not fire it. Changing
-the blocked request's kind or message does. `done` and `error` alone do not
-establish that the agent is waiting for input.
+`GentsReady` fires when a record first reports `done` or transitions to `done`,
+for a new `blocked` request, or for a return to `idle` after an observed
+non-idle state on the same record. Initial idle and identical reports do not
+fire it. Metadata updates to a record that is already done do not fire it
+again. Changing a blocked request's kind or message does; title/progress/app
+updates alone do not. An `error` report is available through
+`GentsStatusChanged`.
 
 Notify when a session is hidden from the current tab:
 
@@ -23,7 +25,10 @@ vim.api.nvim_create_autocmd("User", {
   callback = function(ev)
     if not ev.data.visible then
       local name = ev.data.title or ev.data.label
-      vim.notify(name .. ": " .. (ev.data.current.msg or "Waiting for input"))
+      local status = ev.data.current
+      local message = status.msg
+        or (status.state == "done" and "Work finished" or "Waiting for input")
+      vim.notify(name .. ": " .. message)
     end
   end,
 })

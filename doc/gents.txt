@@ -2700,7 +2700,7 @@ when a new record exceeded the per-terminal capacity of 256.
 Payload for |GentsReady|, extending |gents.AgentEvent|:
 
     record_id string               Native ID; "" means the terminal root.
-    current   gents.ProgramStatus  Complete input-waiting snapshot.
+    current   gents.ProgramStatus  Completion or input-waiting snapshot.
 
                                                      *gents.StatusChangedEvent*
 Payload for |GentsStatusChanged|, extending |gents.AgentEvent|:
@@ -2720,7 +2720,10 @@ Read each event's payload from `ev.data`:
       pattern = "GentsReady",
       callback = function(ev)
         if not ev.data.visible then
-          vim.notify(ev.data.label .. " is waiting")
+          local status = ev.data.current
+          local message = status.msg
+            or (status.state == "done" and "Work finished" or "Waiting for input")
+          vim.notify(ev.data.label .. ": " .. message)
         end
       end,
     })
@@ -2781,13 +2784,15 @@ GentsSessionTitle
 
                                                                    *GentsReady*
 GentsReady
-    A validated native record establishes input waiting: a new blocked
-    request, or a return to idle after an observed non-idle state on that
-    same record. Initial idle does not fire it. A blocked request is new
-    when the previous state was not blocked, or its kind or message changes.
+    A validated native record reports completion or input waiting: its first
+    done report, a transition to done, a new blocked request, or a return to
+    idle after an observed non-idle state on that same record. Initial idle
+    does not fire it. Metadata updates to an already done record do not fire
+    it again. A blocked request is new when the previous state was not blocked,
+    or its kind or message changes.
     Title/progress/app updates alone and identical repeats do not fire it.
-    Done/error alone do not establish input waiting. This event does not
-    change startup state or release queued sends.
+    Error reports are available through GentsStatusChanged. This event does
+    not change startup state or release queued sends.
 
     Data: |gents.ReadyEvent|, including shared |gents.AgentEvent| metadata.
     Works for focused and hidden sessions, with terminal_status on or off.
@@ -2801,7 +2806,7 @@ GentsStatusChanged
 
     Data: |gents.StatusChangedEvent|, including |gents.AgentEvent| metadata.
     previous/current hold complete snapshots; nil identifies creation or
-    removal. Fires before GentsReady for an input-waiting transition.
+    removal. Fires before GentsReady for completion or input waiting.
     Works independently of terminal_status, visibility, and focus.
 
                                                                     *GentsSend*
@@ -2823,8 +2828,8 @@ See |gents.Status| and |gents.status()|.
 
 Native program status                                    *gents-program-status*
 
-Agents must implement OSC 7501 to provide status and input-waiting events.
-This applies equally to Codex, Claude Code, OpenCode, and custom tools;
+Agents must implement OSC 7501 to provide status, completion, and input-waiting
+events. This applies equally to Codex, Claude Code, OpenCode, and custom tools;
 check your CLI version's native support. Other terminals are not observed.
 Gents consumes validated reports through |TermRequest| on each session buffer.
 A capability query receives a fixed OSC 7501 ? reply in that child's PTY,

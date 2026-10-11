@@ -149,7 +149,7 @@
 
 ---@class gents.ReadyEvent: gents.AgentEvent
 ---@field record_id string Native ID; empty string is the embedded terminal's root.
----@field current gents.ProgramStatus Input-waiting snapshot.
+---@field current gents.ProgramStatus Completion or input-waiting snapshot.
 
 ---@class gents.StatusChangedEvent: gents.AgentEvent
 ---@field record_id string Native ID; empty string is the embedded terminal's root.

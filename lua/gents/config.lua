@@ -11,7 +11,16 @@ local defaults = {
   terminal_status = false,
   picker = nil,
   picker_help = true,
-  icons = { visible = "●", hidden = "○" },
+  icons = {
+    visible = "●",
+    hidden = "○",
+    idle = "·",
+    working = "⋯",
+    blocked = "!",
+    question = "?",
+    done = "✓",
+    error = "✗",
+  },
   on_exit = "keep",
   tools = tools.defaults,
   prompts = {},
@@ -51,7 +60,20 @@ local function validate(config)
   assert(type(config.extend_gf) == "boolean", "gents: extend_gf must be a boolean")
   assert(type(config.terminal_status) == "boolean", "gents: terminal_status must be a boolean")
   assert(type(config.icons) == "table", "gents: icons must be a table")
-  for name, icon in pairs({ visible = config.icons.visible, hidden = config.icons.hidden }) do
+  local icons = config.icons
+  -- Unset permission and auth icons are skipped; the picker uses blocked instead.
+  for name, icon in pairs({
+    visible = icons.visible,
+    hidden = icons.hidden,
+    idle = icons.idle,
+    working = icons.working,
+    blocked = icons.blocked,
+    question = icons.question,
+    permission = icons.permission,
+    auth = icons.auth,
+    done = icons.done,
+    error = icons.error,
+  }) do
     assert(
       type(icon) == "string" and icon ~= "" and not icon:find("[%s%c]"),
       "gents: icons."

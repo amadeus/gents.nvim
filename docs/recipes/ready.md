@@ -94,9 +94,11 @@ cannot show terminal indicators through this relay.
 Focus and navigation do not clear native records. Disabling reporting clears
 Gents' host records and keeps local snapshots; enabling it republishes them.
 Native `clear` removes its record and descendants only within its own session.
-A new shell prompt or job exit removes `idle`, `working`, and `blocked` records;
-`done` and `error` survive while the terminal buffer is retained. Session close,
-buffer removal, and Neovim shutdown clear the owned records. There is no heartbeat.
+Records change only through the agent's own reports until the agent goes away:
+job exit, session close, buffer removal, and Neovim shutdown clear the owned
+records. A new shell prompt does not expire them. There is no heartbeat. The
+Sessions picker shows the same records as status glyphs; see
+`:help gents-picker-session-rows`.
 
 Soft resets and alternate-screen switches preserve records. Neovim currently
 does not expose full terminal resets (RIS) to `TermRequest`, so Gents cannot

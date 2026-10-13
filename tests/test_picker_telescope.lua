@@ -21,6 +21,8 @@ end
 ---@field get_multi_selection fun(self: gents.test.TelescopePicker): gents.pickers.TelescopeEntry[]
 ---@field set_prompt fun(self: gents.test.TelescopePicker, text: string)
 ---@field move_selection fun(self: gents.test.TelescopePicker, change: integer)
+---@field get_row fun(self: gents.test.TelescopePicker, index: integer): integer
+---@field set_selection fun(self: gents.test.TelescopePicker, row: integer)
 ---@field register_completion_callback fun(self: gents.test.TelescopePicker, callback: fun())
 ---@field clear_completion_callbacks fun(self: gents.test.TelescopePicker)
 
@@ -295,6 +297,55 @@ T["shows other-tab sessions as hidden with their titles and preserves selection"
   eq(require("gents").current(), session)
   eq(session.label, "review")
   eq(vim.api.nvim_get_current_tabpage(), session_tab)
+end
+
+T["updates status glyphs while open and keeps the selected row"] = function()
+  local first, second = H.new(), H.new()
+  require("gents").pick()
+  local picker = current_picker(2)
+  local manager = assert(picker.manager)
+  for index = 1, manager:num_results() do
+    if assert(manager:get_entry(index)).value.data == second then
+      picker:set_selection(picker:get_row(index))
+    end
+  end
+  local selected = assert(picker:get_selection()).value
+  eq(selected.data, second)
+
+  ---@param glyph string
+  ---@return boolean
+  local function shown(glyph)
+    for _, line in ipairs(rows(picker)) do
+      if line:find(" " .. glyph .. " ", 1, true) then
+        return true
+      end
+    end
+    return false
+  end
+
+  local status = require("gents.terminal_status")
+  status.receive(first, "\027]7501;state=working")
+  status.receive(second, "\027]7501;state=blocked:kind=question")
+  H.wait(function()
+    return shown("⋯") and shown("?") and assert(picker:get_selection()).value == selected
+  end)
+  eq(
+    vim.tbl_contains(row_highlights(picker), function(highlight)
+      return vim.deep_equal(highlight, { "GentsPickerWorking", " ⋯ " })
+    end, { predicate = true }),
+    true
+  )
+
+  -- A later update keeps following the same session.
+  status.receive(second, "\027]7501;state=done")
+  H.wait(function()
+    return shown("✓") and not shown("?")
+  end)
+  eq(assert(picker:get_selection()).value, selected)
+
+  press(picker, "<CR>", "i")
+  eq(require("gents").current(), second)
+  eq(vim.api.nvim_get_autocmds({ event = "User", pattern = "GentsStatusChanged" }), {})
 end
 
 T["explicit placement"] = test.new_set({

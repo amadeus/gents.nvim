@@ -50,8 +50,18 @@ local M = {}
 ---@class gents.pickers.TelescopeActionSet
 ---@field select gents.pickers.TelescopeReplaceable
 
+---@class gents.pickers.TelescopeEntryManager
+---@field num_results fun(self: gents.pickers.TelescopeEntryManager): integer
+---@field get_entry fun(self: gents.pickers.TelescopeEntryManager, index: integer): gents.pickers.TelescopeEntry?
+
 ---@class gents.pickers.TelescopeCurrentPicker
 ---@field original_win_id integer
+---@field manager? gents.pickers.TelescopeEntryManager
+---@field get_selection fun(self: gents.pickers.TelescopeCurrentPicker): gents.pickers.TelescopeEntry?
+---@field get_row fun(self: gents.pickers.TelescopeCurrentPicker, index: integer): integer
+---@field set_selection fun(self: gents.pickers.TelescopeCurrentPicker, row: integer)
+---@field refresh fun(self: gents.pickers.TelescopeCurrentPicker, finder: table, opts: { reset_prompt: boolean })
+---@field register_completion_callback fun(self: gents.pickers.TelescopeCurrentPicker, callback: fun(picker: gents.pickers.TelescopeCurrentPicker))
 
 ---@class gents.pickers.TelescopeActionState
 ---@field get_selected_entry fun(): gents.pickers.TelescopeEntry?
@@ -162,34 +172,85 @@ function M.open(spec)
     return not configured[mode][termcodes(key)]
   end
 
+  ---@return table
+  local function finder()
+    return telescope.finders.new_table({
+      results = spec.items,
+      entry_maker = function(item)
+        return {
+          value = item,
+          ordinal = item.text,
+          display = function()
+            ---@type gents.pickers.TelescopeHighlight[]
+            local highlights = {}
+            local col = 0
+            for _, chunk in ipairs(item.chunks or { { text = item.text } }) do
+              local group = chunk.kind and shared.chunk_highlights[chunk.kind] or item.hl
+              if group and #chunk.text > 0 then
+                highlights[#highlights + 1] = { { col, col + #chunk.text }, group }
+              end
+              col = col + #chunk.text
+            end
+            return item.text, highlights
+          end,
+        }
+      end,
+    })
+  end
+
+  ---@param prompt_bufnr integer
+  local function watch(prompt_bufnr)
+    if not spec.watch then
+      return
+    end
+    ---@type gents.PickerItem<unknown>?
+    local restore
+    local registered = false
+    local stop = spec.watch(function()
+      local picker = telescope.action_state.get_current_picker(prompt_bufnr)
+      if not picker then
+        return
+      end
+      if not registered then
+        registered = true
+        -- Refreshing applies the configured selection strategy; keep the row.
+        picker:register_completion_callback(function(current)
+          local item = restore
+          restore = nil
+          local manager = current.manager
+          if not item or not manager then
+            return
+          end
+          for index = 1, manager:num_results() do
+            local entry = manager:get_entry(index)
+            if entry and entry.value == item then
+              current:set_selection(current:get_row(index))
+              return
+            end
+          end
+        end)
+      end
+      local selected = picker:get_selection()
+      restore = selected and selected.value
+      picker:refresh(finder(), { reset_prompt = false })
+    end)
+    vim.api.nvim_create_autocmd("BufUnload", {
+      buffer = prompt_bufnr,
+      once = true,
+      callback = function()
+        stop()
+      end,
+    })
+  end
+
   telescope.pickers
     .new({}, {
       prompt_title = spec.title,
-      finder = telescope.finders.new_table({
-        results = spec.items,
-        entry_maker = function(item)
-          return {
-            value = item,
-            ordinal = item.text,
-            display = function()
-              ---@type gents.pickers.TelescopeHighlight[]
-              local highlights = {}
-              local col = 0
-              for _, chunk in ipairs(item.chunks or { { text = item.text } }) do
-                local group = chunk.kind and shared.chunk_highlights[chunk.kind] or item.hl
-                if group and #chunk.text > 0 then
-                  highlights[#highlights + 1] = { { col, col + #chunk.text }, group }
-                end
-                col = col + #chunk.text
-              end
-              return item.text, highlights
-            end,
-          }
-        end,
-      }),
+      finder = finder(),
       sorter = telescope.config.values.generic_sorter({}),
       previewer = false,
       attach_mappings = function(prompt_bufnr, map)
+        watch(prompt_bufnr)
         ---@param name string
         local function run(name)
           local action = spec.actions[name]

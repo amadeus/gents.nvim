@@ -192,6 +192,12 @@ When you press Enter in a picker:
   if that window is in another tab. If no window displays the session, it
   opens using your configured layout.
 
+For agents that report their status, the Sessions picker replaces the `·`
+between the agent name and the title with a status glyph: `⋯` working, `!`
+waiting for permission, `?` asking a question, `✓` finished, and `✗` failed.
+The glyphs update while the Snacks, mini.pick, or Telescope picker is open.
+Change them with the `icons` option; see `:help gents-picker-session-rows`.
+
 To choose where a session opens for a single action, pass `layout` to the
 Lua function. This uses the requested placement even if the session is
 already displayed elsewhere:

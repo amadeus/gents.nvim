@@ -25,6 +25,23 @@ local builtin_names = {
   "qwen",
 }
 
+local default_icons = {
+  visible = "●",
+  hidden = "○",
+  idle = "·",
+  working = "⋯",
+  blocked = "!",
+  question = "?",
+  done = "✓",
+  error = "✗",
+}
+
+---@param overrides table<string, string>
+---@return table<string, string>
+local function icons_with(overrides)
+  return vim.tbl_extend("force", default_icons, overrides)
+end
+
 T["defaults work without setup"] = function()
   ---@type { get: fun(): gents.Config }
   local fresh = dofile("lua/gents/config.lua")
@@ -33,7 +50,7 @@ T["defaults work without setup"] = function()
   expect(result.float, { width = 0.8, height = 0.8, border = "rounded" })
   expect(result.picker, nil)
   expect(result.picker_help, true)
-  expect(result.icons, { visible = "●", hidden = "○" })
+  expect(result.icons, default_icons)
   expect(result.on_exit, "keep")
   expect(result.buflisted, false)
   expect(result.insert_on_focus, false)
@@ -154,22 +171,24 @@ T["icon overrides merge independently without retaining caller tables"] = functi
   local opts = { icons = { visible = "v" } }
   local original = vim.deepcopy(opts)
   local result = config.setup(opts)
-  expect(result.icons, { visible = "v", hidden = "○" })
+  expect(result.icons, icons_with({ visible = "v" }))
   expect(opts, original)
   opts.icons.visible = "changed-by-caller"
   expect(result.icons.visible, "v")
   result.icons.hidden = "changed-config"
-  expect(config.setup({ icons = { hidden = "h" } }).icons, { visible = "●", hidden = "h" })
+  expect(config.setup({ icons = { hidden = "h" } }).icons, icons_with({ hidden = "h" }))
   expect(
-    config.setup({ icons = { visible = "v", hidden = "h" } }).icons,
-    { visible = "v", hidden = "h" }
+    config.setup({ icons = { visible = "v", done = "+", auth = "@" } }).icons,
+    icons_with({ visible = "v", done = "+", auth = "@" })
   )
-  expect(config.setup().icons, { visible = "●", hidden = "○" })
+  expect(config.setup().icons, default_icons)
+  expect(config.setup().icons.permission, nil)
+  expect(config.setup().icons.auth, nil)
 end
 
 T["icons accept emoji and multiple characters without a width restriction"] = function()
-  local icons = { visible = "👀", hidden = "[hidden]" }
-  expect(config.setup({ icons = icons }).icons, icons)
+  local icons = { visible = "👀", hidden = "[hidden]", working = "⏳", error = "ERR" }
+  expect(config.setup({ icons = icons }).icons, icons_with(icons))
 end
 
 T["names sort built-in and custom tools together"] = function()
@@ -254,6 +273,12 @@ T["invalid configuration fails before replacing current config"] = function()
     { { icons = { hidden = "h\n" } }, "icons.hidden must be" },
     { { icons = { visible = "\27[31mv" } }, "icons.visible must be" },
     { { icons = { hidden = "h\0" } }, "icons.hidden must be" },
+    { { icons = { idle = "" } }, "icons.idle must be" },
+    { { icons = { working = "a b" } }, "icons.working must be" },
+    { { icons = { question = false } }, "icons.question must be" },
+    { { icons = { permission = 1 } }, "icons.permission must be" },
+    { { icons = { auth = "\t" } }, "icons.auth must be" },
+    { { icons = { error = "x\n" } }, "icons.error must be" },
     { { prompts = false }, "prompts must be" },
     { { prompts = { [1] = { "file" } } }, "prompt names must be" },
     { { prompts = { ["two words"] = { "file" } } }, "prompt names must be" },

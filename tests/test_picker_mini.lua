@@ -25,6 +25,8 @@ end
 ---@field get_picker_matches fun(): gents.test.MiniPickMatches?
 ---@field get_picker_query fun(): string[]?
 ---@field get_picker_opts fun(): { source: { name: string } }?
+---@field set_picker_match_inds fun(match_inds: integer[]?, match_type?: "all"|"marked"|"current")
+---@field default_match fun(stritems: string[], inds: integer[], query: string[], opts?: { sync?: boolean }): integer[]?
 
 vim.opt.runtimepath:append(vim.env.MINI_PICK_DIR)
 local original_select = vim.ui.select
@@ -271,6 +273,148 @@ T["shows other-tab sessions as hidden with their titles and preserves selection"
   eq(require("gents").current(), session)
   eq(session.label, "review")
   eq(vim.api.nvim_get_current_tabpage(), session_tab)
+end
+
+---Make item replacement yield almost immediately and matching finish later.
+local function slow_matching()
+  vim.b.minipick_config = {
+    delay = { async = 0.001 },
+    source = {
+      ---@param stritems string[]
+      ---@param inds integer[]
+      ---@param query string[]
+      match = function(stritems, inds, query)
+        vim.defer_fn(function()
+          if mini.is_picker_active() then
+            mini.set_picker_match_inds(mini.default_match(stritems, inds, query, { sync = true }))
+          end
+        end, 30)
+      end,
+    },
+  }
+end
+
+---@return integer?
+local function current()
+  local current_item = assert(mini.get_picker_matches()).current
+  return current_item and current_item.gents_index
+end
+
+---@type integer?
+local deadline
+
+---@return boolean Whether pending asynchronous updates have had time to finish.
+local function settled()
+  deadline = deadline or vim.uv.hrtime() + 60000000
+  if vim.uv.hrtime() < deadline then
+    return false
+  end
+  deadline = nil
+  return true
+end
+
+T["updates status glyphs while open and keeps the current row"] = function()
+  local first, second = H.new(), H.new()
+  local status = require("gents.terminal_status")
+  slow_matching()
+  drive({
+    "<C-n>",
+    function()
+      if current() ~= 2 then
+        return false
+      end
+      status.receive(first, "\027]7501;state=working")
+      status.receive(second, "\027]7501;state=blocked:kind=question")
+      return true
+    end,
+    function()
+      local lines = rows()
+      if not (lines[1]:find(" ⋯ ", 1, true) and lines[2]:find(" ? ", 1, true)) then
+        return false
+      end
+      if not settled() then
+        return false
+      end
+      eq(current(), 2)
+      eq(row_highlights()[2], { "GentsPickerWorking", " ⋯ " })
+      return true
+    end,
+    "?",
+    function()
+      if not typed("?") or #matches() ~= 1 then
+        return false
+      end
+      status.receive(first, "\027]7501;state=blocked:kind=question")
+      return true
+    end,
+    function()
+      -- Updates leave the results alone until the query changes.
+      if not settled() then
+        return false
+      end
+      eq(#matches(), 1)
+      eq(current(), 2)
+      return true
+    end,
+    -- Editing the query matches every session against its current glyph,
+    -- even when the edits restore the same text.
+    "<BS>?",
+    function()
+      if not typed("?") or #matches() ~= 2 then
+        return false
+      end
+      status.receive(first, "\027]7501;state=done")
+      return true
+    end,
+    function()
+      if not rows()[1]:find(" ✓ ", 1, true) or not settled() then
+        return false
+      end
+      eq(#matches(), 2)
+      return true
+    end,
+    "U",
+    function()
+      return typed("?U") and #matches() == 1 and current() == 2
+    end,
+    "<Esc>",
+  })
+  require("gents").pick()
+  finish()
+  eq(vim.api.nvim_get_autocmds({ event = "User", pattern = "GentsStatusChanged" }), {})
+  eq(vim.api.nvim_get_autocmds({ event = "User", pattern = "MiniPickMatch" }), {})
+end
+
+T["status updates do not override cursor movement"] = function()
+  local session = H.new()
+  H.new()
+  H.new()
+  slow_matching()
+  drive({
+    "<C-n>",
+    "<C-n>",
+    function()
+      if current() ~= 3 then
+        return false
+      end
+      require("gents.terminal_status").receive(session, "\027]7501;state=working")
+      -- Move once the update has started redrawing.
+      vim.defer_fn(function()
+        vim.api.nvim_input("<C-p>")
+      end, 10)
+      return true
+    end,
+    function()
+      if not rows()[1]:find(" ⋯ ", 1, true) or not settled() then
+        return false
+      end
+      eq(current(), 2)
+      return true
+    end,
+    "<Esc>",
+  })
+  require("gents").pick()
+  finish()
 end
 
 T["explicit placement"] = test.new_set({
@@ -781,7 +925,8 @@ T["adapter mapping names leave user custom mappings intact"] = function()
 end
 
 T["marker overrides and Unicode titles keep highlights aligned"] = function()
-  require("gents.config").get().icons = { visible = "v", hidden = "h" }
+  local icons = require("gents.config").get().icons
+  icons.visible, icons.hidden = "v", "h"
   local session = H.new()
   session.title = "Ünïcödé — títle"
   require("gents").hide(session.id)

@@ -7,7 +7,12 @@ local M = {}
 ---@field gents_index integer
 ---@field preview? { text: string }
 
+---@class gents.pickers.SnacksList
+---@field update fun(self: gents.pickers.SnacksList, opts?: { force?: boolean })
+
 ---@class gents.pickers.SnacksPicker
+---@field closed boolean
+---@field list gents.pickers.SnacksList
 ---@field close fun(self: gents.pickers.SnacksPicker)
 
 ---@alias gents.pickers.SnacksAction fun(picker: gents.pickers.SnacksPicker, item?: gents.pickers.SnacksItem)
@@ -64,6 +69,7 @@ local M = {}
 ---@field actions table<string, gents.pickers.SnacksAction>
 ---@field win { input: gents.pickers.SnacksWindowOptions, list: gents.pickers.SnacksWindowOptions }
 ---@field config? fun(opts: gents.pickers.SnacksOptions)
+---@field on_close? fun(picker: gents.pickers.SnacksPicker)
 
 ---@param border? gents.pickers.SnacksBorder
 ---@return gents.pickers.SnacksBorder
@@ -275,7 +281,7 @@ end
 ---@generic T
 ---@param spec gents.PickerSpec<T>
 function M.open(spec)
-  ---@type boolean, { picker: fun(opts: gents.pickers.SnacksOptions) }
+  ---@type boolean, { picker: fun(opts: gents.pickers.SnacksOptions): gents.pickers.SnacksPicker? }
   local ok, snacks = pcall(require, "snacks")
   if not ok then
     vim.notify(
@@ -350,7 +356,9 @@ function M.open(spec)
     hints[#hints + 1] = chunk[1]
   end
   local footer_width = vim.fn.strdisplaywidth(table.concat(hints)) + 2
-  snacks.picker({
+  ---@type fun()?
+  local stop
+  local picker = snacks.picker({
     title = spec.title,
     items = items,
     format = function(item)
@@ -372,6 +380,15 @@ function M.open(spec)
     confirm = "gents_" .. spec.default,
     actions = actions,
     config = function(opts)
+      local on_close = opts.on_close
+      opts.on_close = function(closed)
+        if stop then
+          stop()
+        end
+        if on_close then
+          on_close(closed)
+        end
+      end
       ---@type gents.pickers.SnacksLayoutOptions
       local original = { layout = opts.layout, layouts = opts.layouts, source = opts.source }
       opts.layout = function()
@@ -397,6 +414,18 @@ function M.open(spec)
       },
     },
   })
+  if picker and spec.watch then
+    stop = spec.watch(function()
+      if picker.closed then
+        return
+      end
+      -- Matching uses the new text from the next query change; redraw now.
+      for index, item in ipairs(spec.items) do
+        items[index].text = item.text
+      end
+      picker.list:update({ force = true })
+    end)
+  end
 end
 
 return M

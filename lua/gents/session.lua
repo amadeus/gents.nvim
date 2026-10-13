@@ -182,7 +182,7 @@ function M.new(tool, opts, cwd)
         require("gents.send").detach(session)
         session.state = "exited"
         session.exit_code = code
-        require("gents.terminal_status").expire(session, "exit")
+        require("gents.terminal_status").detach(session, "exit")
         if closing[session.id] then
           closing[session.id] = nil
           -- Deleting a terminal with pending PTY writes can hang Neovim.

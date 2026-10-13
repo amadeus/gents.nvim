@@ -7,7 +7,8 @@ local states =
 
 ---@class gents.ProgramEntry
 ---@field record gents.ProgramStatus
----@field updated integer
+---@field updated integer Serial of the latest report, used for eviction.
+---@field changed integer Serial of the latest report that changed the record.
 ---@field outer_id string
 
 ---@class gents.ProgramRecords
@@ -121,8 +122,9 @@ local function remove(owner, predicate, reason)
   end
 end
 
+---Remove every record once the agent goes away.
 ---@param session gents.Session
----@param reason "close"|"buffer"|"shutdown"
+---@param reason "exit"|"close"|"buffer"|"shutdown"
 function M.detach(session, reason)
   local owner = sessions[session.id]
   if not owner then
@@ -138,14 +140,33 @@ function M.detach(session, reason)
   end, reason)
 end
 
+---Choose the one status a session picker row shows: any blocked record, the
+---root's preferred over the most recently changed child; otherwise the root
+---record's own state. Idle and missing root records show nothing.
 ---@param session gents.Session
----@param reason "exit"|"prompt"
-function M.expire(session, reason)
+---@return { state: gents.ProgramState, kind?: gents.ProgramKind }?
+function M.display(session)
   local owner = sessions[session.id]
-  if owner then
-    remove(owner, function(_, record)
-      return record.state == "working" or record.state == "blocked" or record.state == "idle"
-    end, reason)
+  if not owner then
+    return
+  end
+  ---@type gents.ProgramEntry?
+  local blocked
+  for id, entry in pairs(owner.records) do
+    if
+      entry.record.state == "blocked"
+      and (
+        not blocked
+        or id == ""
+        or blocked ~= owner.records[""] and entry.changed > blocked.changed
+      )
+    then
+      blocked = entry
+    end
+  end
+  local entry = blocked or owner.records[""]
+  if entry and entry.record.state ~= "idle" then
+    return { state = entry.record.state, kind = entry.record.kind }
   end
 end
 
@@ -195,9 +216,6 @@ function M.receive(session, sequence, terminator)
       vim.fn.chansend(session.job, "\027]7501;?\027\\")
     end
     return
-  elseif sequence == "\027]133;A" or sequence:match("^\027%]133;A;") then
-    M.expire(session, "prompt")
-    return
   end
   local report = protocol.parse(sequence, terminator)
   if not report then
@@ -241,18 +259,21 @@ function M.receive(session, sequence, terminator)
     title = report.title,
   }
   local previous = entry and entry.record or nil
+  local repeated = previous ~= nil and vim.deep_equal(previous, current)
   owner.serial = owner.serial + 1
   owner.records[id] = {
     record = current,
     updated = owner.serial,
-    -- Flat mapped leaves avoid clearing retained descendants when a parent expires.
+    -- Repeats emit no change event, so they must not change what is displayed.
+    changed = entry and repeated and entry.changed or owner.serial,
+    -- Flat mapped leaves avoid clearing descendants when a parent is evicted.
     outer_id = entry and entry.outer_id or "gents/" .. session.id .. "/r" .. owner.serial,
   }
   if not entry then
     owner.count = owner.count + 1
   end
   publish(owner)
-  if previous and vim.deep_equal(previous, current) then
+  if repeated then
     return
   end
   changed(session, id, previous, current, "report")

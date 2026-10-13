@@ -2,7 +2,19 @@ local M = {}
 
 ---@class gents.PickerChunk
 ---@field text string
----@field kind? "directory"|"visible"|"hidden"|"placeholder"|"separator"|"description" Styling role for rich picker adapters.
+---@field kind? gents.PickerChunkKind Styling role for rich picker adapters.
+
+---@alias gents.PickerChunkKind
+---| "directory"
+---| "visible"
+---| "hidden"
+---| "placeholder"
+---| "separator"
+---| "description"
+---| "status_working"
+---| "status_blocked"
+---| "status_done"
+---| "status_error"
 
 ---@class gents.PickerItem<T>
 ---@field text string
@@ -16,6 +28,7 @@ local M = {}
 ---@field items gents.PickerItem<T>[]
 ---@field actions table<string, fun(item: gents.PickerItem<T>)>
 ---@field default string Action name used for Enter.
+---@field watch? fun(on_change: fun()): fun() Subscribe to in-place item updates; returns a function that stops them.
 
 ---@alias gents.PickerAdapter fun<T>(spec: gents.PickerSpec<T>)
 ---@alias gents.Picker "snacks"|"mini"|"telescope"|"fzf-lua"|gents.PickerAdapter
@@ -38,6 +51,10 @@ M.chunk_highlights = {
   placeholder = "GentsPickerPlaceholder",
   separator = "GentsPickerSeparator",
   description = "GentsPickerDescription",
+  status_working = "GentsPickerWorking",
+  status_blocked = "GentsPickerBlocked",
+  status_done = "GentsPickerDone",
+  status_error = "GentsPickerError",
 }
 
 ---Define the default picker highlight groups without replacing existing
@@ -52,6 +69,10 @@ function M.define_highlights()
     GentsPickerPlaceholder = "Comment",
     GentsPickerSeparator = "Comment",
     GentsPickerDescription = "Comment",
+    GentsPickerWorking = "DiagnosticInfo",
+    GentsPickerBlocked = "DiagnosticWarn",
+    GentsPickerDone = "DiagnosticOk",
+    GentsPickerError = "DiagnosticError",
   }
   for name, link in pairs(links) do
     vim.api.nvim_set_hl(0, name, { default = true, link = link })
@@ -332,6 +353,68 @@ local function display_title(title)
   return shortened .. "..."
 end
 
+---@param icons gents.Icons
+---@return integer Display cells reserved for every status glyph.
+local function status_width(icons)
+  local width = 0
+  for _, icon in ipairs({
+    icons.idle,
+    icons.working,
+    icons.blocked,
+    icons.question,
+    icons.permission or icons.blocked,
+    icons.auth or icons.blocked,
+    icons.done,
+    icons.error,
+  }) do
+    width = math.max(width, vim.fn.strdisplaywidth(icon))
+  end
+  return width
+end
+
+---The status glyph that replaces the separator between a session's name and
+---title. Idle sessions and sessions without native status keep the separator.
+---@param session gents.Session
+---@param icons gents.Icons
+---@param width integer
+---@return gents.PickerChunk
+local function status_chunk(session, icons, width)
+  local status = require("gents.terminal_status").display(session)
+  ---@type string, gents.PickerChunkKind
+  local glyph, kind = icons.idle, "separator"
+  if status and status.state == "blocked" then
+    kind = "status_blocked"
+    if status.kind == "question" then
+      glyph = icons.question
+    elseif status.kind == "permission" then
+      glyph = icons.permission or icons.blocked
+    elseif status.kind == "auth" then
+      glyph = icons.auth or icons.blocked
+    else
+      glyph = icons.blocked
+    end
+  elseif status and status.state == "working" then
+    glyph, kind = icons.working, "status_working"
+  elseif status and status.state == "done" then
+    glyph, kind = icons.done, "status_done"
+  elseif status and status.state == "error" then
+    glyph, kind = icons.error, "status_error"
+  end
+  local padding = string.rep(" ", width - vim.fn.strdisplaywidth(glyph))
+  return { text = " " .. glyph .. padding .. " ", kind = kind }
+end
+
+---@param chunks gents.PickerChunk[]
+---@return string
+local function chunk_text(chunks)
+  ---@type string[]
+  local parts = {}
+  for _, chunk in ipairs(chunks) do
+    parts[#parts + 1] = chunk.text
+  end
+  return table.concat(parts)
+end
+
 ---@param candidates gents.Session[]
 ---@param callback fun(session: gents.Session)
 ---@param on_place? fun(session: gents.Session, layout: gents.Layout)
@@ -362,6 +445,7 @@ function M.sessions(candidates, callback, on_place)
   local rows = {}
   local marker_width, label_width, title_width = 0, 0, 0
   local icons = require("gents.config").get().icons
+  local glyph_width = status_width(icons)
   for _, session in ipairs(ordered) do
     local visible = window.visible(session, tab)
     local marker = visible and icons.visible or icons.hidden
@@ -382,6 +466,8 @@ function M.sessions(candidates, callback, on_place)
     title_width = math.max(title_width, vim.fn.strdisplaywidth(title))
   end
 
+  ---@type table<integer, gents.PickerItem<gents.Session>>
+  local by_id = {}
   for _, row in ipairs(rows) do
     local session = row.session
     local summary = string.rep(" ", marker_width - vim.fn.strdisplaywidth(row.marker) + 2)
@@ -389,23 +475,21 @@ function M.sessions(candidates, callback, on_place)
       .. string.rep(" ", label_width - vim.fn.strdisplaywidth(row.label))
     local padding = string.rep(" ", title_width - vim.fn.strdisplaywidth(row.title))
     local directory = vim.fn.fnamemodify(session.cwd, ":~")
-    local text = row.marker .. summary .. " · " .. row.title .. padding .. " · " .. directory
     ---@type gents.PickerChunk[]
     local chunks = {
       { text = row.marker, kind = row.visible and "visible" or "hidden" },
       { text = summary },
-      { text = " · ", kind = "separator" },
+      status_chunk(session, icons, glyph_width),
       { text = row.title, kind = not session.title and "placeholder" or nil },
       { text = padding },
       { text = " · ", kind = "separator" },
       { text = directory, kind = "directory" },
     }
     if not vim.deep_equal(session.cmd, session.tool.cmd) then
-      local argv = "  " .. table.concat(session.cmd, " ")
-      text = text .. argv
-      chunks[#chunks + 1] = { text = argv }
+      chunks[#chunks + 1] = { text = "  " .. table.concat(session.cmd, " ") }
     end
-    items[#items + 1] = { text = text, data = session, chunks = chunks }
+    items[#items + 1] = { text = chunk_text(chunks), data = session, chunks = chunks }
+    by_id[session.id] = items[#items]
   end
 
   ---@param item gents.PickerItem<gents.Session>
@@ -445,6 +529,54 @@ function M.sessions(candidates, callback, on_place)
       select(item, function(session)
         (on_place or window.show)(session, layout)
       end)
+    end
+  end
+
+  -- Only status glyphs change in place; rows keep their order and identity.
+  spec.watch = function(on_change)
+    local scheduled, stopped = false, false
+    -- Each watcher compares with what it last drew, since another watcher on
+    -- the same spec may already have updated the shared chunks.
+    ---@type table<integer, gents.PickerChunk>
+    local drawn = {}
+    for id, item in pairs(by_id) do
+      drawn[id] = item.chunks and item.chunks[3]
+    end
+    local autocmd = vim.api.nvim_create_autocmd("User", {
+      pattern = "GentsStatusChanged",
+      desc = "Update session picker status glyphs",
+      callback = function(ev)
+        ---@type gents.StatusChangedEvent
+        local data = ev.data
+        local item = by_id[data.id]
+        local chunks = item and item.chunks
+        if not item or not chunks then
+          return
+        end
+        local chunk = status_chunk(item.data, icons, glyph_width)
+        if vim.deep_equal(drawn[data.id], chunk) then
+          return
+        end
+        drawn[data.id] = chunk
+        chunks[3] = chunk
+        item.text = chunk_text(chunks)
+        if not scheduled then
+          scheduled = true
+          -- One redraw covers every report from the same PTY read.
+          vim.schedule(function()
+            scheduled = false
+            if not stopped then
+              on_change()
+            end
+          end)
+        end
+      end,
+    })
+    return function()
+      if not stopped then
+        stopped = true
+        vim.api.nvim_del_autocmd(autocmd)
+      end
     end
   end
   M.open(spec)

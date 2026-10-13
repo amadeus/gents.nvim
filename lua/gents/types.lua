@@ -70,14 +70,28 @@
 ---@field submit? boolean Send Enter after pasting; defaults to false.
 ---@field focus? boolean Focus the destination and enter terminal input; defaults to true.
 
----Session picker markers; override either value to use different glyphs or ASCII.
+---Session picker markers and status glyphs; override any value independently.
 ---@class gents.IconsOptions
 ---@field visible? string
 ---@field hidden? string
+---@field idle? string Separator shown for idle sessions and sessions without status.
+---@field working? string
+---@field blocked? string Waiting on the user; the fallback for permission and auth.
+---@field question? string
+---@field permission? string
+---@field auth? string
+---@field done? string
+---@field error? string
 
 ---@class gents.Icons: gents.IconsOptions
 ---@field visible string
 ---@field hidden string
+---@field idle string
+---@field working string
+---@field blocked string
+---@field question string
+---@field done string
+---@field error string
 
 ---@class gents.SetupOptions
 ---@field layout? gents.Layout
@@ -136,7 +150,7 @@
 
 ---@alias gents.ProgramState "idle"|"working"|"blocked"|"done"|"error"
 ---@alias gents.ProgramKind "permission"|"question"|"auth"
----@alias gents.StatusReason "report"|"clear"|"prompt"|"exit"|"close"|"buffer"|"shutdown"|"evicted"
+---@alias gents.StatusReason "report"|"clear"|"exit"|"close"|"buffer"|"shutdown"|"evicted"
 
 ---Complete native snapshot; omitted fields are not retained from earlier reports.
 ---@class gents.ProgramStatus

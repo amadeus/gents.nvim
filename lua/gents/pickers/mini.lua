@@ -26,9 +26,13 @@ local M = {}
 ---@field config { mappings: gents.pickers.MiniMappings }
 ---@field start fun(opts: gents.pickers.MiniOptions)
 ---@field default_show fun(buf: integer, items: gents.pickers.MiniItem[], query: string[])
----@field get_picker_matches fun(): { current?: gents.pickers.MiniItem }?
+---@field get_picker_matches fun(): { all?: gents.pickers.MiniItem[], current?: gents.pickers.MiniItem }?
 ---@field get_picker_state fun(): { windows: { target: integer } }?
 ---@field is_picker_active fun(): boolean
+---@field get_picker_items fun(): gents.pickers.MiniItem[]?
+---@field get_querytick fun(): number
+---@field refresh fun()
+---@field set_picker_items fun(items: gents.pickers.MiniItem[])
 
 ---Built-in mini.pick placement actions replaced by gents.nvim placement, keyed
 ---by the gents.nvim action that takes over their key.
@@ -196,11 +200,58 @@ function M.open(spec)
     end
   end
 
-  mini.start({
+  -- start() blocks until the picker stops, so updates apply only meanwhile.
+  -- Replacing mini.pick's items rematches, possibly asynchronously, and moves
+  -- the cursor to the first row. A status update therefore only repaints the
+  -- rows from these items, keeping the matches and the current row. The new
+  -- text reaches mini.pick once the query changes, which resets the cursor.
+  ---@type number? Query tick when the shown text first differed from mini.pick's.
+  local stale
+  local stop = spec.watch
+    and spec.watch(function()
+      if not mini.is_picker_active() then
+        return
+      end
+      for index, item in ipairs(spec.items) do
+        items[index].text = item.text
+      end
+      stale = stale or mini.get_querytick()
+      mini.refresh()
+    end)
+  local function replace()
+    -- The tick also changes when edits return the query to the same text.
+    if not stale or not mini.is_picker_active() or mini.get_querytick() == stale then
+      return
+    end
+    stale = nil
+    -- Keep any refined subset of the items.
+    ---@type gents.pickers.MiniItem[]
+    local current = {}
+    for _, item in ipairs(mini.get_picker_items() or {}) do
+      current[#current + 1] = items[item.gents_index]
+    end
+    mini.set_picker_items(current)
+  end
+  local matched = stop
+    and vim.api.nvim_create_autocmd("User", {
+      pattern = "MiniPickMatch",
+      desc = "Match updated session status glyphs after a query change",
+      callback = function()
+        -- The event can fire inside mini.pick's coroutines, so act after it.
+        if stale then
+          vim.schedule(replace)
+        end
+      end,
+    })
+  local ok, err = pcall(mini.start, {
     source = {
       name = spec.title,
       items = items,
       show = function(buf, shown, query)
+        -- mini.pick holds copies of the items, so show the current text.
+        shown = vim.tbl_map(function(item)
+          return items[item.gents_index]
+        end, shown)
         mini.default_show(buf, shown, query)
         vim.api.nvim_buf_clear_namespace(buf, namespace, 0, -1)
         for row, item in ipairs(shown) do
@@ -227,6 +278,15 @@ function M.open(spec)
     },
     mappings = mappings,
   })
+  if stop then
+    stop()
+  end
+  if matched then
+    vim.api.nvim_del_autocmd(matched)
+  end
+  if not ok then
+    error(err, 0)
+  end
   -- mini.pick has restored the target window once start() returns.
   if pending then
     local action = assert(spec.actions[pending.action])

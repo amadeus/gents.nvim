@@ -1052,6 +1052,152 @@ T["session picker reads current titles without changing labels or selection iden
   test.expect.equality(vim.fn.win_findbuf(session.buf), {})
 end
 
+---@param session gents.Session
+---@param body string
+local function report(session, body)
+  require("gents.terminal_status").receive(session, "\027]7501;" .. body)
+end
+
+T["session status glyphs replace the name separator"] = function()
+  ---@return gents.Session
+  local function hidden()
+    local session = H.new()
+    require("gents").hide(session.id)
+    return session
+  end
+  local idle, working, permission, question, auth, plain, done, failed =
+    hidden(), hidden(), hidden(), hidden(), hidden(), hidden(), hidden(), hidden()
+  report(idle, "state=idle")
+  report(working, "state=working")
+  report(permission, "state=blocked:kind=permission")
+  report(question, "state=working")
+  report(question, "state=blocked:id=worker:kind=question")
+  report(auth, "state=blocked:kind=auth")
+  report(plain, "state=blocked")
+  report(done, "state=done")
+  report(failed, "state=error")
+  local sessions = { idle, working, permission, question, auth, plain, done, failed }
+  ---@type { [1]: string, [2]: gents.PickerChunkKind }[]
+  local expected = {
+    { " · ", "separator" },
+    { " ⋯ ", "status_working" },
+    { " ! ", "status_blocked" },
+    { " ? ", "status_blocked" },
+    { " ! ", "status_blocked" },
+    { " ! ", "status_blocked" },
+    { " ✓ ", "status_done" },
+    { " ✗ ", "status_error" },
+  }
+  local get_spec = capture_sessions()
+  picker.sessions(sessions, function() end)
+  local spec = get_spec()
+  for index, session in ipairs(sessions) do
+    local item = spec.items[index]
+    local chunks = assert(item.chunks)
+    test.expect.equality(item.data.id, session.id)
+    test.expect.equality(chunks[3], { text = expected[index][1], kind = expected[index][2] })
+    test.expect.equality(
+      item.text,
+      "○  "
+        .. session.label
+        .. string.rep(" ", 6 - #session.label)
+        .. expected[index][1]
+        .. "Untitled · "
+        .. vim.fn.fnamemodify(session.cwd, ":~")
+    )
+  end
+
+  -- Wide or optional icons pad every status slot to the widest configured one.
+  require("gents").setup({
+    tools = { cat = { cmd = { "cat" } } },
+    icons = { working = "..", permission = "OK?", auth = "🔑" },
+  })
+  get_spec = capture_sessions()
+  picker.sessions({ idle, working, permission, auth, plain }, function() end)
+  spec = get_spec()
+  test.expect.equality(
+    vim.tbl_map(
+      ---@param item gents.PickerItem<gents.Session>
+      ---@return string
+      function(item)
+        return assert(item.chunks)[3].text
+      end,
+      spec.items
+    ),
+    { " ·   ", " ..  ", " OK? ", " 🔑  ", " !   " }
+  )
+  for _, item in ipairs(spec.items) do
+    test.expect.equality(vim.fn.strdisplaywidth(item.text:match("^(.-)Untitled")), 14)
+  end
+end
+
+T["session status watch updates glyphs in place once per batch"] = function()
+  local first, second, other = H.new(), H.new(), H.new()
+  local get_spec = capture_sessions()
+  picker.sessions({ first, second }, function() end)
+  local spec = get_spec()
+  local items, item = spec.items, spec.items[1]
+  local text = item.text
+  local redraws, others = 0, 0
+  local stop = assert(spec.watch)(function()
+    redraws = redraws + 1
+  end)
+  -- Each watcher is notified even though the first updates the shared item.
+  local stop_other = assert(spec.watch)(function()
+    others = others + 1
+  end)
+
+  report(first, "state=working")
+  report(second, "state=blocked:kind=question")
+  test.expect.equality(rawequal(spec.items, items) and rawequal(spec.items[1], item), true)
+  test.expect.equality(item.text, (text:gsub(" · ", " ⋯ ", 1)))
+  test.expect.equality(assert(item.chunks)[3], { text = " ⋯ ", kind = "status_working" })
+  test.expect.equality(redraws, 0)
+  test.expect.equality(
+    vim.wait(1000, function()
+      return redraws > 0
+    end),
+    true
+  )
+  vim.wait(20)
+  test.expect.equality({ redraws, others }, { 1, 1 })
+
+  -- Updates that keep the glyph, and sessions outside the picker, do not redraw.
+  report(first, "state=working:progress=50")
+  report(first, "state=done:id=child")
+  report(other, "state=error")
+  vim.wait(20)
+  test.expect.equality({ redraws, others }, { 1, 1 })
+
+  report(first, "state=done")
+  stop()
+  stop()
+  vim.wait(20)
+  test.expect.equality({ redraws, others }, { 1, 2 })
+  stop_other()
+  report(first, "state=error")
+  test.expect.equality(assert(item.chunks)[3], { text = " ✓ ", kind = "status_done" })
+  test.expect.equality(
+    vim.api.nvim_get_autocmds({ event = "User", pattern = "GentsStatusChanged" }),
+    {}
+  )
+
+  -- Exit removes the records, which restores the separator.
+  picker.sessions({ first }, function() end)
+  spec = get_spec()
+  item = spec.items[1]
+  test.expect.equality(assert(item.chunks)[3].kind, "status_error")
+  stop = assert(spec.watch)(function()
+    redraws = redraws + 1
+  end)
+  vim.fn.jobstop(first.job)
+  H.wait(function()
+    return first.state == "exited" and redraws == 2
+  end)
+  test.expect.equality(assert(item.chunks)[3], { text = " · ", kind = "separator" })
+  stop()
+end
+
 local layouts = { { "vsplit" }, { "split" }, { "tabnew" }, { "float" }, { "current" } }
 
 ---@param layout string

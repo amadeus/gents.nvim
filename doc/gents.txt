@@ -519,13 +519,24 @@ picker_help                                          *gents-config.picker_help*
 
 icons                                                      *gents-config.icons*
     Type: gents.IconsOptions.
-    Default: { visible = "●", hidden = "○" }.
-    Marks session rows according to whether a window shows the session in the
-    current tab. Override either field independently. Each value must be a
-    nonempty string without whitespace or control characters. Emoji and
-    multiple-character strings are accepted, for example:
+    Default: >lua
+    {
+      visible = "●", hidden = "○",
+      idle = "·", working = "⋯", blocked = "!", question = "?",
+      done = "✓", error = "✗",
+    }
+<
+    visible and hidden mark session rows according to whether a window shows
+    the session in the current tab. The status glyphs replace the separator
+    between a session's name and title; see |gents-picker-session-rows|.
+    permission and auth have no default and use blocked when unset. Override
+    any field independently. Each value must be a nonempty string without
+    whitespace or control characters. Emoji and multiple-character strings
+    are accepted, for example:
 >lua
-    require("gents").setup({ icons = { visible = "+", hidden = "-" } })
+    require("gents").setup({
+      icons = { visible = "+", hidden = "-", done = "ok", auth = "@" },
+    })
 <
 on_exit                                                  *gents-config.on_exit*
     Type: "keep" or "close". Default: "keep".
@@ -1296,11 +1307,34 @@ Override either marker in |gents-config|, for example: >lua
       icons = { visible = "v", hidden = "h" },
     })
 <
-Rows and previews are prepared when a menu opens. Reopen it to see updated
-titles or other changes. Session actions look up the selected ID again and
-ignore sessions closed while the menu was open. Actions return to the
-originating window before running; if that window has closed, the plugin
-reports an error instead of continuing from the picker window.
+Agents that report OSC 7501 program status (see |gents-program-status|)
+show it in place of the ` · ` between the name and the title:
+
+    Glyph   Status
+    ·       Idle, or no status reported. Rows look as they do without status.
+    ⋯       Working.
+    !       Waiting on you: permission, authentication, or no reason given.
+    ?       Waiting for an answer to a question.
+    ✓       Turn finished.
+    ✗       Turn failed.
+
+A row shows the root record's status, except that a blocked record from any
+worker takes precedence: the root's own blocked record first, then the
+blocked worker whose status changed most recently. Workers that are working,
+done, or failed do not change the glyph. Status comes only from the agent's
+reports; viewing a session does not clear it, and exiting removes it.
+Override the glyphs with |gents-config.icons|. Each glyph is padded to the
+widest configured status icon so columns stay aligned.
+
+Rows and previews are prepared when a menu opens. Status glyphs update in
+place while the Snacks, mini.pick, or Telescope Sessions picker is open,
+keeping the query and the selected session; Snacks and mini.pick match the
+new glyphs once the query changes. fzf-lua and |vim.ui.select()| show the
+status from when the menu opened. Reopen a menu to see updated titles or
+other changes. Session actions look up the selected ID again and ignore
+sessions closed while the menu was open. Actions return to the originating
+window before running; if that window has closed, the plugin reports an
+error instead of continuing from the picker window.
 
 Built-in adapters ~                                     *gents-picker-adapters*
 
@@ -1347,6 +1381,13 @@ Every built-in adapter styles the parts of a row with these groups:
     placeholder     GentsPickerPlaceholder      Comment
     separator       GentsPickerSeparator        Comment
     description     GentsPickerDescription      Comment
+    status_working  GentsPickerWorking          DiagnosticInfo
+    status_blocked  GentsPickerBlocked          DiagnosticWarn
+    status_done     GentsPickerDone             DiagnosticOk
+    status_error    GentsPickerError            DiagnosticError
+
+Idle sessions keep the separator highlight. Question, permission, and auth
+glyphs all use GentsPickerBlocked.
 
 The defaults follow your colorscheme and are reapplied after colorscheme
 changes without replacing your own definitions. Define overrides in your
@@ -1546,14 +1587,24 @@ the menu UI and receives:
     items      Ordered |gents.PickerItem| array.
     actions    Map of action names to callbacks accepting the selected item.
     default    Action name used for ordinary confirmation.
+    watch      Optional subscription to in-place item updates.
 
 An item has display `text` and opaque `data`. Optional `preview` is plain
 text. Optional `hl` suggests a highlight group. Optional `chunks` is an
 ordered array of |gents.PickerChunk| values whose `text` concatenates to
 the item's full text. A chunk's optional `kind` describes its role:
-`directory`, `visible`, `hidden`, `placeholder`, `separator`, or
-`description`. Adapters can map these roles to their own highlight groups.
+`directory`, `visible`, `hidden`, `placeholder`, `separator`,
+`description`, `status_working`, `status_blocked`, `status_done`, or
+`status_error`. Adapters can map these roles to their own highlight groups.
 The full `text` remains usable for matching and plain-text menus.
+
+The Sessions picker sets `watch` so status glyphs can change while it is
+open. Call `spec.watch(on_change)` after opening the menu and call the
+function it returns when the menu closes. Before calling `on_change`,
+gents.nvim updates the `text` and `chunks` of the existing items in place,
+without reordering them; redraw or rematch the rows there. Calls are
+batched, at most once per event-loop tick. Adapters that never call `watch`
+show a snapshot.
 
 Pass the original item to `spec.actions[name](item)`; do not pass only its
 `data` or infer an action from its label. Offer only actions present in the
@@ -2226,7 +2277,7 @@ Fields accepted by |gents.setup()|; all are optional:
     terminal_status?  boolean               false
     picker?           gents.Picker          nil (vim.ui.select)
     picker_help?      boolean               true
-    icons?            gents.IconsOptions    visible = "●", hidden = "○"
+    icons?            gents.IconsOptions    see |gents-config.icons|
     on_exit?          "keep" or "close"     "keep"
     tools?            table<string, gents.ToolOverride or false>
                                             built-in tools plus overrides
@@ -2467,16 +2518,25 @@ must be finite numbers; the resolved options must satisfy Neovim's window
 configuration constraints.
 
                                                            *gents.IconsOptions*
-Partial visibility markers:
+Partial visibility markers and status glyphs:
 
-    visible?  string  Default "●".
-    hidden?   string  Default "○".
+    visible?     string  Default "●".
+    hidden?      string  Default "○".
+    idle?        string  Default "·"; also used without status.
+    working?     string  Default "⋯".
+    blocked?     string  Default "!".
+    question?    string  Default "?".
+    permission?  string  No default; uses blocked.
+    auth?        string  No default; uses blocked.
+    done?        string  Default "✓".
+    error?       string  Default "✗".
 
 Each must be nonempty and contain no whitespace or control characters.
 See |gents-config.icons|.
 
                                                                   *gents.Icons*
-Resolved markers with both visible and hidden strings present.
+Resolved icons with every field present except the optional permission and
+auth glyphs.
 
 Keymaps ~
 
@@ -2597,6 +2657,8 @@ A generic specification, where T is the item data type:
     actions  table<string, fun(item: gents.PickerItem<T>)>
                                              Named operations on a choice.
     default  string                          Action used for Enter.
+    watch?   fun(on_change: fun()): fun()    Subscribe to in-place item
+                                             updates; returns a stop function.
 
 Action names depend on the menu. The default session action is called show
 even when the menu is choosing a destination for hide, close, or send; invoke
@@ -2621,7 +2683,8 @@ One part of a picker label:
 
     text   string
     kind?  "directory", "visible", "hidden", "placeholder", "separator",
-           or "description"
+           "description", "status_working", "status_blocked",
+           "status_done", or "status_error"
 
 kind describes the part's role so adapters can choose highlights. When absent,
 use the normal row styling. Chunks are optional; text works for plain pickers.
@@ -2692,9 +2755,9 @@ Missing fields are absent, not retained from previous reports. Snapshots in
 callbacks are copies of stored records.
 
                                                            *gents.StatusReason*
-"report", "clear", "prompt", "exit", "close", "buffer", "shutdown", or
-"evicted". The last means the least recently updated record was removed
-when a new record exceeded the per-terminal capacity of 256.
+"report", "clear", "exit", "close", "buffer", "shutdown", or "evicted". The
+last means the least recently updated record was removed when a new record
+exceeded the per-terminal capacity of 256.
 
                                                              *gents.ReadyEvent*
 Payload for |GentsReady|, extending |gents.AgentEvent|:
@@ -2862,13 +2925,15 @@ this relay. Your |GentsReady| or |GentsStatusChanged| callback can use
 including in GUI clients. The practical recipe is in docs/recipes/ready.md:
 https://github.com/amadeus/gents.nvim/tree/main/docs/recipes
 
-A new shell prompt (OSC 133 A) or job exit removes idle, working, and blocked
-records. Done and error survive while the terminal buffer is retained. Session
-close, buffer removal, and Neovim shutdown clear owned records. No heartbeat
-is needed. Alternate-screen switches and soft resets preserve records.
-Neovim currently does not expose full terminal resets (RIS) to TermRequest,
-so Gents cannot clear records on RIS. Producers can explicitly report clear;
-full protocol conformance is limited by this missing Neovim signal.
+Records change only through the agent's own reports, including clear, until
+the agent goes away: job exit, session close, buffer removal, and Neovim
+shutdown remove every owned record. Gents does not expire records on a new
+shell prompt (OSC 133 A), because sessions run agents rather than shells. No
+heartbeat is needed. Alternate-screen switches and soft resets preserve
+records. Neovim currently does not expose full terminal resets (RIS) to
+TermRequest, so Gents cannot clear records on RIS. Producers can explicitly
+report clear; full protocol conformance is limited by this missing Neovim
+signal.
 
 The starting-to-ready session transition governs initial input delivery
 using terminal output settling and a timeout; see |gents-context|. It emits

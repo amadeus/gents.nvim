@@ -11,6 +11,8 @@ end
 ---@class gents.test.SnacksList: gents.test.SnacksWindow
 ---@field count fun(self: gents.test.SnacksList): integer
 ---@field get fun(self: gents.test.SnacksList, index: integer): gents.pickers.SnacksItem?
+---@field move fun(self: gents.test.SnacksList, to: integer, absolute?: boolean, render?: boolean)
+---@field current fun(self: gents.test.SnacksList): gents.pickers.SnacksItem?
 
 ---@class gents.test.SnacksInput: gents.test.SnacksWindow
 ---@field set fun(self: gents.test.SnacksInput, pattern: string)
@@ -198,6 +200,54 @@ T["Snacks shows other-tab sessions as hidden with their titles and preserves sel
   test.expect.equality(require("gents").current(), session)
   test.expect.equality(session.label, "review")
   test.expect.equality(vim.api.nvim_get_current_tabpage(), session_tab)
+end
+
+T["Snacks updates status glyphs while open and keeps the current row"] = function()
+  local first, second = H.new(), H.new()
+  require("gents").pick()
+  local picker = current_picker()
+  local buf = vim.api.nvim_win_get_buf(assert(picker.list.win.win))
+  picker.list:move(2, true)
+  local selected = assert(picker.list:current())
+  test.expect.equality(
+    picker.opts.items[selected.gents_index].text:find(" · ", 1, true) ~= nil,
+    true
+  )
+
+  local status = require("gents.terminal_status")
+  status.receive(first, "\027]7501;state=working")
+  status.receive(second, "\027]7501;state=blocked:kind=question")
+  ---@param glyph string
+  ---@return boolean
+  local function shown(glyph)
+    for _, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+      if line:find(" " .. glyph .. " ", 1, true) then
+        return true
+      end
+    end
+    return false
+  end
+  H.wait(function()
+    return shown("⋯") and shown("?")
+  end)
+  test.expect.equality(rawequal(picker.list:current(), selected), true)
+  test.expect.equality(
+    picker.opts.items[selected.gents_index].text:find(" ? ", 1, true) ~= nil,
+    true
+  )
+  test.expect.equality(
+    picker.opts.format(picker.opts.items[1])[3],
+    { " ⋯ ", "GentsPickerWorking" }
+  )
+
+  picker:close()
+  H.wait(function()
+    return picker.closed
+  end)
+  test.expect.equality(
+    vim.api.nvim_get_autocmds({ event = "User", pattern = "GentsStatusChanged" }),
+    {}
+  )
 end
 
 T["Snacks explicit placement"] = test.new_set({

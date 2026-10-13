@@ -303,36 +303,76 @@ T["focus and reporting toggles do not acknowledge native records"] = function()
   eq(#ready, 1)
 end
 
-T["prompt and process exit preserve done/error children when live parents disappear"] = function()
+T["shell prompts leave records alone and process exit removes every record"] = function()
   setup(true)
   local session = H.new({ cmd = { "sh", "-c", "read signal; exit 7" } })
   report(session, "state=working:app=agent")
   report(session, "state=done:id=worker")
   report(session, "state=error:id=failed")
   report(session, "state=blocked:id=waiting")
+  local count, published = #changes, #sent
   vim.api.nvim_exec_autocmds("TermRequest", {
     buffer = session.buf,
     data = { sequence = "\027]133;A", terminator = "\007", cursor = { 1, 0 } },
   })
-  eq(changes[#changes].reason, "prompt")
-  eq(relayed(#sent).state, "clear")
-  report(session, "state=working")
+  eq(#changes, count)
+  eq(#sent, published)
   vim.fn.chansend(session.job, "go\n")
   H.wait(function()
     return session.state == "exited"
   end)
-  eq(changes[#changes].reason, "exit")
-  eq(changes[#changes].record_id, "")
-  local count = #changes
+  ---@type table<string, gents.StatusReason>
+  local removed = {}
+  for index = count + 1, #changes do
+    eq(changes[index].current, nil)
+    removed[changes[index].record_id] = changes[index].reason
+  end
+  eq(removed, { [""] = "exit", worker = "exit", failed = "exit", waiting = "exit" })
+  eq(relayed(#sent), { id = "gents/" .. session.id, state = "clear" })
+  eq(status.display(session), nil)
+  count = #changes
   report(session, "state=blocked")
   eq(#changes, count)
   setup(false)
+  published = #sent
   setup(true)
-  eq(relayed(#sent - 1).state, "error")
-  eq(relayed(#sent).state, "done")
+  eq(#sent, published)
   gents.close(session.id)
-  eq(changes[#changes].reason, "close")
-  eq(relayed(#sent), { id = "gents/" .. session.id, state = "clear" })
+  eq(#changes, count)
+end
+
+T["display shows the root status unless a record is blocked"] = function()
+  local session = H.new()
+  local other = H.new()
+  eq(status.display(session), nil)
+  report(session, "state=idle")
+  eq(status.display(session), nil)
+  report(session, "state=working:id=child")
+  report(session, "state=error:id=failed")
+  eq(status.display(session), nil)
+  report(session, "state=working")
+  eq(status.display(session), { state = "working" })
+  report(session, "state=done:id=child")
+  eq(status.display(session), { state = "working" })
+  report(session, "state=blocked:id=first:kind=permission")
+  report(session, "state=blocked:id=second:kind=question")
+  eq(status.display(session), { state = "blocked", kind = "question" })
+  report(session, "state=blocked:id=first:kind=auth")
+  eq(status.display(session), { state = "blocked", kind = "auth" })
+  report(session, "state=blocked")
+  -- An identical repeat emits no change, so it must not reorder blocked records.
+  local count = #changes
+  report(session, "state=blocked:id=second:kind=question")
+  eq(#changes, count)
+  eq(status.display(session), { state = "blocked" })
+  report(session, "state=done")
+  eq(status.display(session), { state = "blocked", kind = "auth" })
+  report(session, "state=blocked:id=second:kind=permission")
+  eq(status.display(session), { state = "blocked", kind = "permission" })
+  report(session, "state=clear:id=first")
+  report(session, "state=clear:id=second")
+  eq(status.display(session), { state = "done" })
+  eq(status.display(other), nil)
 end
 
 T["buffer removal and shutdown clear owned records"] = function()
@@ -408,7 +448,7 @@ T["real PTY reports survive chunks and hidden buffers with both terminators"] = 
   eq(ready[1].visible, false)
 end
 
-T["a short-lived native producer leaves its final result"] = function()
+T["a short-lived native producer reports its result before exit clears it"] = function()
   local session = H.new({
     cmd = {
       "sh",
@@ -419,12 +459,14 @@ T["a short-lived native producer leaves its final result"] = function()
   H.wait(function()
     return session.state == "exited"
   end)
-  eq(#changes, 2)
+  eq(#changes, 3)
+  eq(changes[2].current, { state = "done", msg = "Result" })
+  eq(changes[3].previous, { state = "done", msg = "Result" })
+  eq(changes[3].reason, "exit")
   eq(#ready, 1)
   eq(ready[1].current, { state = "done", msg = "Result" })
   setup(true)
-  eq(relayed(1).state, "done")
-  eq(relayed(1).msg, "Result")
+  eq(sent, {})
 end
 
 T["soft reset and alternate-screen switches preserve native records"] = function()

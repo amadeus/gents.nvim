@@ -18,8 +18,10 @@ local defaults = {
     working = "⋯",
     blocked = "!",
     question = "?",
+    permission = "#",
+    auth = "@",
     done = "✓",
-    error = "✗",
+    error = "×",
   },
   on_exit = "keep",
   tools = tools.defaults,
@@ -61,7 +63,6 @@ local function validate(config)
   assert(type(config.terminal_status) == "boolean", "gents: terminal_status must be a boolean")
   assert(type(config.icons) == "table", "gents: icons must be a table")
   local icons = config.icons
-  -- Unset permission and auth icons are skipped; the picker uses blocked instead.
   for name, icon in pairs({
     visible = icons.visible,
     hidden = icons.hidden,

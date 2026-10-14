@@ -32,8 +32,10 @@ local default_icons = {
   working = "⋯",
   blocked = "!",
   question = "?",
+  permission = "#",
+  auth = "@",
   done = "✓",
-  error = "✗",
+  error = "×",
 }
 
 ---@param overrides table<string, string>
@@ -182,8 +184,6 @@ T["icon overrides merge independently without retaining caller tables"] = functi
     icons_with({ visible = "v", done = "+", auth = "@" })
   )
   expect(config.setup().icons, default_icons)
-  expect(config.setup().icons.permission, nil)
-  expect(config.setup().icons.auth, nil)
 end
 
 T["icons accept emoji and multiple characters without a width restriction"] = function()

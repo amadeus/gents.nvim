@@ -362,8 +362,8 @@ local function status_width(icons)
     icons.working,
     icons.blocked,
     icons.question,
-    icons.permission or icons.blocked,
-    icons.auth or icons.blocked,
+    icons.permission,
+    icons.auth,
     icons.done,
     icons.error,
   }) do
@@ -387,9 +387,9 @@ local function status_chunk(session, icons, width)
     if status.kind == "question" then
       glyph = icons.question
     elseif status.kind == "permission" then
-      glyph = icons.permission or icons.blocked
+      glyph = icons.permission
     elseif status.kind == "auth" then
-      glyph = icons.auth or icons.blocked
+      glyph = icons.auth
     else
       glyph = icons.blocked
     end

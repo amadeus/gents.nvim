@@ -193,10 +193,11 @@ When you press Enter in a picker:
   opens using your configured layout.
 
 For agents that report their status, the Sessions picker replaces the `·`
-between the agent name and the title with a status glyph: `⋯` working, `!`
-waiting for permission, `?` asking a question, `✓` finished, and `✗` failed.
-The glyphs update while the Snacks, mini.pick, or Telescope picker is open.
-Change them with the `icons` option; see `:help gents-picker-session-rows`.
+between the agent name and the title with a status glyph: `⋯` working, `?`
+asking a question, `#` waiting for permission, `@` waiting for authentication,
+`!` waiting on you for another reason, `✓` finished, and `×` failed. The glyphs
+update while the Snacks, mini.pick, or Telescope picker is open. Change them
+with the `icons` option; see `:help gents-picker-session-rows`.
 
 To choose where a session opens for a single action, pass `layout` to the
 Lua function. This uses the requested placement even if the session is
@@ -357,7 +358,7 @@ vim.keymap.set("n", "<leader>aa", "<cmd>Gents toggle<cr>", {
 | `:Gents new [tool] [args...]`                              | Pick a CLI tool, or start the named tool with optional extra arguments.                                                    |
 | `:Gents` or `:Gents pick [target]`                         | Choose an existing session, or show an explicit target. With no sessions, pick a tool to start.                            |
 | `:Gents focus [target]`                                    | Focus a session. When called from a session without a target, return to the previous window and leave the session visible. |
-| `:Gents toggle [target]`                                   | Hide visible sessions in the current tab, or summon a session when none are visible.                                      |
+| `:Gents toggle [target]`                                   | Hide visible sessions in the current tab, or summon a session when none are visible.                                       |
 | `:Gents hide [target]`                                     | Hide the selected visible session's views in the current tab and keep its CLI running.                                     |
 | `:Gents close [target]`                                    | Stop the selected CLI and delete its buffer.                                                                               |
 | `:Gents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or saved prompts.                                                              |

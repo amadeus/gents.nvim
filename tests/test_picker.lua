@@ -1081,12 +1081,12 @@ T["session status glyphs replace the name separator"] = function()
   local expected = {
     { " · ", "separator" },
     { " ⋯ ", "status_working" },
-    { " ! ", "status_blocked" },
+    { " # ", "status_blocked" },
     { " ? ", "status_blocked" },
-    { " ! ", "status_blocked" },
+    { " @ ", "status_blocked" },
     { " ! ", "status_blocked" },
     { " ✓ ", "status_done" },
-    { " ✗ ", "status_error" },
+    { " × ", "status_error" },
   }
   local get_spec = capture_sessions()
   picker.sessions(sessions, function() end)
@@ -1107,7 +1107,7 @@ T["session status glyphs replace the name separator"] = function()
     )
   end
 
-  -- Wide or optional icons pad every status slot to the widest configured one.
+  -- Wide icons pad every status slot to the widest configured one.
   require("gents").setup({
     tools = { cat = { cmd = { "cat" } } },
     icons = { working = "..", permission = "OK?", auth = "🔑" },

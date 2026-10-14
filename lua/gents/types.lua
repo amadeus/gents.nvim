@@ -76,7 +76,7 @@
 ---@field hidden? string
 ---@field idle? string Separator shown for idle sessions and sessions without status.
 ---@field working? string
----@field blocked? string Waiting on the user; the fallback for permission and auth.
+---@field blocked? string Waiting on the user without a more specific kind.
 ---@field question? string
 ---@field permission? string
 ---@field auth? string
@@ -90,6 +90,8 @@
 ---@field working string
 ---@field blocked string
 ---@field question string
+---@field permission string
+---@field auth string
 ---@field done string
 ---@field error string
 

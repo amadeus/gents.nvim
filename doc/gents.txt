@@ -523,19 +523,18 @@ icons                                                      *gents-config.icons*
     {
       visible = "●", hidden = "○",
       idle = "·", working = "⋯", blocked = "!", question = "?",
-      done = "✓", error = "✗",
+      permission = "#", auth = "@", done = "✓", error = "×",
     }
 <
     visible and hidden mark session rows according to whether a window shows
     the session in the current tab. The status glyphs replace the separator
     between a session's name and title; see |gents-picker-session-rows|.
-    permission and auth have no default and use blocked when unset. Override
-    any field independently. Each value must be a nonempty string without
-    whitespace or control characters. Emoji and multiple-character strings
-    are accepted, for example:
+    Override any field independently. Each value must be a nonempty string
+    without whitespace or control characters. Emoji and multiple-character
+    strings are accepted, for example:
 >lua
     require("gents").setup({
-      icons = { visible = "+", hidden = "-", done = "ok", auth = "@" },
+      icons = { visible = "+", hidden = "-", done = "ok", error = "x" },
     })
 <
 on_exit                                                  *gents-config.on_exit*
@@ -1313,10 +1312,12 @@ show it in place of the ` · ` between the name and the title:
     Glyph   Status
     ·       Idle, or no status reported. Rows look as they do without status.
     ⋯       Working.
-    !       Waiting on you: permission, authentication, or no reason given.
     ?       Waiting for an answer to a question.
+    #       Waiting for permission.
+    @       Waiting for authentication.
+    !       Waiting on you for another reason, or no reason given.
     ✓       Turn finished.
-    ✗       Turn failed.
+    ×       Turn failed.
 
 A row shows the root record's status, except that a blocked record from any
 worker takes precedence: the root's own blocked record first, then the
@@ -2526,17 +2527,16 @@ Partial visibility markers and status glyphs:
     working?     string  Default "⋯".
     blocked?     string  Default "!".
     question?    string  Default "?".
-    permission?  string  No default; uses blocked.
-    auth?        string  No default; uses blocked.
+    permission?  string  Default "#".
+    auth?        string  Default "@".
     done?        string  Default "✓".
-    error?       string  Default "✗".
+    error?       string  Default "×".
 
 Each must be nonempty and contain no whitespace or control characters.
 See |gents-config.icons|.
 
                                                                   *gents.Icons*
-Resolved icons with every field present except the optional permission and
-auth glyphs.
+Resolved icons with every field present.
 
 Keymaps ~
 

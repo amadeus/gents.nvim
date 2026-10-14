@@ -249,12 +249,14 @@ function M.open(spec)
       items = items,
       show = function(buf, shown, query)
         -- mini.pick holds copies of the items, so show the current text.
-        shown = vim.tbl_map(function(item)
-          return items[item.gents_index]
-        end, shown)
-        mini.default_show(buf, shown, query)
+        ---@type gents.pickers.MiniItem[]
+        local current = {}
+        for index, item in ipairs(shown) do
+          current[index] = items[item.gents_index]
+        end
+        mini.default_show(buf, current, query)
         vim.api.nvim_buf_clear_namespace(buf, namespace, 0, -1)
-        for row, item in ipairs(shown) do
+        for row, item in ipairs(current) do
           local source = spec.items[item.gents_index]
           local col = 0
           for _, chunk in ipairs(source.chunks or { { text = source.text } }) do

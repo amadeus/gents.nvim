@@ -4,6 +4,13 @@ local registry = {}
 ---@type table<integer, boolean>
 local closing = {}
 local next_id = 0
+local focus_count = 0
+
+---@return integer
+local function next_focus()
+  focus_count = focus_count + 1
+  return focus_count
+end
 
 ---@class gents.Session
 ---@field id integer
@@ -19,6 +26,7 @@ local next_id = 0
 ---@field exit_code? integer
 ---@field tab? integer
 ---@field last_float? boolean Whether the most recent gents placement was floating.
+---@field last_focus integer Increases each time the session buffer is entered.
 
 ---@return gents.Session[]
 function M.list()
@@ -146,11 +154,19 @@ function M.new(tool, opts, cwd)
     buf = vim.api.nvim_create_buf(false, true),
     state = "starting",
     last_float = vim.api.nvim_win_get_config(win).relative ~= "",
+    last_focus = next_focus(),
   }
   vim.bo[session.buf].bufhidden = "hide"
   vim.b[session.buf].gents_session = session.id
   registry[session.id] = session
 
+  vim.api.nvim_create_autocmd("BufEnter", {
+    buffer = session.buf,
+    desc = "Remember when the session was last focused",
+    callback = function()
+      session.last_focus = next_focus()
+    end,
+  })
   vim.api.nvim_create_autocmd("BufWipeout", {
     buffer = session.buf,
     once = true,

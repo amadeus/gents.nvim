@@ -415,28 +415,29 @@ local function chunk_text(chunks)
   return table.concat(parts)
 end
 
+---@class gents.SessionPickerOptions
+---@field current_last? boolean List the session under the cursor last, for switching away from it.
+
+---Sessions appear most recently focused first.
 ---@param candidates gents.Session[]
 ---@param callback fun(session: gents.Session)
 ---@param on_place? fun(session: gents.Session, layout: gents.Layout)
-function M.sessions(candidates, callback, on_place)
+---@param opts? gents.SessionPickerOptions
+function M.sessions(candidates, callback, on_place, opts)
   local window = require("gents.window")
   local tab = vim.api.nvim_get_current_tabpage()
   local origin = M.origin()
+  local current = opts and opts.current_last and require("gents.session").current()
   ---@type gents.Session[]
-  local ordered = {}
-  ---@type table<integer, integer>
-  local ranks = {}
-  for _, session in ipairs(candidates) do
-    ordered[#ordered + 1] = session
-    -- A native view elsewhere takes precedence over the last plugin-managed tab.
-    local hidden_here = session.tab == tab and #vim.fn.win_findbuf(session.buf) == 0
-    ranks[session.id] = window.visible(session, tab) and 1 or (hidden_here and 2 or 3)
-  end
+  local ordered = vim.list_extend({}, candidates)
+  ---@param a gents.Session
+  ---@param b gents.Session
+  ---@return boolean
   table.sort(ordered, function(a, b)
-    if ranks[a.id] ~= ranks[b.id] then
-      return ranks[a.id] < ranks[b.id]
+    if current and (a == current or b == current) then
+      return b == current and a ~= current
     end
-    return a.id < b.id
+    return a.last_focus > b.last_focus
   end)
 
   ---@type gents.PickerItem<gents.Session>[]

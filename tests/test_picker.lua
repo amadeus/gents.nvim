@@ -626,7 +626,7 @@ T["tool selection reports a closed invoking window without launching"] = functio
   test.expect.equality(#require("gents").sessions(), 0)
 end
 
-T["session rows prefer this tab and show state cwd and changed argv"] = function()
+T["session rows show state cwd and changed argv"] = function()
   require("gents").setup({ tools = { cat = { cmd = { "cat" } }, sh = { cmd = { "sh", "-c" } } } })
   local elsewhere = H.new()
   local hidden = H.new({ layout = "tabnew" })
@@ -656,16 +656,16 @@ T["session rows prefer this tab and show state cwd and changed argv"] = function
         end,
         items
       ),
-      { visible.id, exited.id, hidden.id, elsewhere.id }
+      { exited.id, visible.id, hidden.id, elsewhere.id }
     )
     local directory = vim.fn.fnamemodify(visible.cwd, ":~")
     test.expect.equality(
       items[1].text,
-      "●  cat #3 · Untitled" .. string.rep(" ", 10) .. " · " .. directory
+      "●  sh     · Untitled  [exited] · " .. directory .. "  sh -c exit 7"
     )
     test.expect.equality(
       items[2].text,
-      "●  sh     · Untitled  [exited] · " .. directory .. "  sh -c exit 7"
+      "●  cat #3 · Untitled" .. string.rep(" ", 10) .. " · " .. directory
     )
     test.expect.equality(
       items[3].text,
@@ -699,6 +699,30 @@ T["session rows prefer this tab and show state cwd and changed argv"] = function
     test.expect.equality(assert(items[1].chunks)[1], { text = "○", kind = "hidden" })
   end)
   picker.sessions({ exited }, function() end)
+end
+
+T["session rows list the most recently focused session first"] = function()
+  local first = H.new()
+  local second = H.new()
+  local third = H.new()
+  vim.api.nvim_set_current_win(assert(vim.fn.win_findbuf(second.buf)[1]))
+  vim.api.nvim_set_current_win(assert(vim.fn.win_findbuf(first.buf)[1]))
+
+  ---@type integer[]?
+  local ids
+  ---@param items gents.PickerItem<gents.Session>[]
+  set_select(function(items)
+    ids = vim.tbl_map(
+      ---@param item gents.PickerItem<gents.Session>
+      ---@return integer
+      function(item)
+        return item.data.id
+      end,
+      items
+    )
+  end)
+  picker.sessions(require("gents").sessions(), function() end)
+  test.expect.equality(ids, { first.id, second.id, third.id })
 end
 
 T["session picker ignores a session closed while it was open"] = function()
@@ -750,35 +774,6 @@ T["session selection reports a closed invoking window without showing"] = functi
   )
   test.expect.equality(vim.api.nvim_get_current_buf(), unrelated)
   test.expect.equality(vim.fn.win_findbuf(session.buf), {})
-end
-
-T["a native view in another tab ranks after hidden sessions from this tab"] = function()
-  local origin = vim.api.nvim_get_current_win()
-  local elsewhere, hidden = H.new(), H.new()
-  require("gents").hide(elsewhere.id)
-  require("gents").hide(hidden.id)
-  vim.cmd.tabnew()
-  vim.api.nvim_win_set_buf(0, elsewhere.buf)
-  vim.api.nvim_set_current_win(origin)
-  ---@type gents.PickerSpec<gents.Session>?
-  local spec
-  ---@param value gents.PickerSpec<gents.Session>
-  require("gents.config").get().picker = function(value)
-    spec = value
-  end
-  require("gents").pick()
-  test.expect.equality(
-    { assert(spec).items[1].data.id, assert(spec).items[2].data.id },
-    { hidden.id, elsewhere.id }
-  )
-  test.expect.equality(
-    assert(spec).items[1].text,
-    "○  cat #2 · Untitled · " .. vim.fn.fnamemodify(hidden.cwd, ":~")
-  )
-  test.expect.equality(
-    assert(spec).items[2].text,
-    "○  cat    · Untitled · " .. vim.fn.fnamemodify(elsewhere.cwd, ":~")
-  )
 end
 
 ---@return fun(): gents.PickerSpec<gents.Tool>
@@ -842,6 +837,32 @@ T["custom session markers follow native tab switches and multiple views"] = func
   expect_marker("v")
 end
 
+T["pick from a session lists that session last"] = function()
+  local first = H.new()
+  local second = H.new()
+  local current = H.new()
+  test.expect.equality(require("gents").current(), current)
+
+  local get_spec = capture_sessions()
+  ---@return integer[]
+  local function ids()
+    return vim.tbl_map(
+      ---@param item gents.PickerItem<gents.Session>
+      ---@return integer
+      function(item)
+        return item.data.id
+      end,
+      get_spec().items
+    )
+  end
+  require("gents").pick()
+  test.expect.equality(ids(), { second.id, first.id, current.id })
+
+  -- Other session pickers keep the session under the cursor in recency order.
+  picker.sessions(require("gents").sessions(), function() end)
+  test.expect.equality(ids(), { current.id, second.id, first.id })
+end
+
 T["session columns align display cells across titles labels and visibility"] = function()
   require("gents").setup({
     icons = { visible = "界", hidden = "." },
@@ -854,15 +875,16 @@ T["session columns align display cells across titles labels and visibility"] = f
   assistant.title = "Plan"
   local custom = H.new({ label = "review-long" })
   require("gents").hide(numbered.id)
+  -- Hiding custom moves focus back into the assistant's window.
   require("gents").hide(custom.id)
   test.expect.equality(numbered.label, "cat #2")
 
   ---@type { session: gents.Session, name: string, title?: string, marker: string }[]
   local rows = {
-    { session = titled, name = "cat", title = "日本語 é", marker = "界" },
     { session = assistant, name = "assistant", title = "Plan", marker = "界" },
-    { session = numbered, name = "cat #2", marker = "." },
     { session = custom, name = "review-long", marker = "." },
+    { session = numbered, name = "cat #2", marker = "." },
+    { session = titled, name = "cat", title = "日本語 é", marker = "界" },
   }
   ---@param text string
   ---@param value string
@@ -1076,17 +1098,18 @@ T["session status glyphs replace the name separator"] = function()
   report(plain, "state=blocked")
   report(done, "state=done")
   report(failed, "state=error")
-  local sessions = { idle, working, permission, question, auth, plain, done, failed }
+  -- Listed most recently focused first, the reverse of creation.
+  local sessions = { failed, done, plain, auth, question, permission, working, idle }
   ---@type { [1]: string, [2]: gents.PickerChunkKind }[]
   local expected = {
-    { " · ", "separator" },
-    { " ⋯ ", "status_working" },
-    { " # ", "status_blocked" },
-    { " ? ", "status_blocked" },
-    { " @ ", "status_blocked" },
-    { " ! ", "status_blocked" },
-    { " ✓ ", "status_done" },
     { " × ", "status_error" },
+    { " ✓ ", "status_done" },
+    { " ! ", "status_blocked" },
+    { " @ ", "status_blocked" },
+    { " ? ", "status_blocked" },
+    { " # ", "status_blocked" },
+    { " ⋯ ", "status_working" },
+    { " · ", "separator" },
   }
   local get_spec = capture_sessions()
   picker.sessions(sessions, function() end)
@@ -1124,7 +1147,7 @@ T["session status glyphs replace the name separator"] = function()
       end,
       spec.items
     ),
-    { " ·   ", " ..  ", " OK? ", " 🔑  ", " !   " }
+    { " !   ", " 🔑  ", " OK? ", " ..  ", " ·   " }
   )
   for _, item in ipairs(spec.items) do
     test.expect.equality(vim.fn.strdisplaywidth(item.text:match("^(.-)Untitled")), 14)
@@ -1136,7 +1159,8 @@ T["session status watch updates glyphs in place once per batch"] = function()
   local get_spec = capture_sessions()
   picker.sessions({ first, second }, function() end)
   local spec = get_spec()
-  local items, item = spec.items, spec.items[1]
+  local items, item = spec.items, spec.items[2]
+  test.expect.equality(item.data, first)
   local text = item.text
   local redraws, others = 0, 0
   local stop = assert(spec.watch)(function()
@@ -1149,7 +1173,7 @@ T["session status watch updates glyphs in place once per batch"] = function()
 
   report(first, "state=working")
   report(second, "state=blocked:kind=question")
-  test.expect.equality(rawequal(spec.items, items) and rawequal(spec.items[1], item), true)
+  test.expect.equality(rawequal(spec.items, items) and rawequal(spec.items[2], item), true)
   test.expect.equality(item.text, (text:gsub(" · ", " ⋯ ", 1)))
   test.expect.equality(assert(item.chunks)[3], { text = " ⋯ ", kind = "status_working" })
   test.expect.equality(redraws, 0)
@@ -1466,7 +1490,8 @@ T["deferred hide uses the invoking tab and rechecks visibility"] = test.new_set(
     vim.cmd.tabnew()
     vim.api.nvim_win_set_buf(0, first.buf)
     local elsewhere = vim.api.nvim_get_current_win()
-    spec.actions[action](spec.items[1])
+    test.expect.equality(spec.items[2].data, first)
+    spec.actions[action](spec.items[2])
     test.expect.equality(require("gents.window").visible(first, tab), false)
     test.expect.equality(vim.fn.win_findbuf(first.buf), { elsewhere })
   end,

@@ -101,7 +101,7 @@ T["focus opens the session picker when several sessions are hidden"] = function(
   eq(#gents.sessions(), 2)
   local spec = picked()
   spec.actions[spec.default](spec.items[1])
-  eq(gents.current(), first)
+  eq(gents.current(), second)
   eq(vim.fn.jobwait({ first.job, second.job }, 0), { -1, -1 })
 end
 
@@ -271,9 +271,9 @@ T["toggle preserves the float opt-out through session selection"] = function()
   gents.toggle(nil, { layout = false })
   local spec = picked()
   spec.actions[spec.default](spec.items[1])
-  eq(vim.api.nvim_get_current_buf(), first.buf)
+  eq(vim.api.nvim_get_current_buf(), second.buf)
   eq(vim.api.nvim_win_get_config(0).relative, "")
-  eq(window.visible(second), false)
+  eq(window.visible(first), false)
 end
 
 T["toggle float opt-out still uses a floating default layout"] = function()
@@ -356,10 +356,10 @@ T["toggle explicit layout survives session selection"] = function()
   gents.toggle(nil, { layout = { width = 24, height = 6 } })
   local spec = picked()
   spec.actions[spec.default](spec.items[1])
-  eq(vim.api.nvim_get_current_buf(), first.buf)
+  eq(vim.api.nvim_get_current_buf(), second.buf)
   eq(vim.api.nvim_win_get_config(0).relative, "editor")
   eq(vim.api.nvim_win_get_width(0), 24)
-  eq(window.visible(second), false)
+  eq(window.visible(first), false)
 end
 
 T["toggle carries placement into the New Session picker"] = test.new_set({

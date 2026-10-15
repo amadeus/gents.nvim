@@ -12,6 +12,8 @@ The supported baseline is Neovim 0.12+ with LuaJIT.
 - Never stage, unstage, or commit without an explicit user request. If the
   index changes during your work, assume the user is working in parallel and
   leave it alone. Earlier permission for a different task does not carry over.
+- Do not add AI attribution to commit messages or pull request descriptions,
+  such as `Co-Authored-By` trailers or "Generated with" lines.
 - Read the current files and diff before editing. Preserve unrelated changes
   and the user's wording. Keep fixes scoped to the requested task.
 - Some checkouts contain local plan, design, and research files. Keep those

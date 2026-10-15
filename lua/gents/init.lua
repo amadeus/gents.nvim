@@ -180,9 +180,10 @@ function M.pick(target)
   if #sessions == 0 then
     return M.new()
   end
+  -- When switching from a session, put the previous session first.
   return require("gents.picker").sessions(sessions, function(session)
     return M.show(session.id)
-  end)
+  end, nil, { current_last = true })
 end
 
 ---Open a picker for the top-level commands.

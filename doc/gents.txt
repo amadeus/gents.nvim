@@ -208,10 +208,11 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
                                                                   *:Gents-pick*
 :Gents pick [target]
     With no target, always open the session picker, even from a session or
-    when only one session exists. With no sessions, open New Session.
-    With a target, show that session directly. An ordinary show focuses an
-    existing window, including one in another tab, or opens a new window
-    using your layout if the session has no views. See |gents-layouts|.
+    when only one session exists. From a session, that session is listed
+    last. With no sessions, open New Session. With a target, show that session
+    directly. An ordinary show focuses an existing window, including one in
+    another tab, or opens a new window using your layout if the session has no
+    views. See |gents-layouts|.
 
     With a built-in picker adapter, the session picker also offers
     placement, hide, and close shortcuts. See |gents-picker-adapters|.
@@ -1245,12 +1246,11 @@ New Session (`Gents: New Session`):
     does nothing. Use |gents.new()| for individual arguments with spaces.
 
 Sessions (`Gents: Sessions`):
-    Candidates appear in these groups, with ascending session IDs within
-    each group:
-    1. Visible in the current tab.
-    2. Hidden everywhere, with the current tab as their last tab recorded
-       by gents.nvim.
-    3. All remaining sessions, including those shown only in another tab.
+    Candidates appear most recently focused first, so the session you
+    left last is near the top. Entering a session's buffer in any window or
+    tab counts as focusing it; a new session starts out focused. When
+    |:Gents-pick| opens from a session, that session moves to the end, so
+    the first row is the session you used before it.
 
     Retained exited sessions can appear. The default action is named
     `show`, but invokes the operation that requested a target: for example,
@@ -2397,10 +2397,13 @@ snapshots. A session's buffer is shared by all of its views.
     exit_code?  integer              Process exit code after it exits.
     tab?        integer              Last tab used by gents.nvim.
     last_float? boolean              Last gents.nvim placement was floating.
+    last_focus  integer              Grows each time the buffer is entered.
 
-tab is a hint for picker ordering, not proof of where the buffer is visible.
-Native window changes can leave it unchanged. Closed sessions are removed
-from the registry; holding a returned object does not keep its CLI alive.
+tab is not proof of where the buffer is visible; native window changes can
+leave it unchanged. Compare last_focus values to find the most recently
+focused session; the numbers themselves carry no meaning. Closed sessions are
+removed from the registry; holding a returned object does not keep its CLI
+alive.
 See |gents-sessions| for lifetime and naming.
 
                                                            *gents.SessionState*

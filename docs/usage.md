@@ -416,6 +416,8 @@ sessions, hide does nothing.
 There are a few differences between commands:
 
 - `pick` without a target always opens a picker, even if only one session exists.
+  Sessions are listed most recently focused first; when you pick from a
+  session, it goes last so the previous session is at the top.
 - `focus` without a target, called from a session, returns to the previous
   window and leaves terminal input mode. That window can contain any buffer.
   With `insert_on_focus = true`, a live gents session in that window receives

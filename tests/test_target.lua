@@ -47,9 +47,9 @@ T["hide predicates and pickers include only visible matching sessions"] = functi
   ---@param _ vim.ui.select.Opts
   ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, callback)
-    test.expect.equality({ items[1].data.id, items[2].data.id }, { first.id, second.id })
+    test.expect.equality({ items[1].data.id, items[2].data.id }, { second.id, first.id })
     test.expect.equality(#items, 2)
-    callback(items[2], 2)
+    callback(items[1], 1)
   end)
   require("gents").hide(function(session)
     return session.id ~= excluded.id
@@ -157,7 +157,7 @@ T["ambiguous sessions use the picker and return nil"] = function()
   ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, callback)
     test.expect.equality(#items, 2)
-    callback(items[2], 2)
+    callback(items[1], 1)
   end)
   test.expect.equality(
     target.with(nil, function(session)
@@ -201,7 +201,7 @@ T["an ambiguous filter only offers matching sessions"] = function()
   ---@param _ vim.ui.select.Opts
   ---@param callback fun(item: gents.PickerItem<gents.Session>?, idx?: integer)
   set_select(function(items, _, callback)
-    test.expect.equality({ items[1].data.id, items[2].data.id }, { first.id, second.id })
+    test.expect.equality({ items[1].data.id, items[2].data.id }, { second.id, first.id })
     test.expect.equality(#items, 2)
     callback(items[1], 1)
   end)
@@ -210,7 +210,7 @@ T["an ambiguous filter only offers matching sessions"] = function()
   end, function(session)
     selected = session.id
   end)
-  test.expect.equality(selected, first.id)
+  test.expect.equality(selected, second.id)
 end
 
 T["no sessions is a no-op and explicit unmatched targets error"] = function()

@@ -47,6 +47,19 @@ T["startup keeps session, status and UI modules lazy"] = function()
   test.expect.equality(result.stdout, "gents gents.config gents.tools")
 end
 
+T["terminal status reporting waits for a UI before loading"] = function()
+  local result = child(table.concat({
+    "local sent = {}",
+    "vim.api.nvim_ui_send = function(sequence) sent[#sent + 1] = sequence:sub(8, -3) end",
+    "require('gents').setup({ terminal_status = true })",
+    "local lazy = package.loaded['gents.terminal_status'] == nil",
+    "vim.api.nvim_exec_autocmds('UIEnter', { modeline = false })",
+    "io.stdout:write(tostring(lazy) .. ' ' .. table.concat(sent, ','))",
+  }, "; "))
+  test.expect.equality(result.code, 0)
+  test.expect.equality(result.stdout, "true state=idle:id=nvim:app=nvim")
+end
+
 T["custom adapters see the picker highlight groups"] = function()
   local result = child(table.concat({
     "require('gents').setup({ picker = function(spec) io.stdout:write(spec.title .. ':' .. vim.fn.hlexists('GentsPickerVisible')) end })",

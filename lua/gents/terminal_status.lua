@@ -21,9 +21,32 @@ local states =
 ---@type table<integer, gents.ProgramRecords>
 local sessions = {}
 
+-- Neovim's own record, held while reporting is on and no agent is live. It uses
+-- a child id because clearing the root would also clear every agent record.
+local self_idle = "state=idle:id=nvim:app=nvim"
+local self_published = false
+
 ---@param body string
 local function send(body)
   vim.api.nvim_ui_send("\027]7501;" .. body .. "\027\\")
+end
+
+---@return boolean
+local function agents_live()
+  for _, session in ipairs(require("gents.session").list()) do
+    if session.state ~= "exited" then
+      return true
+    end
+  end
+  return false
+end
+
+local function sync_self()
+  local idle = reporting and not agents_live()
+  if idle ~= self_published then
+    self_published = idle
+    send(idle and self_idle or "state=clear:id=nvim")
+  end
 end
 
 ---@param owner gents.ProgramRecords
@@ -127,17 +150,17 @@ end
 ---@param reason "exit"|"close"|"buffer"|"shutdown"
 function M.detach(session, reason)
   local owner = sessions[session.id]
-  if not owner then
-    return
+  if owner then
+    sessions[session.id] = nil
+    if next(owner.published) then
+      send("state=clear:id=gents/" .. session.id)
+      owner.published = {}
+    end
+    remove(owner, function()
+      return true
+    end, reason)
   end
-  sessions[session.id] = nil
-  if next(owner.published) then
-    send("state=clear:id=gents/" .. session.id)
-    owner.published = {}
-  end
-  remove(owner, function()
-    return true
-  end, reason)
+  sync_self()
 end
 
 ---Choose the one status a session picker row shows: any blocked record, the
@@ -182,26 +205,39 @@ function M.setup(enabled)
         for _, owner in ipairs(owners) do
           M.detach(owner.session, "shutdown")
         end
+        -- Jobs that exit during teardown must not republish Neovim's record.
+        reporting = false
+        sync_self()
+      end,
+    })
+    vim.api.nvim_create_autocmd("UIEnter", {
+      group = group,
+      desc = "Report Neovim's idle status to a newly attached UI",
+      callback = function()
+        if self_published then
+          send(self_idle)
+        end
       end,
     })
   end
-  if enabled == reporting then
-    return
-  end
-  if not enabled then
-    for _, owner in pairs(sessions) do
-      if next(owner.published) then
-        send("state=clear:id=gents/" .. owner.session.id)
-        owner.published = {}
+  if enabled ~= reporting then
+    if not enabled then
+      for _, owner in pairs(sessions) do
+        if next(owner.published) then
+          send("state=clear:id=gents/" .. owner.session.id)
+          owner.published = {}
+        end
+      end
+    end
+    reporting = enabled
+    if enabled then
+      for _, owner in pairs(sessions) do
+        publish(owner)
       end
     end
   end
-  reporting = enabled
-  if enabled then
-    for _, owner in pairs(sessions) do
-      publish(owner)
-    end
-  end
+  -- Session attach calls setup, so this also clears the record when an agent starts.
+  sync_self()
 end
 
 ---@param session gents.Session

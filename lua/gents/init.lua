@@ -15,6 +15,25 @@ function M.setup(opts)
   local config = require("gents.config").setup(opts)
   if package.loaded["gents.terminal_status"] then
     require("gents.terminal_status").setup(config.terminal_status)
+  elseif config.terminal_status then
+    -- Neovim's idle record needs an attached UI; wait for one to keep startup lazy.
+    if #vim.api.nvim_list_uis() > 0 then
+      require("gents.terminal_status").setup(true)
+    else
+      vim.api.nvim_create_autocmd("UIEnter", {
+        group = vim.api.nvim_create_augroup("gents_terminal_status_start", { clear = true }),
+        once = true,
+        desc = "Report Neovim's idle status once a UI attaches",
+        callback = function()
+          if
+            require("gents.config").get().terminal_status
+            and not package.loaded["gents.terminal_status"]
+          then
+            require("gents.terminal_status").setup(true)
+          end
+        end,
+      })
+    end
   end
   -- Keymap support loads once keys are configured, and stays active so a later
   -- setup call can remove them again.

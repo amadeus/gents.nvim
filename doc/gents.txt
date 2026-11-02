@@ -483,7 +483,8 @@ extend_gf                                              *gents-config.extend_gf*
 terminal_status                                  *gents-config.terminal_status*
     Type: boolean. Default: false.
     Relays native OSC 7501 program-status records to a supporting host terminal.
-    The terminal application decides what to display and how. Local |GentsReady|
+    While no agent is running, Neovim also reports itself as idle. The terminal
+    application decides what to display and how. Local |GentsReady|
     and |GentsStatusChanged| events work with this option off and can trigger
     Neovim alerts through your callbacks. See
     |gents-program-status| for support requirements and lifetime.
@@ -2917,6 +2918,15 @@ native ancestor when omitted. For a root record without a native title,
 it uses the session targeting label, removing controls and omitting labels
 outside the protocol's UTF-8/192-byte limit. Host IDs differ from record_id
 in event payloads, which always holds the original native identity.
+
+The relay also reports Neovim's own status, so the host can tell an idle
+editor from an unreported pane. While no session is running, it holds an
+`idle` record with ID `nvim` and app `nvim`; starting a session clears it, and
+it returns once every session has exited or closed. Exited sessions whose
+buffers remain do not count as running. The record is published when a UI
+attaches, and Neovim shutdown or disabling reporting clears it. It is separate
+from the agent records, so clearing it leaves them intact, and it does not
+appear in |GentsStatusChanged|, |GentsReady|, or picker status glyphs.
 
 Native statuses do not depend on visibility or focus. Navigating to a session
 does not clear its records; the producer owns its updates and the terminal

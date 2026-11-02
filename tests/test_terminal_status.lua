@@ -9,8 +9,12 @@ local original_send = vim.api.nvim_ui_send
 local function set_send(callback)
   vim.api.nvim_ui_send = callback
 end
+---Agent records relayed to the host.
 ---@type string[]
 local sent
+---Bodies of Neovim's own record, kept apart so agent relay indexes stay stable.
+---@type string[]
+local own
 ---@type gents.StatusChangedEvent[]
 local changes
 ---@type gents.ReadyEvent[]
@@ -39,9 +43,14 @@ local T = test.new_set({
   hooks = {
     pre_case = function()
       H.reset()
-      sent, changes, ready = {}, {}, {}
+      sent, own, changes, ready = {}, {}, {}, {}
       set_send(function(sequence)
-        sent[#sent + 1] = sequence
+        local record = assert(protocol.parse(sequence:sub(1, -3)))
+        if record.id == "nvim" then
+          own[#own + 1] = sequence:sub(8, -3)
+        else
+          sent[#sent + 1] = sequence
+        end
       end)
       group = vim.api.nvim_create_augroup("GentsNativeStatusTest", { clear = true })
       vim.api.nvim_create_autocmd("User", {
@@ -387,6 +396,52 @@ T["buffer removal and shutdown clear owned records"] = function()
   vim.api.nvim_exec_autocmds("VimLeavePre", { modeline = false })
   eq(changes[4].reason, "shutdown")
   eq(relayed(4), { id = "gents/" .. second.id, state = "clear" })
+end
+
+T["Neovim reports its own idle record only while no agent is live"] = function()
+  local idle, clear = "state=idle:id=nvim:app=nvim", "state=clear:id=nvim"
+  setup(true)
+  eq(own, { idle })
+  setup(true)
+  vim.api.nvim_exec_autocmds("UIEnter", { modeline = false })
+  eq(own, { idle, idle })
+  local first = H.new({ cmd = { "sh", "-c", "read signal; exit 7" } })
+  eq(own[3], clear)
+  local second = H.new()
+  report(second, "state=working")
+  vim.api.nvim_exec_autocmds("UIEnter", { modeline = false })
+  vim.fn.chansend(first.job, "go\n")
+  H.wait(function()
+    return first.state == "exited"
+  end)
+  eq(#own, 3)
+  gents.close(second.id)
+  -- The exited first session keeps its buffer but is no longer a live agent.
+  eq(require("gents.session").get(first.id), first)
+  eq(own[4], idle)
+  eq(sent, { sent[1], sent[2] })
+  eq(relayed(1).state, "working")
+  eq(relayed(2), { id = "gents/" .. second.id, state = "clear" })
+  setup(false)
+  eq(own[5], clear)
+  vim.api.nvim_exec_autocmds("UIEnter", { modeline = false })
+  eq(#own, 5)
+end
+
+T["shutdown clears Neovim's record and later exits do not restore it"] = function()
+  setup(true)
+  local session = H.new({ cmd = { "sh", "-c", "read signal; exit 7" } })
+  eq(#own, 2)
+  vim.api.nvim_exec_autocmds("VimLeavePre", { modeline = false })
+  vim.fn.chansend(session.job, "go\n")
+  H.wait(function()
+    return session.state == "exited"
+  end)
+  eq(#own, 2)
+  setup(true)
+  eq(own[3], "state=idle:id=nvim:app=nvim")
+  vim.api.nvim_exec_autocmds("VimLeavePre", { modeline = false })
+  eq(own[4], "state=clear:id=nvim")
 end
 
 T["record cap evicts the least recently updated record without clearing its descendants"] = function()

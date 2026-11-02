@@ -84,6 +84,10 @@ The default is `false`; local status events and capability replies still work.
 Your event callbacks can use `vim.notify()` to display Neovim alerts independently
 of host-terminal reporting, including in GUI clients.
 
+While no agent is running, Neovim also reports itself as `idle` under the record
+ID `nvim`. The record clears when a session starts and returns once every session
+has exited or closed, so the host can still show the pane as an idle editor.
+
 Gents forwards separate records for every session and worker, preserving native
 states and supplied fields. It scopes host IDs under `gents/<session-id>` using
 bounded record IDs, resolves app inheritance, and uses the targeting label as a

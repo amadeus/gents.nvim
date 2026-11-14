@@ -23,6 +23,7 @@ local defaults = {
     done = "✓",
     error = "×",
   },
+  auto_resume = false,
   on_exit = "keep",
   tools = tools.defaults,
   prompts = {},
@@ -60,6 +61,7 @@ local function validate(config)
   assert(type(config.buflisted) == "boolean", "gents: buflisted must be a boolean")
   assert(type(config.insert_on_focus) == "boolean", "gents: insert_on_focus must be a boolean")
   assert(type(config.extend_gf) == "boolean", "gents: extend_gf must be a boolean")
+  assert(type(config.auto_resume) == "boolean", "gents: auto_resume must be a boolean")
   assert(type(config.terminal_status) == "boolean", "gents: terminal_status must be a boolean")
   assert(type(config.icons) == "table", "gents: icons must be a table")
   local icons = config.icons
@@ -101,6 +103,23 @@ local function validate(config)
     assert(
       tool.resume == nil or tool.resume == false or type(tool.resume) == "function",
       "gents: tools." .. name .. ".resume must be a function or false"
+    )
+    local resume_last = tool.resume_last
+    local valid_resume_last = resume_last == nil or resume_last == false
+    if type(resume_last) == "table" and vim.islist(resume_last) and #resume_last > 0 then
+      valid_resume_last = true
+      for _, arg in ipairs(resume_last) do
+        if type(arg) ~= "string" or arg == "" then
+          valid_resume_last = false
+          break
+        end
+      end
+    end
+    assert(
+      valid_resume_last,
+      "gents: tools."
+        .. name
+        .. ".resume_last must be a non-empty list of non-empty strings or false"
     )
     assert(
       tool.title == nil or tool.title == false or type(tool.title) == "function",

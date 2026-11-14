@@ -114,8 +114,17 @@ function M.run(opts)
   end
 
   if command == "new" then
+    ---@type gents.NewOptions
+    local launch = {}
+    -- Arguments after the tool name belong to the CLI, so flags precede it.
+    if args[1] == "--auto-resume" or args[1] == "--no-auto-resume" then
+      launch.auto_resume = table.remove(args, 1) == "--auto-resume"
+    end
     local name = table.remove(args, 1)
-    return gents.new(name, #args > 0 and { args = args } or nil)
+    if #args > 0 then
+      launch.args = args
+    end
+    return gents.new(name, next(launch) ~= nil and launch or nil)
   end
 
   if command == "hide" and args[1] == "--all" then
@@ -203,11 +212,20 @@ function M.complete(arglead, cmdline, cursorpos)
   end
 
   if command == "new" then
+    ---@type string?, string?
+    local flag, rest = remainder:match("^(%-%-%S+)%s+(.*)$")
+    if flag == "--auto-resume" or flag == "--no-auto-resume" then
+      remainder = assert(rest)
+    end
     if remainder:find("%s") then
       return {}
     end
     local tools = require("gents.tools")
-    return matching(tools.names(require("gents.config").get().tools), arglead)
+    local candidates = tools.names(require("gents.config").get().tools)
+    if not flag then
+      vim.list_extend(candidates, { "--auto-resume", "--no-auto-resume" })
+    end
+    return matching(candidates, arglead)
   end
 
   if command == "send" then

@@ -96,6 +96,7 @@ local builtins = {
   {
     name = "codex",
     cmd = { "codex" },
+    resume_last = { "resume", "--last" },
     resume = resume_flag("resume"),
     title = codex_title,
     url = "https://developers.openai.com/codex/cli",
@@ -103,6 +104,7 @@ local builtins = {
   {
     name = "opencode",
     cmd = { "opencode" },
+    resume_last = { "--continue" },
     resume = resume_flag("--session"),
     title = opencode_title,
     url = "https://opencode.ai/v2/docs",
@@ -118,12 +120,14 @@ local builtins = {
   {
     name = "aider",
     cmd = { "aider" },
+    resume_last = { "--restore-chat-history" },
     resume = aider_resume,
     url = "https://aider.chat/docs/install.html",
   },
   {
     name = "copilot",
     cmd = { "copilot", "--banner" },
+    resume_last = { "--continue" },
     resume = function(identifier)
       return { "--resume=" .. identifier }
     end,
@@ -132,6 +136,7 @@ local builtins = {
   {
     name = "crush",
     cmd = { "crush" },
+    resume_last = { "--continue" },
     resume = resume_flag("--session"),
     url = "https://github.com/charmbracelet/crush",
   },
@@ -144,6 +149,7 @@ local builtins = {
   {
     name = "gemini",
     cmd = { "gemini" },
+    resume_last = { "--resume", "latest" },
     resume = resume_flag("--resume"),
     location = gemini_location,
     url = "https://github.com/google-gemini/gemini-cli",
@@ -151,12 +157,14 @@ local builtins = {
   {
     name = "grok",
     cmd = { "grok" },
+    resume_last = { "--session", "latest" },
     resume = resume_flag("--session"),
     url = "https://github.com/superagent-ai/grok-cli",
   },
   {
     name = "omp",
     cmd = { "omp" },
+    resume_last = { "--continue" },
     resume = resume_flag("--resume"),
     title = omp_title,
     url = "https://omp.sh/",
@@ -164,17 +172,20 @@ local builtins = {
   {
     name = "pi",
     cmd = { "pi" },
+    resume_last = { "--continue" },
     resume = resume_flag("--session"),
     url = "https://pi.dev/",
   },
   {
     name = "q",
     cmd = { "q" },
+    resume_last = { "chat", "--resume" },
     url = "https://github.com/aws/amazon-q-developer-cli",
   },
   {
     name = "qwen",
     cmd = { "qwen" },
+    resume_last = { "--continue" },
     resume = resume_flag("--resume"),
     location = qwen_location,
     url = "https://github.com/QwenLM/qwen-code",
@@ -238,6 +249,28 @@ function M.command(tool, opts, cwd)
       )
       cmd[#cmd + 1] = arg
     end
+  end
+  local auto_resume, resume_last = opts.auto_resume, tool.resume_last
+  assert(
+    auto_resume == nil or type(auto_resume) == "boolean",
+    "gents: auto_resume must be a boolean"
+  )
+  if auto_resume then
+    assert(
+      opts.cmd == nil and opts.resume == nil,
+      "gents: auto_resume cannot be combined with cmd or resume"
+    )
+    assert(type(resume_last) == "table", "gents: tool does not support auto_resume: " .. tool.name)
+  elseif auto_resume == nil then
+    -- The setting applies only to launches that choose no command, arguments,
+    -- or conversation of their own.
+    auto_resume = opts.cmd == nil
+      and opts.resume == nil
+      and (type(opts.args) ~= "table" or #opts.args == 0)
+      and require("gents.config").get().auto_resume
+  end
+  if auto_resume and type(resume_last) == "table" then
+    vim.list_extend(cmd, resume_last)
   end
   if opts.args ~= nil then
     assert(

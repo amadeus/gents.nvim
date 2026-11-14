@@ -14,6 +14,7 @@
 ---@field location? fun(path: string, range?: gents.Range): string
 ---@field title? gents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
 ---@field resume? gents.ResumeArgs|false Select a saved conversation; false disables support.
+---@field resume_last? string[]|false Continue the most recent conversation in the launch directory.
 ---@field enabled? boolean
 
 ---Tool fields supplied to setup; the table key supplies the name.
@@ -24,6 +25,7 @@
 ---@field location? fun(path: string, range?: gents.Range): string
 ---@field title? gents.TitleParser|false Uses the terminal title without a parser; false disables reporting.
 ---@field resume? gents.ResumeArgs|false Select a saved conversation; false disables support.
+---@field resume_last? string[]|false Continue the most recent conversation in the launch directory.
 ---@field enabled? boolean
 
 ---Evaluated when a float opens and on VimResized.
@@ -49,6 +51,7 @@
 ---@field cmd? string[] Complete argv override; mutually exclusive with args and resume.
 ---@field args? string[]
 ---@field resume? string Saved CLI conversation selector, independent of the Gents session ID.
+---@field auto_resume? boolean Continue the most recent conversation; defaults to the auto_resume setting.
 ---@field layout? gents.Layout
 ---@field label? string
 
@@ -105,6 +108,7 @@
 ---@field picker? gents.Picker
 ---@field picker_help? boolean Show binding hints in the built-in Snacks picker; defaults to true.
 ---@field icons? gents.IconsOptions
+---@field auto_resume? boolean Continue the most recent conversation in new sessions; defaults to false.
 ---@field on_exit? "keep"|"close"
 ---@field tools? table<string, gents.ToolOverride|false>
 ---@field prompts? table<string, gents.Item[]>
@@ -120,6 +124,7 @@
 ---@field picker? gents.Picker
 ---@field picker_help boolean
 ---@field icons gents.Icons
+---@field auto_resume boolean
 ---@field on_exit "keep"|"close"
 ---@field tools table<string, gents.Tool>
 ---@field prompts table<string, gents.Item[]>

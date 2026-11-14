@@ -258,9 +258,11 @@ function M.tools(callback, opts)
   for index, item in ipairs(items) do
     local missing = vim.fn.executable(item.data.cmd[1]) == 0
     local unsupported = opts and opts.resume ~= nil and type(item.data.resume) ~= "function"
+    local no_resume_last = opts and opts.auto_resume and type(item.data.resume_last) ~= "table"
     descriptions[index] = missing and "Not installed" or ""
-    if unsupported then
-      descriptions[index] = (missing and "Not installed; " or "") .. "Resume unsupported"
+    if unsupported or no_resume_last then
+      descriptions[index] = (missing and "Not installed; " or "")
+        .. (unsupported and "Resume unsupported" or "Auto-resume unsupported")
       item.hl = "Comment"
     end
   end
@@ -276,6 +278,10 @@ function M.tools(callback, opts)
     assert(
       launch_opts.resume == nil or type(tool.resume) == "function",
       "gents: tool does not support resume: " .. tool.name
+    )
+    assert(
+      not launch_opts.auto_resume or type(tool.resume_last) == "table",
+      "gents: tool does not support auto_resume: " .. tool.name
     )
     local cmd = launch_opts.cmd or tool.cmd
     if vim.fn.executable(cmd[1]) == 0 then
@@ -320,7 +326,9 @@ function M.tools(callback, opts)
               vim.notify("gents.nvim: command must not be empty", vim.log.levels.ERROR)
               return
             end
+            -- The edited command already contains any generated arguments.
             launch_opts.cmd, launch_opts.args, launch_opts.resume = edited, nil, nil
+            launch_opts.auto_resume = nil
             launch(item, launch_opts)
           end
         )

@@ -44,7 +44,10 @@ local function launch(name, opts)
 end
 
 local adapters = {
+  { "claude", { "--continue" } },
   { "codex", { "resume", "--last" } },
+  { "amp", { "last" } },
+  { "cursor-agent", { "--continue" } },
   { "opencode", { "--continue" } },
   { "aider", { "--restore-chat-history" } },
   { "copilot", { "--continue" } },
@@ -73,11 +76,7 @@ T["built-in adapters"] = test.new_set({ parametrize = adapters }, {
 })
 
 T["tools without an adapter start fresh"] = function()
-  local cwd = vim.fn.getcwd()
   setup({ auto_resume = true })
-  for _, name in ipairs({ "claude", "amp", "cursor-agent" }) do
-    eq(tools.command(require("gents.config").get().tools[name], {}, cwd), tools.defaults[name].cmd)
-  end
   eq(launch("plain"), {})
 end
 
@@ -260,6 +259,184 @@ T["an explicit request marks and rejects unsupported tools in the picker"] = fun
     spec.actions.new(plain)
   end, "tool does not support auto_resume: plain")
   eq(gents.sessions(), {})
+end
+
+-- Exits with code 3 when asked to continue, after GENTS_TEST_DELAY seconds.
+-- A fresh start prints enough lines to become ready quickly, then echoes input.
+local flaky = {
+  "sh",
+  "-c",
+  [[
+    if [ "$1" = "--last" ]; then
+      sleep "${GENTS_TEST_DELAY:-0}"
+      exit 3
+    fi
+    printf 'fresh\n1\n2\n3\n4\n5\n'
+    exec cat
+  ]],
+  "flaky",
+}
+
+---@type string[]
+local events = {}
+
+local fallback = test.new_set({
+  hooks = {
+    pre_case = function()
+      events = {}
+      vim.api.nvim_create_autocmd("User", {
+        group = vim.api.nvim_create_augroup("GentsAutoResumeTest", { clear = true }),
+        pattern = { "GentsSessionStart", "GentsSessionExit" },
+        callback = function(ev)
+          events[#events + 1] = ev.match
+        end,
+      })
+    end,
+    post_case = function()
+      vim.api.nvim_del_augroup_by_name("GentsAutoResumeTest")
+    end,
+  },
+})
+T["fallback"] = fallback
+
+---@param delay? string Seconds before the continue attempt fails.
+---@param cmd? string[]
+local function setup_flaky(delay, cmd)
+  setup({
+    auto_resume = true,
+    tools = {
+      flaky = {
+        cmd = cmd or flaky,
+        resume_last = { "--last" },
+        env = { GENTS_TEST_DELAY = delay or "0" },
+      },
+    },
+  })
+end
+
+---@param session gents.Session
+local function wait_fresh(session)
+  H.wait(function()
+    return session.cmd[#session.cmd] ~= "--last"
+      and table.concat(vim.api.nvim_buf_get_lines(session.buf, 0, -1, false)):find("fresh") ~= nil
+  end)
+end
+
+fallback["a quick failure relaunches once without the arguments"] = function()
+  setup_flaky()
+  local win = vim.api.nvim_get_current_win()
+  local session = assert(gents.new("flaky", { layout = "current" }))
+  local first = session.buf
+  eq(session.cmd, vim.list_extend(vim.deepcopy(flaky), { "--last" }))
+  wait_fresh(session)
+  eq(session.cmd, flaky)
+  eq(session.buf ~= first, true)
+  eq(vim.api.nvim_buf_is_valid(first), false)
+  eq(gents.sessions(), { session })
+  eq(gents.current(), session)
+  eq(vim.api.nvim_win_get_buf(win), session.buf)
+  eq(vim.b[session.buf].gents_session, session.id)
+  eq(vim.bo[session.buf].filetype, "gents_terminal")
+  eq(vim.api.nvim_buf_get_name(session.buf), "gents://" .. session.id .. "/flaky")
+  eq(vim.fn.jobwait({ assert(session.job) }, 0)[1], -1)
+  eq(session.exit_code, nil)
+  eq(events, { "GentsSessionStart" })
+  gents.close(session.id)
+  H.wait(function()
+    return not vim.api.nvim_buf_is_valid(session.buf)
+  end)
+  eq(gents.sessions(), {})
+end
+
+fallback["every window showing the session follows it, even when hidden"] = function()
+  setup_flaky("0.3")
+  local shown = assert(gents.new("flaky", { layout = "current" }))
+  gents.show(shown.id, { layout = "vsplit" })
+  local wins = vim.fn.win_findbuf(shown.buf)
+  eq(#wins, 2)
+  local hidden = assert(gents.new("flaky", { layout = "split" }))
+  gents.hide(hidden.id)
+  eq(vim.fn.win_findbuf(hidden.buf), {})
+  wait_fresh(shown)
+  wait_fresh(hidden)
+  for _, win in ipairs(wins) do
+    eq(vim.api.nvim_win_get_buf(win), shown.buf)
+  end
+  eq(vim.fn.win_findbuf(hidden.buf), {})
+  eq(vim.fn.jobwait({ assert(hidden.job) }, 0)[1], -1)
+end
+
+fallback["queued sends reach the fresh start"] = function()
+  setup_flaky("0.3")
+  local editor = vim.api.nvim_get_current_win()
+  local session = assert(gents.new("flaky", { layout = "vsplit" }))
+  -- Context is sent from an editor buffer.
+  vim.api.nvim_set_current_win(editor)
+  gents.send({ { text = "queued hello" } }, { target = session.id, submit = true })
+  wait_fresh(session)
+  H.wait(function()
+    local lines = table.concat(vim.api.nvim_buf_get_lines(session.buf, 0, -1, false), "\n")
+    return select(2, lines:gsub("queued hello", "")) >= 2
+  end)
+end
+
+fallback["a second failure exits normally"] = function()
+  setup_flaky(nil, { "sh", "-c", "exit 3" })
+  local session = assert(gents.new("flaky"))
+  H.wait(function()
+    return session.state == "exited"
+  end)
+  eq(session.cmd, { "sh", "-c", "exit 3" })
+  eq(session.exit_code, 3)
+  eq(events, { "GentsSessionStart", "GentsSessionExit" })
+end
+
+fallback["successful exits, later exits, and plain launches do not relaunch"] = function()
+  setup_flaky(nil, { "sh", "-c", 'if [ "$1" = "--last" ]; then exit 0; fi; exec cat', "ok" })
+  local clean = assert(gents.new("flaky"))
+  H.wait(function()
+    return clean.state == "exited"
+  end)
+  eq(clean.cmd[#clean.cmd], "--last")
+  eq(clean.exit_code, 0)
+
+  -- Output that settles marks the session ready before it exits.
+  setup_flaky(nil, {
+    "sh",
+    "-c",
+    [[printf '1\n2\n3\n4\n5\n6\n7\n'; sleep 1; exit 3]],
+  })
+  local later = assert(gents.new("flaky"))
+  H.wait(function()
+    return later.state == "ready"
+  end)
+  H.wait(function()
+    return later.state == "exited"
+  end)
+  eq(later.cmd[#later.cmd], "--last")
+  eq(later.exit_code, 3)
+
+  setup_flaky(nil, { "sh", "-c", "exit 3" })
+  local plain = assert(gents.new("flaky", { auto_resume = false }))
+  H.wait(function()
+    return plain.state == "exited"
+  end)
+  eq(plain.exit_code, 3)
+end
+
+fallback["closing during the continue attempt does not relaunch"] = function()
+  setup_flaky("5")
+  local session = assert(gents.new("flaky"))
+  local first = session.buf
+  gents.close(session.id)
+  H.wait(function()
+    return not vim.api.nvim_buf_is_valid(first)
+  end)
+  vim.wait(200)
+  eq(gents.sessions(), {})
+  eq(session.buf, first)
+  eq(session.cmd[#session.cmd], "--last")
+  eq(events, { "GentsSessionStart", "GentsSessionExit" })
 end
 
 return T

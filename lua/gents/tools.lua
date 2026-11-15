@@ -88,6 +88,7 @@ local builtins = {
   {
     name = "claude",
     cmd = { "claude" },
+    resume_last = { "--continue" },
     resume = resume_flag("--resume"),
     title = claude_title,
     location = claude_location,
@@ -112,6 +113,7 @@ local builtins = {
   {
     name = "amp",
     cmd = { "amp" },
+    resume_last = { "last" },
     resume = function(identifier)
       return { "threads", "continue", identifier }
     end,
@@ -143,6 +145,7 @@ local builtins = {
   {
     name = "cursor-agent",
     cmd = { "cursor-agent" },
+    resume_last = { "--continue" },
     resume = resume_flag("--resume"),
     url = "https://cursor.com/docs/cli/installation",
   },
@@ -211,7 +214,8 @@ end
 ---@param tool gents.Tool
 ---@param opts gents.NewOptions
 ---@param cwd string
----@return string[]
+---@return string[] cmd
+---@return boolean resumed_last Whether the tool's resume_last arguments were added.
 function M.command(tool, opts, cwd)
   assert(opts.cmd == nil or opts.args == nil, "gents: cmd and args are mutually exclusive")
   assert(opts.cmd == nil or opts.resume == nil, "gents: cmd and resume are mutually exclusive")
@@ -269,7 +273,9 @@ function M.command(tool, opts, cwd)
       and (type(opts.args) ~= "table" or #opts.args == 0)
       and require("gents.config").get().auto_resume
   end
+  local resumed_last = false
   if auto_resume and type(resume_last) == "table" then
+    resumed_last = true
     vim.list_extend(cmd, resume_last)
   end
   if opts.args ~= nil then
@@ -282,7 +288,7 @@ function M.command(tool, opts, cwd)
       cmd[#cmd + 1] = arg
     end
   end
-  return cmd
+  return cmd, resumed_last
 end
 
 return M

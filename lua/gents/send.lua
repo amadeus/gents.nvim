@@ -102,6 +102,22 @@ function M.attach(session)
   start(session, queue)
 end
 
+---Wait for a relaunched session's new terminal to settle, keeping queued items.
+---@param session gents.Session
+function M.restart(session)
+  local queue = queues[session.id]
+  if not queue then
+    M.attach(session)
+    return
+  end
+  local now = vim.uv.hrtime()
+  queue.started, queue.changed = now, now
+  queue.tick = vim.api.nvim_buf_get_changedtick(session.buf)
+  if not queue.timer:is_active() then
+    start(session, queue)
+  end
+end
+
 ---@param session gents.Session
 ---@param text string
 ---@param submit? boolean

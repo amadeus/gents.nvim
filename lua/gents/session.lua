@@ -129,6 +129,156 @@ function M.close(session)
   return session
 end
 
+---Track a session's terminal buffer. A replaced buffer no longer owns the session.
+---@param session gents.Session
+---@param buf integer
+local function watch(session, buf)
+  vim.bo[buf].bufhidden = "hide"
+  vim.b[buf].gents_session = session.id
+  vim.api.nvim_create_autocmd("BufEnter", {
+    buffer = buf,
+    desc = "Remember when the session was last focused",
+    callback = function()
+      session.last_focus = next_focus()
+    end,
+  })
+  vim.api.nvim_create_autocmd("BufWipeout", {
+    buffer = buf,
+    once = true,
+    callback = function()
+      if session.buf ~= buf then
+        return
+      end
+      closing[session.id] = nil
+      if registry[session.id] ~= session then
+        return
+      end
+      registry[session.id] = nil
+      require("gents.terminal_status").detach(session, "buffer")
+      require("gents.send").detach(session)
+      if session.job and session.job > 0 and session.state ~= "exited" then
+        vim.fn.jobstop(session.job)
+      end
+    end,
+  })
+end
+
+---@type fun(session: gents.Session, cmd: string[])
+local relaunch
+
+---Start cmd in the current buffer, which must be the session's buffer.
+---@param session gents.Session
+---@param cmd string[]
+---@param fallback? string[] Command to relaunch with if this one fails while starting.
+---@return integer
+local function spawn(session, cmd, fallback)
+  local on_exit = require("gents.config").get().on_exit
+  return vim.fn.jobstart(cmd, {
+    term = true,
+    cwd = session.cwd,
+    clear_env = true,
+    env = environment(session.tool),
+    on_exit = function(_, code)
+      if
+        fallback
+        and code ~= 0
+        and session.state == "starting"
+        and not closing[session.id]
+        and registry[session.id] == session
+      then
+        -- A CLI with nothing to continue exits before any input; start fresh.
+        require("gents.terminal_status").detach(session, "exit")
+        vim.schedule(function()
+          relaunch(session, fallback)
+        end)
+        return
+      end
+      require("gents.send").detach(session)
+      session.state = "exited"
+      session.exit_code = code
+      require("gents.terminal_status").detach(session, "exit")
+      if closing[session.id] then
+        closing[session.id] = nil
+        -- Deleting a terminal with pending PTY writes can hang Neovim.
+        -- The exit callback runs after the job's streams have closed.
+        vim.schedule(function()
+          if vim.api.nvim_buf_is_valid(session.buf) then
+            vim.api.nvim_buf_delete(session.buf, { force = true })
+          end
+        end)
+      end
+      require("gents.events").emit("GentsSessionExit", {
+        id = session.id,
+        exit_code = code,
+      })
+      if on_exit == "close" and code == 0 then
+        vim.schedule(function()
+          M.close(session)
+        end)
+      end
+    end,
+  })
+end
+
+---Finish setting up a session's terminal after its job starts.
+---@param session gents.Session
+local function finish(session)
+  assert(session.job and session.job > 0, "gents: could not start " .. session.tool.name)
+  vim.bo[session.buf].buflisted = require("gents.config").get().buflisted
+  require("gents.buffer_names").update(session)
+  require("gents.keys").attach(session.buf)
+  vim.bo[session.buf].filetype = "gents_terminal"
+end
+
+---Replace a session's finished terminal with cmd, keeping its windows.
+---@param session gents.Session
+---@param cmd string[]
+relaunch = function(session, cmd)
+  local old = session.buf
+  if registry[session.id] ~= session or closing[session.id] then
+    -- Closed while waiting; the finished job will not report again.
+    closing[session.id] = nil
+    if vim.api.nvim_buf_is_valid(old) then
+      vim.api.nvim_buf_delete(old, { force = true })
+    end
+    return
+  end
+  local buf = vim.api.nvim_create_buf(false, true)
+  session.buf, session.cmd = buf, cmd
+  watch(session, buf)
+  local wins = vim.fn.win_findbuf(old)
+  for _, win in ipairs(wins) do
+    vim.api.nvim_win_set_buf(win, buf)
+  end
+  local focused = vim.api.nvim_get_current_buf() == buf
+  -- The old job's streams are closed, so its buffer can go before the new one
+  -- takes the session's buffer name.
+  if vim.api.nvim_buf_is_valid(old) then
+    vim.api.nvim_buf_delete(old, { force = true })
+  end
+  local ok, err = pcall(function()
+    require("gents.events").attach(session)
+    require("gents.window").attach(session)
+    local function start()
+      session.job = spawn(session, cmd)
+    end
+    if wins[1] and vim.api.nvim_win_is_valid(wins[1]) then
+      vim.api.nvim_win_call(wins[1], start)
+    else
+      vim.api.nvim_buf_call(buf, start)
+    end
+    require("gents.send").restart(session)
+    finish(session)
+    if focused and vim.api.nvim_get_current_buf() == buf then
+      vim.cmd.startinsert()
+    end
+  end)
+  if not ok then
+    M.close(session)
+    vim.notify("gents.nvim: " .. tostring(err), vim.log.levels.ERROR)
+  end
+end
+
 ---@param tool gents.Tool
 ---@param opts? gents.NewOptions
 ---@param cwd? string Working directory captured before a deferred launch.
@@ -136,10 +286,14 @@ end
 function M.new(tool, opts, cwd)
   opts = opts or {}
   cwd = cwd or vim.fn.getcwd(0)
-  local cmd = require("gents.tools").command(tool, opts, cwd)
+  local tools = require("gents.tools")
+  local cmd, resumed_last = tools.command(tool, opts, cwd)
+  ---@type string[]?
+  local fallback
+  if resumed_last then
+    fallback = tools.command(tool, vim.tbl_extend("force", opts, { auto_resume = false }), cwd)
+  end
   local label = label_for(tool, opts.label)
-  local config = require("gents.config").get()
-  local on_exit = config.on_exit
   -- Allocate in the destination so Neovim associates its window options there.
   local win = require("gents.window").open(nil, opts.layout)
   next_id = next_id + 1
@@ -156,76 +310,17 @@ function M.new(tool, opts, cwd)
     last_float = vim.api.nvim_win_get_config(win).relative ~= "",
     last_focus = next_focus(),
   }
-  vim.bo[session.buf].bufhidden = "hide"
-  vim.b[session.buf].gents_session = session.id
   registry[session.id] = session
-
-  vim.api.nvim_create_autocmd("BufEnter", {
-    buffer = session.buf,
-    desc = "Remember when the session was last focused",
-    callback = function()
-      session.last_focus = next_focus()
-    end,
-  })
-  vim.api.nvim_create_autocmd("BufWipeout", {
-    buffer = session.buf,
-    once = true,
-    callback = function()
-      closing[session.id] = nil
-      if registry[session.id] ~= session then
-        return
-      end
-      registry[session.id] = nil
-      require("gents.terminal_status").detach(session, "buffer")
-      require("gents.send").detach(session)
-      if session.job and session.job > 0 and session.state ~= "exited" then
-        vim.fn.jobstop(session.job)
-      end
-    end,
-  })
+  watch(session, session.buf)
 
   local ok, err = pcall(function()
     require("gents.events").attach(session)
     require("gents.window").attach(session)
     vim.api.nvim_win_set_buf(win, session.buf)
     session.tab = vim.api.nvim_get_current_tabpage()
-    session.job = vim.fn.jobstart(cmd, {
-      term = true,
-      cwd = cwd,
-      clear_env = true,
-      env = environment(tool),
-      on_exit = function(_, code)
-        require("gents.send").detach(session)
-        session.state = "exited"
-        session.exit_code = code
-        require("gents.terminal_status").detach(session, "exit")
-        if closing[session.id] then
-          closing[session.id] = nil
-          -- Deleting a terminal with pending PTY writes can hang Neovim.
-          -- The exit callback runs after the job's streams have closed.
-          vim.schedule(function()
-            if vim.api.nvim_buf_is_valid(session.buf) then
-              vim.api.nvim_buf_delete(session.buf, { force = true })
-            end
-          end)
-        end
-        require("gents.events").emit("GentsSessionExit", {
-          id = session.id,
-          exit_code = code,
-        })
-        if on_exit == "close" and code == 0 then
-          vim.schedule(function()
-            M.close(session)
-          end)
-        end
-      end,
-    })
-    assert(session.job > 0, "gents: could not start " .. tool.name)
+    session.job = spawn(session, cmd, fallback)
     require("gents.send").attach(session)
-    vim.bo[session.buf].buflisted = config.buflisted
-    require("gents.buffer_names").update(session)
-    require("gents.keys").attach(session.buf)
-    vim.bo[session.buf].filetype = "gents_terminal"
+    finish(session)
     vim.cmd.startinsert()
     require("gents.events").emit("GentsSessionStart", { id = session.id })
     if

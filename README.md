@@ -161,6 +161,11 @@ Adapters for [mini.pick](https://github.com/nvim-mini/mini.pick),
 [pickers and shortcuts](docs/usage.md#pickers-and-shortcuts) and
 [layouts](docs/usage.md#choose-where-sessions-open) for the details.
 
+To pick up your last conversation whenever you start a session, add `auto_resume
+= true`. Each CLI then continues its most recent conversation in the current
+directory, or starts a new one when there is none. See [continue where you left
+off](docs/usage.md#continue-where-you-left-off).
+
 ## Commands
 
 | Command                   | What it does                                                            |

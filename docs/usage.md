@@ -534,6 +534,38 @@ Custom tools can supply `resume = function(identifier, cwd)` returning an
 argument list. Set `resume = false` in a tool override to disable its inherited
 adapter. See `:help gents.ResumeArgs` for the callback contract.
 
+### Continue where you left off
+
+To pick up your last conversation whenever you start a session, turn on
+`auto_resume`:
+
+```lua
+require("gents").setup({ auto_resume = true })
+```
+
+`:Gents new claude` then launches `claude --continue`, `:Gents new codex`
+launches `codex resume --last`, and so on for every built-in tool. Each CLI
+reopens its most recent conversation in the launch directory from its own
+history; gents.nvim stores nothing. In a directory with no conversation yet,
+the session starts a new one. Claude Code, Amp, and Cursor Agent exit with an
+error in that case, so gents.nvim starts them again without the arguments, in
+the same window.
+
+Launches that bring their own command, `resume` selector, or arguments start
+exactly as before. To start fresh once, put the flag before the tool name,
+since arguments after it go to the CLI:
+
+```vim
+:Gents new --no-auto-resume claude
+```
+
+In Lua, pass `{ auto_resume = false }` to `new()`, or `{ auto_resume = true }`
+to continue while the option is off. Set `resume_last = false` in a tool
+override to always start that tool fresh. Copilot can continue a session from
+another directory, Amazon Q asks the model for a summary each time it resumes,
+and Aider restores the repository's whole chat history; see
+`:help gents-auto-resume` for each tool's arguments and these differences.
+
 ### Follow a reference under the cursor
 
 You can keep a conversation reference in notes, comments, or terminal output,

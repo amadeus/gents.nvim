@@ -192,15 +192,21 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     Same as `:Gents pick`.
 
                                                                    *:Gents-new*
-:Gents new [tool] [args...]
+:Gents new [--auto-resume | --no-auto-resume] [tool] [args...]
     With no tool, open New Session to choose a tool and start its CLI. With
     a tool name, start it directly. Extra arguments are appended to the
     configured tool command. Every invocation creates a separate session.
     An unknown tool or failed launch reports an error.
 
+    --auto-resume continues the CLI's most recent conversation for this
+    launch, and --no-auto-resume starts a new one, whatever
+    |gents-config.auto_resume| says. They must come before the tool name,
+    because arguments after it belong to the CLI. See |gents-auto-resume|.
+
     Examples: >
         :Gents new
         :Gents new claude --resume
+        :Gents new --no-auto-resume codex
 <
     CLI arguments depend on that tool. The Lua API supports arguments with
     spaces and complete argv overrides: |gents.new()|.
@@ -409,6 +415,7 @@ Complete defaults (the empty tools override preserves all built-in tools):
       picker = nil,
       picker_help = true,
       icons = { visible = "●", hidden = "○" },
+      auto_resume = false,
       on_exit = "keep",
       tools = {}, -- Built-in definitions are listed in section 4.
       prompts = {},
@@ -539,6 +546,16 @@ icons                                                      *gents-config.icons*
       icons = { visible = "+", hidden = "-", done = "ok", error = "x" },
     })
 <
+auto_resume                                          *gents-config.auto_resume*
+    Type: boolean. Default: false.
+    Continue each CLI's most recent conversation in the launch directory when
+    you start a new session, instead of starting a new conversation. Gents
+    adds the tool's resume_last arguments, such as `claude --continue`; the
+    CLI chooses and restores the conversation from its own history. Launches
+    that supply their own cmd, resume selector, or arguments start as before.
+    With nothing to continue, the session starts fresh.
+    See |gents-auto-resume|.
+
 on_exit                                                  *gents-config.on_exit*
     Type: "keep" or "close". Default: "keep".
     Controls what happens when a session's CLI quits on its own. With "keep",
@@ -737,6 +754,80 @@ actions. A custom tool can implement |gents.ResumeArgs|:
 <
 Omitted fields retain built-in callbacks. :Gents new continues to pass CLI
 arguments through unchanged; its --resume arguments are not Gents options.
+
+Continuing the last conversation ~                          *gents-auto-resume*
+
+With |gents-config.auto_resume| on, a new session picks up where you left
+off: the CLI reopens its most recent conversation in the launch directory, or
+starts a new one when there is none.
+>lua
+    require("gents").setup({ auto_resume = true })
+<
+Gents stores nothing; each CLI decides which conversation is most recent from
+its own history. Only launches that bring nothing of their own continue. A
+launch with cmd, a resume selector, or nonempty args starts as it would with
+the option off. That includes commands edited in the picker and
+|gents.resume_at_cursor()|. To decide for one launch, pass auto_resume:
+>lua
+    require("gents").new("claude", { auto_resume = false }) -- Start fresh.
+    require("gents").new("codex", { auto_resume = true }) -- Continue anyway.
+<
+The command equivalents are `:Gents new --no-auto-resume claude` and
+`:Gents new --auto-resume codex`. With auto_resume = true, args still follow
+the continue arguments. Combining it with cmd or resume, or requesting it for
+a tool without resume_last, raises an error before a window opens, and the
+picker marks such tools "Auto-resume unsupported".
+
+Built-in tools add these arguments to the configured cmd:
+
+    Tool          Arguments                Most recent conversation in
+    claude        --continue               The launch directory
+    codex         resume --last            The launch directory
+    opencode      --continue               The launch directory
+    amp           last                     The checkout, this terminal first
+    aider         --restore-chat-history   The repository's chat history
+    copilot       --continue               The launch directory, then any
+    crush         --continue               The project
+    cursor-agent  --continue               The launch directory
+    gemini        --resume latest          The launch directory
+    grok          --session latest         The repository or directory
+    omp           --continue               The directory, this terminal first
+    pi            --continue               The launch directory
+    q             chat --resume            The launch directory
+    qwen          --continue               The directory and its worktrees
+
+Most of these start a new conversation when there is nothing to continue.
+Claude Code, Amp, and Cursor Agent exit with an error instead, so Gents
+starts them again without the arguments. When a session launched with
+resume_last arguments exits with a nonzero code while it is still starting,
+it relaunches once in the same windows. The session keeps its ID, label, and
+queued sends, session.cmd becomes the new command, and the failed attempt
+emits no |GentsSessionExit|. A session that has started, exits successfully,
+or fails again exits normally.
+
+Three CLIs do more than reopen the latest conversation:
+
+    copilot   With no session in the launch directory, continues the most
+              recent session from any directory, in that session's saved
+              directory.
+    q         Asks the model to summarize the conversation whenever it
+              resumes without input, so every launch sends a request.
+    aider     Restores every earlier session in the repository's chat
+              history, not only the latest, and may summarize a long
+              history with the model.
+
+Set resume_last = false to always start a tool fresh, or supply arguments for
+another CLI. resume_last must be a nonempty list of nonempty strings, or
+false; tools without it start fresh.
+>lua
+    require("gents").setup({
+      auto_resume = true,
+      tools = {
+        copilot = { resume_last = false },
+        mycli = { cmd = { "mycli" }, resume_last = { "--continue" } },
+      },
+    })
+<
 
 Following references ~                          *gents-conversation-references*
 
@@ -2303,13 +2394,16 @@ An optional table passed to |gents.new()|:
     cmd?     string[]        Replace the complete tool argv for this launch.
     args?    string[]        Append arguments to the configured tool argv.
     resume?  string          Saved CLI conversation selector; see |gents-resume|.
+    auto_resume? boolean     Continue the most recent conversation; default:
+                             |gents-config.auto_resume|.
     layout?  gents.Layout    Placement for this launch; default: setup layout.
     label?   string          A unique, nonblank targeting label.
 
-cmd is mutually exclusive with args and resume. A cmd list must contain at
-least one string and start with a nonempty executable name. Arguments are literal;
-they are not parsed by a shell. Omitting label generates one from the tool
-name. See |gents.new()| and |gents-sessions|.
+cmd is mutually exclusive with args and resume, and auto_resume = true cannot
+be combined with cmd or resume; see |gents-auto-resume|. A cmd list must
+contain at least one string and start with a nonempty executable name.
+Arguments are literal; they are not parsed by a shell. Omitting label
+generates one from the tool name. See |gents.new()| and |gents-sessions|.
 
                                                   *gents.ResumeAtCursorOptions*
 An optional table passed to |gents.resume_at_cursor()|:
@@ -2448,6 +2542,9 @@ A resolved tool definition:
                                Normalize titles, or disable them with false.
     resume?   gents.ResumeArgs or false
                                Select saved history, or disable with false.
+    resume_last? string[] or false
+                               Continue the most recent conversation, or
+                               disable with false; see |gents-auto-resume|.
     enabled?  boolean          false hides the tool from New Session.
 
 Without a location callback, references use the default formatter. Without

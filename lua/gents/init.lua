@@ -13,6 +13,9 @@ end
 ---@param opts? gents.SetupOptions
 function M.setup(opts)
   local config = require("gents.config").setup(opts)
+  if config.rex_pane_title or package.loaded["gents.rex_pane_title"] then
+    require("gents.rex_pane_title").setup(config.rex_pane_title)
+  end
   if package.loaded["gents.terminal_status"] then
     require("gents.terminal_status").setup(config.terminal_status)
   elseif config.terminal_status then

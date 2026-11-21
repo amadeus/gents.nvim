@@ -109,12 +109,21 @@ local function environment(tool)
 end
 
 ---@param session gents.Session
+local function unregister(session)
+  registry[session.id] = nil
+  -- Removal can precede job exit, or happen before a job ever starts.
+  if package.loaded["gents.rex_pane_title"] then
+    require("gents.rex_pane_title").refresh()
+  end
+end
+
+---@param session gents.Session
 ---@return gents.Session?
 function M.close(session)
   if registry[session.id] ~= session then
     return
   end
-  registry[session.id] = nil
+  unregister(session)
   require("gents.terminal_status").detach(session, "close")
   require("gents.send").detach(session)
   local running = session.state ~= "exited" and session.job and session.job > 0
@@ -153,7 +162,7 @@ local function watch(session, buf)
       if registry[session.id] ~= session then
         return
       end
-      registry[session.id] = nil
+      unregister(session)
       require("gents.terminal_status").detach(session, "buffer")
       require("gents.send").detach(session)
       if session.job and session.job > 0 and session.state ~= "exited" then

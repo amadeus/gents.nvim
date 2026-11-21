@@ -58,6 +58,7 @@ T["defaults work without setup"] = function()
   expect(result.insert_on_focus, false)
   expect(result.extend_gf, false)
   expect(result.terminal_status, false)
+  expect(result.rex_pane_title, false)
   expect(result.prompts, {})
   expect(result.keys, {})
   expect(tools.names(result.tools), builtin_names)
@@ -254,6 +255,7 @@ T["invalid configuration fails before replacing current config"] = function()
     { { extend_gf = "true" }, "extend_gf must be a boolean" },
     { { extend_gf = 1 }, "extend_gf must be a boolean" },
     { { terminal_status = "true" }, "terminal_status must be a boolean" },
+    { { rex_pane_title = 1 }, "rex_pane_title must be a boolean" },
     { { terminal_status = 1 }, "terminal_status must be a boolean" },
     { { insert_on_focus = "true" }, "insert_on_focus must be a boolean" },
     { { insert_on_focus = 1 }, "insert_on_focus must be a boolean" },

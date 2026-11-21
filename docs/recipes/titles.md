@@ -31,6 +31,25 @@ require("gents").new("claude", { label = "review" })
 You can then use `:Gents focus review` regardless of its displayed title.
 Conversation titles are display text and are not command targets.
 
+## Show the conversation title in a Rex pane
+
+When Neovim runs inside Rex, you can show the oldest running session's
+conversation title in the pane header. Enable this in your usual setup call:
+
+```lua
+require("gents").setup({ rex_pane_title = true })
+```
+
+For example, start Claude and then Codex. The pane shows Claude's title.
+When Claude exits, the pane shows Codex's current title. When Codex exits,
+gents.nvim restores the pane label it saved before the first rename. A pane
+with a generated title can follow the foreground program again.
+
+If the oldest running session has no conversation title, Rex shows the original pane label.
+Disabling the option or quitting Neovim normally also restores the saved
+label. If you manually rename the pane before cleanup, gents.nvim keeps that
+name. Outside Rex you can leave the same option enabled.
+
 ## Built-in title handling
 
 Built-in parsers remove tool-specific wrappers so the picker can show the useful

@@ -412,6 +412,7 @@ Complete defaults (the empty tools override preserves all built-in tools):
       insert_on_focus = false,
       extend_gf = false,
       terminal_status = false,
+      rex_pane_title = false,
       picker = nil,
       picker_help = true,
       icons = { visible = "●", hidden = "○" },
@@ -495,6 +496,20 @@ terminal_status                                  *gents-config.terminal_status*
     and |GentsStatusChanged| events work with this option off and can trigger
     Neovim alerts through your callbacks. See
     |gents-program-status| for support requirements and lifetime.
+
+rex_pane_title                                    *gents-config.rex_pane_title*
+    Type: boolean. Default: false.
+    Show the oldest running session's conversation title in the Rex pane
+    hosting Neovim. Requires the rex executable and the inherited REX_SESSION
+    and REX_BLOCK environment variables. Neovim started inside another
+    Neovim's |:terminal| skips this integration. You can enable it with
+    sessions already running. See |gents-tool-titles| for CLI title detection.
+
+    When it exits or closes, the next oldest running session takes over with
+    its current title. If the oldest running session has no title or the last
+    session ends, gents.nvim restores the label it saved before the first rename.
+    Disabling the option or quitting Neovim normally also restores it.
+    The Rex label is limited to 128 characters.
 
 insert_on_focus                                  *gents-config.insert_on_focus*
     Type: boolean. Default: false.
@@ -2368,6 +2383,7 @@ Fields accepted by |gents.setup()|; all are optional:
     insert_on_focus?  boolean               false
     extend_gf?        boolean               false
     terminal_status?  boolean               false
+    rex_pane_title?   boolean               false
     picker?           gents.Picker          nil (vim.ui.select)
     picker_help?      boolean               true
     icons?            gents.IconsOptions    see |gents-config.icons|
@@ -2382,9 +2398,9 @@ See |gents-config| for validation, merging, and when each setting applies.
 
                                                                  *gents.Config*
 The resolved configuration has the same field names. layout, float, buflisted,
-insert_on_focus, extend_gf, terminal_status, picker_help, icons, on_exit,
-tools, prompts, and keys are present; picker may be nil. float is
-|gents.FloatConfig|, icons is |gents.Icons|, and tools maps names to complete
+insert_on_focus, extend_gf, terminal_status, rex_pane_title, picker_help,
+icons, on_exit, tools, prompts, and keys are present. picker may be nil.
+float is |gents.FloatConfig|, icons is |gents.Icons|, and tools maps names to
 |gents.Tool| objects. This type describes resolved values; |gents.setup()|
 does not return the configuration.
 

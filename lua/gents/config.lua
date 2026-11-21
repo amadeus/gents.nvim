@@ -9,6 +9,7 @@ local defaults = {
   insert_on_focus = false,
   extend_gf = false,
   terminal_status = false,
+  rex_pane_title = false,
   picker = nil,
   picker_help = true,
   icons = {
@@ -63,6 +64,7 @@ local function validate(config)
   assert(type(config.extend_gf) == "boolean", "gents: extend_gf must be a boolean")
   assert(type(config.auto_resume) == "boolean", "gents: auto_resume must be a boolean")
   assert(type(config.terminal_status) == "boolean", "gents: terminal_status must be a boolean")
+  assert(type(config.rex_pane_title) == "boolean", "gents: rex_pane_title must be a boolean")
   assert(type(config.icons) == "table", "gents: icons must be a table")
   local icons = config.icons
   for name, icon in pairs({

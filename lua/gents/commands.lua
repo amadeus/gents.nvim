@@ -1,7 +1,8 @@
 local M = {}
 
 ---@type gents.CommandName[]
-local subcommands = { "actions", "close", "focus", "hide", "new", "pick", "send", "toggle" }
+local subcommands =
+  { "actions", "close", "focus", "hide", "new", "pick", "rex-title", "send", "toggle" }
 
 ---@param actions_only? boolean Exclude the actions menu from its own choices.
 ---@return gents.CommandName[]
@@ -127,6 +128,13 @@ function M.run(opts)
     return gents.new(name, next(launch) ~= nil and launch or nil)
   end
 
+  if command == "rex-title" then
+    if #args == 1 and args[1] == "--reset" then
+      return gents.rex_title(false)
+    end
+    return gents.rex_title(target_from(args))
+  end
+
   if command == "hide" and args[1] == "--all" then
     assert(#args == 1, "gents: hide --all cannot be combined with a target")
     return gents.hide(nil, { all = true })
@@ -161,17 +169,23 @@ end
 
 ---@param arglead string
 ---@param remainder string
----@param visible_only? boolean
+---@param command? string
 ---@return string[]
-local function complete_target(arglead, remainder, visible_only)
+local function complete_target(arglead, remainder, command)
   ---@type string[]
   local candidates = {}
   local sessions = require("gents").sessions()
-  if visible_only then
+  if command == "rex-title" then
+    sessions = vim.tbl_filter(function(session)
+      return session.state ~= "exited"
+    end, sessions)
+  elseif command == "hide" then
     sessions = vim.tbl_filter(require("gents.window").visible, sessions)
   end
   for _, session in ipairs(sessions) do
-    candidates[#candidates + 1] = session.label
+    if command ~= "rex-title" or session.label ~= "--reset" then
+      candidates[#candidates + 1] = session.label
+    end
   end
 
   -- Neovim replaces only ArgLead, even when the completed label contains spaces.
@@ -182,7 +196,9 @@ local function complete_target(arglead, remainder, visible_only)
     for _, session in ipairs(sessions) do
       candidates[#candidates + 1] = tostring(session.id)
     end
-    if visible_only then
+    if command == "rex-title" then
+      candidates[#candidates + 1] = "--reset"
+    elseif command == "hide" then
       candidates[#candidates + 1] = "--all"
     end
   end
@@ -251,6 +267,7 @@ function M.complete(arglead, cmdline, cursorpos)
 
   if
     command == "hide"
+    or command == "rex-title"
     or command == "close"
     or command == "pick"
     or command == "focus"
@@ -259,7 +276,7 @@ function M.complete(arglead, cmdline, cursorpos)
     if command == "hide" and remainder:match("^%s*%-%-all%s") then
       return {}
     end
-    return complete_target(arglead, remainder, command == "hide")
+    return complete_target(arglead, remainder, command)
   end
 
   return {}

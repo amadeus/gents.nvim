@@ -1,7 +1,11 @@
 local M = {}
 
-local enabled = false
+local automatic = false
+local watching = false
 local busy = false
+local recheck = false
+---@type gents.Session?
+local selected
 ---@type string?, string?
 local session_id, block_id
 ---@type string?, string?, string?, string?
@@ -12,20 +16,39 @@ local desired, original, applied, attempted
 local space = [=[[ \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]]=]
 local edges = "^" .. space .. [[\+\|]] .. space .. [[\+$]]
 
+---@param session gents.Session
+---@return boolean
+local function running(session)
+  return session.state ~= "exited"
+end
+
+---@return gents.Session?
+local function title_session()
+  local sessions = require("gents.session")
+  if selected and sessions.get(selected.id) == selected and running(selected) then
+    return selected
+  end
+  selected = nil
+  if not automatic then
+    return
+  end
+  for _, session in ipairs(sessions.list()) do
+    if running(session) then
+      return session
+    end
+  end
+end
+
 ---@return string?
 local function owner_title()
-  for _, session in ipairs(require("gents.session").list()) do
-    if session.state ~= "exited" then
-      if session.title then
-        -- titles.update already cleans ASCII controls. Replace the C1 range too.
-        local title = session.title:gsub("\194[\128-\159]", " ")
-        title = vim.fn.substitute(title, edges, "", "g")
-        title = vim.fn.strcharpart(title, 0, 128)
-        title = vim.fn.substitute(title, edges, "", "g")
-        return title ~= "" and title or nil
-      end
-      break
-    end
+  local session = title_session()
+  if session and session.title then
+    -- titles.update already cleans ASCII controls. Replace the C1 range too.
+    local title = session.title:gsub("\194[\128-\159]", " ")
+    title = vim.fn.substitute(title, edges, "", "g")
+    title = vim.fn.strcharpart(title, 0, 128)
+    title = vim.fn.substitute(title, edges, "", "g")
+    return title ~= "" and title or nil
   end
 end
 
@@ -55,10 +78,16 @@ end
 
 ---@param retrying? boolean
 local function sync(retrying)
-  if not busy and not desired and not original then
+  if busy then
+    return
+  end
+  if not desired then
+    recheck = false
+  end
+  if not desired and not original then
     applied = nil
   end
-  if busy or (desired == applied and not attempted) then
+  if desired == applied and not attempted and not recheck then
     return
   end
   -- Hold the target through release, even if setup disables the integration.
@@ -73,7 +102,7 @@ local function sync(retrying)
   ---@param success boolean
   local function finish(title, success)
     busy = false
-    if desired ~= title then
+    if desired ~= title or recheck then
       sync()
     elseif not success and not title and original and not retrying then
       -- After release there may be no more title events to trigger another attempt.
@@ -86,6 +115,7 @@ local function sync(retrying)
   end
 
   local requested = desired
+  recheck = false
   busy = true
   rex({ "inspect", "-s", scope, "--json", "--", block }, function(result)
     local current = read_label(result)
@@ -102,11 +132,11 @@ local function sync(retrying)
     local title = desired
     local label = title or original
     if not label or label == current then
-      busy = false
       applied = title
       if not title then
         original = nil
       end
+      finish(title, true)
       return
     end
     original = original or current
@@ -125,38 +155,94 @@ local function sync(retrying)
 end
 
 function M.refresh()
-  desired = enabled and owner_title() or nil
+  desired = (automatic or selected) and owner_title() or nil
   sync()
+end
+
+---@return boolean
+function M.available()
+  -- A nested Neovim inherits its parent's Rex pane IDs and gets $NVIM from :terminal.
+  return (vim.env.NVIM or "") == ""
+    and (vim.env.REX_SESSION or "") ~= ""
+    and (vim.env.REX_BLOCK or "") ~= ""
+    and vim.fn.executable("rex") == 1
+end
+
+local function watch()
+  if watching then
+    return
+  end
+  local group = vim.api.nvim_create_augroup("gents_rex_pane_title", { clear = true })
+  vim.api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = { "GentsSessionStart", "GentsSessionTitle", "GentsSessionExit" },
+    callback = M.refresh,
+  })
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = group,
+    callback = function()
+      automatic, selected = false, nil
+      M.refresh()
+      -- Allow an in-flight rename, the ownership check, and restoration to finish.
+      vim.wait(1600, function()
+        return not busy
+      end, 5)
+    end,
+  })
+  watching = true
+end
+
+---@param target? integer|string|false
+---@return gents.Session?
+function M.select(target)
+  if not M.available() then
+    return
+  end
+  ---@param session? gents.Session
+  ---@return gents.Session?
+  local function choose(session)
+    -- A session can exit while the picker is open.
+    if M.available() and (not session or running(session)) then
+      selected = session
+      if session then
+        watch()
+      end
+      -- An explicit choice should see any label the user has set in Rex.
+      recheck = true
+      M.refresh()
+      return session
+    end
+  end
+  if target == false then
+    return choose(nil)
+  elseif target ~= nil then
+    assert(
+      type(target) == "number" or type(target) == "string",
+      "gents: rex_title expects a session ID, a label, or false to reset"
+    )
+    return require("gents.target").with(target, choose, nil, running)
+  end
+  local candidates = vim.tbl_filter(running, require("gents.session").list())
+  if #candidates == 1 then
+    return choose(candidates[1])
+  elseif #candidates > 1 then
+    require("gents.picker").sessions(
+      candidates,
+      choose,
+      nil,
+      { select_prompt = "Gents: Rex pane title" }
+    )
+  end
 end
 
 ---@param on boolean
 function M.setup(on)
-  -- A nested Neovim inherits its parent's Rex pane IDs and gets $NVIM from :terminal.
-  enabled = on
-    and (vim.env.NVIM or "") == ""
-    and (vim.env.REX_SESSION or "") ~= ""
-    and (vim.env.REX_BLOCK or "") ~= ""
-    and vim.fn.executable("rex") == 1
-  local group = vim.api.nvim_create_augroup("gents_rex_pane_title", { clear = true })
-  if enabled then
-    vim.api.nvim_create_autocmd("User", {
-      group = group,
-      pattern = { "GentsSessionStart", "GentsSessionTitle", "GentsSessionExit" },
-      callback = M.refresh,
-    })
+  if (automatic and not on) or (selected and not M.available()) then
+    selected = nil
   end
-  if enabled or busy or original then
-    vim.api.nvim_create_autocmd("VimLeavePre", {
-      group = group,
-      callback = function()
-        enabled = false
-        M.refresh()
-        -- Allow an in-flight rename, the ownership check, and restoration to finish.
-        vim.wait(1600, function()
-          return not busy
-        end, 5)
-      end,
-    })
+  automatic = on and M.available()
+  if automatic then
+    watch()
   end
   M.refresh()
 end

@@ -360,6 +360,7 @@ vim.keymap.set("n", "<leader>aa", "<cmd>Gents toggle<cr>", {
 | `:Gents focus [target]`                                    | Focus a session. When called from a session without a target, return to the previous window and leave the session visible. |
 | `:Gents toggle [target]`                                   | Hide visible sessions in the current tab, or summon a session when none are visible.                                       |
 | `:Gents hide [target]`                                     | Hide the selected visible session's views in the current tab and keep its CLI running.                                     |
+| `:Gents rex-title [target]`                                | Use one session's title in the Rex pane. Use `--reset` to clear the selection and follow your configuration.               |
 | `:Gents close [target]`                                    | Stop the selected CLI and delete its buffer.                                                                               |
 | `:Gents send [provider...] [--no-focus] [--target target]` | Choose context, or send the named providers or saved prompts.                                                              |
 

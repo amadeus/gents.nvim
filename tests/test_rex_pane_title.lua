@@ -75,7 +75,9 @@ local T = test.new_set({
     end,
     post_case = function()
       setup(false)
-      vim.api.nvim_exec_autocmds("VimLeavePre", { group = "gents_rex_pane_title" })
+      if vim.fn.exists("#gents_rex_pane_title#VimLeavePre") == 1 then
+        vim.api.nvim_exec_autocmds("VimLeavePre", { group = "gents_rex_pane_title" })
+      end
       H.reset()
       vim.env.PATH, vim.env.REX_SESSION, vim.env.REX_BLOCK = path, session_id, block_id
       vim.env.NVIM = parent_nvim
@@ -100,6 +102,186 @@ T["oldest live session owns the pane even while hidden or untitled"] = function(
   gents.close(second.id)
   wait_label("Editor")
   eq(lines("writes"), { "Fix", "Review tests", "Editor" })
+end
+
+T["manual selection follows the chosen session until reset or exit"] = function()
+  setup(true)
+  local first, second = H.new(), H.new({ label = "code review" })
+  update(first, "Fix")
+  update(second, "Review")
+  wait_label("Fix")
+  gents.focus(first.id)
+  vim.cmd("Gents actions rex-title code review")
+  wait_label("Review")
+  eq(gents.current(), first)
+  update(first, "Latest fix")
+  update(second, second.cwd)
+  wait_label("Editor")
+  update(second, "Review tests")
+  wait_label("Review tests")
+  vim.cmd("Gents rex-title --reset")
+  wait_label("Latest fix")
+  eq(gents.rex_title(second.id), second)
+  wait_label("Review tests")
+  vim.fn.jobstop(second.job)
+  wait_label("Latest fix")
+  eq(gents.rex_title(second.id), nil)
+  gents.close(first.id)
+  wait_label("Editor")
+end
+
+T["explicit selection reclaims a manually renamed pane and restores the latest label"] = function()
+  setup(true)
+  local first = H.new()
+  update(first, "Review")
+  wait_label("Review")
+  external("Build")
+  vim.cmd("Gents rex-title " .. first.id)
+  wait_label("Review")
+  external("Tests")
+  vim.cmd("Gents rex-title --reset")
+  wait_label("Review")
+  gents.close(first.id)
+  wait_label("Tests")
+  eq(lines("writes"), { "Review", "Review", "Review", "Tests" })
+end
+
+T["only the exact --reset argument resets Rex title selection"] = function()
+  setup(true)
+  local first, second = H.new({ label = "--reset" }), H.new({ label = "--reset review" })
+  update(first, "First")
+  update(second, "Second")
+  wait_label("First")
+  local prefix = "Gents rex-title "
+  local complete = require("gents.commands").complete
+  local line = prefix .. "--reset"
+  eq(complete("--reset", line, #line), { "--reset review", "--reset" })
+  line = line .. " rev"
+  eq(complete("rev", line, #line), { "review" })
+  vim.cmd(prefix .. "--reset review")
+  wait_label("Second")
+  vim.cmd(prefix .. "--reset")
+  wait_label("First")
+end
+
+T["Rex title picker selects from running sessions and tolerates a stale choice"] = function()
+  setup(true)
+  local first, second, exited = H.new(), H.new(), H.new()
+  vim.fn.jobstop(exited.job)
+  H.wait(function()
+    return exited.state == "exited"
+  end)
+  update(first, "First")
+  update(second, "Second")
+  wait_label("First")
+  gents.focus(first.id)
+  ---@type gents.PickerSpec<gents.Session>?
+  local picker
+  require("gents.config").get().picker = function(spec)
+    picker = spec
+  end
+  vim.cmd("Gents rex-title")
+  local spec = assert(picker)
+  eq(spec.title, "Gents: Rex pane title")
+  eq(#spec.items, 2)
+  eq(vim.tbl_keys(spec.actions), { "select" })
+  local item = spec.items[1].data == second and spec.items[1] or spec.items[2]
+  eq(item.data, second)
+  spec.actions[spec.default](item)
+  wait_label("Second")
+  eq(gents.current(), first)
+  vim.cmd("Gents rex-title")
+  spec = assert(picker)
+  vim.fn.jobstop(second.job)
+  wait_label("First")
+  spec.actions[spec.default](item)
+  update(first, "Still first")
+  wait_label("Still first")
+end
+
+T["rex_title rejects a predicate before evaluating it or opening a picker"] = function()
+  setup(true)
+  H.new()
+  H.new()
+  gents.hide(nil, { all = true })
+  require("gents.config").get().picker = function()
+    error("unexpected picker")
+  end
+  local evaluated = false
+  local function predicate()
+    evaluated = true
+    return true
+  end
+  test.expect.error(function()
+    ---@diagnostic disable-next-line: param-type-mismatch
+    gents.rex_title(predicate)
+  end, "rex_title expects a session ID, a label, or false to reset")
+  eq(evaluated, false)
+end
+
+T["turning off automatic titles restores the label and forgets the override"] = function()
+  setup(true)
+  local first, second = H.new(), H.new()
+  update(first, "First")
+  update(second, "Second")
+  vim.cmd("Gents rex-title " .. second.id)
+  wait_label("Second")
+  setup(false)
+  wait_label("Editor")
+  setup(true)
+  wait_label("First")
+end
+
+T["manual opt-in follows one session until it ends"] = test.new_set({
+  parametrize = { { "exit" }, { "close" }, { "reset" } },
+}, {
+  ---@param ending string
+  ["restores the pane and leaves other sessions alone"] = function(ending)
+    setup(false)
+    local first, second = H.new(), H.new({ label = "review" })
+    update(first, "First")
+    update(second, "Second")
+    eq(lines("calls"), {})
+    vim.cmd("Gents rex-title review")
+    wait_label("Second")
+    update(second, "Second update")
+    wait_label("Second update")
+    if ending == "exit" then
+      vim.fn.jobstop(second.job)
+    elseif ending == "close" then
+      gents.close(second.id)
+    else
+      vim.cmd("Gents rex-title --reset")
+    end
+    wait_label("Editor")
+    local calls = lines("calls")
+    update(first, "First update")
+    update(H.new(), "Third")
+    eq(lines("calls"), calls)
+    eq(lines("writes"), { "Second", "Second update", "Editor" })
+    eq(gents.rex_title(first.id), first)
+    wait_label("First update")
+  end,
+})
+
+T["the actions picker offers a session opt-in with automatic titles off"] = function()
+  setup(false)
+  local session = H.new()
+  update(session, "Planning")
+  ---@type gents.PickerSpec<gents.CommandName>?
+  local actions
+  require("gents.config").get().picker = function(spec)
+    actions = spec
+  end
+  vim.cmd("Gents actions")
+  local spec = assert(actions)
+  local item = spec.items[#spec.items]
+  eq(item.data, "rex-title")
+  eq(lines("calls"), {})
+  spec.actions[spec.default](item)
+  wait_label("Planning")
+  vim.api.nvim_exec_autocmds("VimLeavePre", { group = "gents_rex_pane_title" })
+  wait_label("Editor")
 end
 
 T["wiping an owner hands off to an untitled session and takes a fresh snapshot later"] = function()
@@ -244,10 +426,13 @@ T["both inherited IDs and a Rex executable are required"] = function()
   update(owner, "Ready")
   vim.env.REX_SESSION = nil
   setup(true)
+  eq(gents.rex_title(owner.id), nil)
   vim.env.REX_SESSION, vim.env.REX_BLOCK = "test-session", ""
   setup(true)
+  eq(gents.rex_title(owner.id), nil)
   vim.env.REX_BLOCK, vim.env.PATH = "test-block", dir .. "/missing"
   setup(true)
+  eq(gents.rex_title(owner.id), nil)
   vim.env.PATH = dir .. ":" .. assert(path)
   update(owner, "Renamed")
   eq(lines("calls"), {})
@@ -258,9 +443,9 @@ T["a nested Neovim leaves the enclosing Rex pane alone"] = function()
   setup(true)
   local session = H.new()
   update(session, "Nested conversation")
+  eq(gents.rex_title(session.id), nil)
   gents.close(session.id)
   setup(false)
-  vim.api.nvim_exec_autocmds("VimLeavePre", { group = "gents_rex_pane_title" })
   eq(lines("calls"), {})
 end
 

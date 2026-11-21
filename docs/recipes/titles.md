@@ -33,8 +33,12 @@ Conversation titles are display text and are not command targets.
 
 ## Show the conversation title in a Rex pane
 
-When Neovim runs inside Rex, you can show the oldest running session's
-conversation title in the pane header. Enable this in your usual setup call:
+Inside Rex, run `:Gents rex-title` to choose a running session, or pass its
+label directly, for example `:Gents rex-title codex`. With the default setup,
+the pane follows that session until it ends, then restores its previous
+label. Use `:Gents rex-title --reset` to stop tracking it early.
+
+To follow the oldest running session automatically, enable this in your usual setup call:
 
 ```lua
 require("gents").setup({ rex_pane_title = true })
@@ -49,6 +53,10 @@ If the oldest running session has no conversation title, Rex shows the original 
 Disabling the option or quitting Neovim normally also restores the saved
 label. If you manually rename the pane before cleanup, gents.nvim keeps that
 name. Outside Rex you can leave the same option enabled.
+
+With automatic tracking enabled, `:Gents rex-title codex` still lets you
+choose Codex while Claude is running. When Codex exits or you run
+`:Gents rex-title --reset`, the pane follows Claude again.
 
 ## Built-in title handling
 

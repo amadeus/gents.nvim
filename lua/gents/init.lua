@@ -122,6 +122,13 @@ function M.provider(name, spec)
   require("gents.providers").register(name, spec)
 end
 
+---Choose the session whose conversation title appears in the Rex pane, or pass false to reset.
+---@param target? integer|string|false
+---@return gents.Session?
+function M.rex_title(target)
+  return require("gents.rex_pane_title").select(target)
+end
+
 ---@param target? gents.Target
 ---@param opts? gents.ShowOptions
 ---@return gents.Session?

@@ -25,7 +25,11 @@ end
 local original
 ---@type { [1]: string, [2]: (gents.Target|gents.NewOptions|gents.HideOptions|gents.SendOptions|gents.Item[])[] }[]
 local calls
-local methods = commands.names()
+---@type string[]
+local methods = {}
+for _, name in ipairs(commands.names()) do
+  methods[#methods + 1] = name == "rex-title" and "rex_title" or name
+end
 local dispatch = test.new_set({
   hooks = {
     pre_case = function()
@@ -299,13 +303,18 @@ end
 T["completion covers only supported subcommands"] = function()
   expect(
     complete("Gents "),
-    { "actions", "close", "focus", "hide", "new", "pick", "send", "toggle" }
+    { "actions", "close", "focus", "hide", "new", "pick", "rex-title", "send", "toggle" }
   )
+  expect(complete("Gents rex-title --"), { "--reset" })
+  expect(complete("Gents actions rex-title --reset "), {})
   expect(complete("Gents a"), { "actions" })
   expect(complete("Gents f"), { "focus" })
   expect(complete("Gents focus "), {})
   expect(complete("Gents n"), { "new" })
-  expect(complete("Gents actions "), { "close", "focus", "hide", "new", "pick", "send", "toggle" })
+  expect(
+    complete("Gents actions "),
+    { "close", "focus", "hide", "new", "pick", "rex-title", "send", "toggle" }
+  )
   expect(complete("Gents actions f"), { "focus" })
   expect(complete("Gents actions a"), {})
   expect(complete("Gents actions actions "), {})
@@ -316,9 +325,15 @@ end
 
 T["command names are returned independently"] = function()
   local names = commands.names()
-  expect(names, { "actions", "close", "focus", "hide", "new", "pick", "send", "toggle" })
+  expect(
+    names,
+    { "actions", "close", "focus", "hide", "new", "pick", "rex-title", "send", "toggle" }
+  )
   table.remove(names, 1)
-  expect(commands.names(), { "actions", "close", "focus", "hide", "new", "pick", "send", "toggle" })
+  expect(
+    commands.names(),
+    { "actions", "close", "focus", "hide", "new", "pick", "rex-title", "send", "toggle" }
+  )
 end
 
 T["send completes providers and prompts at every item position"] = function()

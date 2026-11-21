@@ -20,6 +20,7 @@ local actions = {
   hide = true,
   close = true,
   send = true,
+  ["rex-title"] = true,
 }
 ---@type table<gents.KeyMode, boolean>
 local allowed_modes = { n = true, i = true, x = true, s = true, v = true, t = true }
@@ -58,7 +59,7 @@ function M.validate(entries)
     assert(
       type(key[2]) == "function" or (type(key[2]) == "string" and actions[key[2]]),
       prefix
-        .. " action must be actions, new, toggle, pick, focus, hide, close, send, or a function"
+        .. " action must be actions, new, toggle, pick, focus, hide, close, send, rex-title, or a function"
     )
     assert(
       key.mode == nil
@@ -96,6 +97,8 @@ local function callback(action)
   return function()
     if type(action) == "function" then
       action()
+    elseif action == "rex-title" then
+      require("gents").rex_title()
     else
       require("gents")[action]()
     end

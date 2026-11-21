@@ -208,7 +208,7 @@
 
 ---@alias gents.Part { text: string }|{ path: string, range?: gents.Range }|{ code: string, ft?: string }
 ---@alias gents.Item string|gents.Part|{ any: gents.Item[] }|fun(ctx: gents.Context): gents.Part[]|nil
----@alias gents.CommandName "actions"|"close"|"focus"|"hide"|"new"|"pick"|"send"|"toggle"
+---@alias gents.CommandName "actions"|"close"|"focus"|"hide"|"new"|"pick"|"rex-title"|"send"|"toggle"
 ---@alias gents.KeyAction gents.CommandName
 ---@alias gents.KeyMode "n"|"i"|"x"|"s"|"v"|"t"
 

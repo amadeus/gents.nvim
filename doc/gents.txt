@@ -279,6 +279,21 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
     `on_exit = "keep"`. To keep the CLI running, use |:Gents-hide|. To keep
     its final output after quitting inside the CLI, see |gents-on-exit|.
 
+                                                             *:Gents-rex-title*
+:Gents rex-title [target]
+    Choose which running session supplies the conversation title for the Rex
+    pane. With several running sessions, omitting the target opens a picker.
+    You can also supply a session ID or label. The session you choose keeps
+    supplying the title until it exits or closes. If you rename the pane in
+    Rex, selecting the session again reapplies its conversation title and
+    saves your new pane label for restoration.
+
+:Gents rex-title --reset
+    Clear the selection early. With |gents-config.rex_pane_title| on, the
+    oldest running session takes over. With it off, gents.nvim restores the
+    pane label and stops tracking. The same rules apply when the chosen
+    session ends. See |gents.rex_title()|.
+
                                                                   *:Gents-send*
 :[range]Gents send [name...] [--no-focus] [--target target]
     Choose context to send, or provide one or more provider/prompt names.
@@ -316,8 +331,8 @@ Lua functions; see |gents-api|. Names and examples are case-sensitive.
         :Gents actions new claude --resume
         :Gents actions send file --no-focus --target claude #2
 <
-    `actions` accepts new, pick, focus, toggle, hide, close, and send. It does
-    not nest another actions menu. Ranges apply to send; see below.
+    `actions` accepts new, pick, focus, toggle, hide, close, send, and rex-title.
+    Ranges apply to send.
 
 Choosing a session ~                                            *gents-targets*
 
@@ -505,9 +520,11 @@ rex_pane_title                                    *gents-config.rex_pane_title*
     Neovim's |:terminal| skips this integration. You can enable it with
     sessions already running. See |gents-tool-titles| for CLI title detection.
 
-    When it exits or closes, the next oldest running session takes over with
-    its current title. If the oldest running session has no title or the last
-    session ends, gents.nvim restores the label it saved before the first rename.
+    With this option off, |:Gents-rex-title| opts in one running session.
+    With it on, the command overrides oldest-first selection until the
+    chosen session ends or you clear the selection.
+    If the session has no title or tracking ends, gents.nvim restores the
+    label it saved before the first rename.
     Disabling the option or quitting Neovim normally also restores it.
     The Rex label is limited to 128 characters.
 
@@ -1271,7 +1288,8 @@ zero-argument callback, with an optional mode:
       },
     })
 <
-Named actions are actions, new, toggle, pick, focus, hide, close, and send.
+Named actions are actions, new, toggle, pick, focus, hide, close, send, and
+rex-title.
 Each calls the matching require("gents") function without arguments.
 Use a callback for a specific tool, target, or send payload. The callback
 receives no arguments and its return value is ignored.
@@ -1325,6 +1343,7 @@ Actions (`Gents: Actions`):
     Inside a running session: focus, hide, toggle, close, pick, send, new.
     Otherwise, while any session is running: send, toggle, focus, pick,
     hide, close, new.
+    In a supported Rex pane with a running session, rex-title is available.
 
     Each command has a short description. The default action `run` invokes
     the selected command. Retained exited sessions count as sessions for
@@ -1374,6 +1393,10 @@ Sessions (`Gents: Sessions`):
     The `hide` action hides views in the tab where the picker opened; a
     session with no view there is a no-op. `close` stops the CLI and removes
     the session. See |gents-sessions| and |gents-on-exit|.
+
+Rex pane title (`Gents: Rex pane title`):
+    Shows running sessions. The only action, `select`, uses the chosen
+    session's title for the pane. See |:Gents-rex-title|.
 
 Send Context (`Gents: Send Context`):
     Saved prompts appear alphabetically, followed by the built-in providers
@@ -2098,13 +2121,13 @@ chooses synchronously. Cancelling a picker does nothing. Actions that resolve
 a target immediately return the affected session where specified. A send's
 return value confirms queuing, not completion of the paste or an agent reply.
 
-The target-taking methods use |gents.Target|: numeric ID, exact label string,
-or predicate function. Numeric strings are labels in Lua. Omission selects the
-current session, then the sole session, then opens a session picker. A
-predicate first narrows those candidates. Explicit unmatched targets and
-unsupported target types raise errors. The no-session exceptions are listed
-per function. Errors from user callbacks and Neovim operations can
-also propagate.
+Except for |gents.rex_title()|, the target-taking methods use |gents.Target|:
+numeric ID, exact label string, or predicate function. Numeric strings are
+labels in Lua. Omission selects the current session, then the sole session,
+then opens a session picker. A predicate first narrows those candidates.
+Explicit unmatched targets and unsupported target types raise errors. The
+no-session exceptions are listed per function. Errors from user callbacks
+and Neovim operations can also propagate.
 
                                                                 *gents.setup()*
 setup({opts}?) -> nil
@@ -2227,6 +2250,13 @@ provider({name}, {spec}) -> nil
       end,
     })
 <
+                                                            *gents.rex_title()*
+rex_title({target}?) -> gents.Session?
+    Pass a running session's integer ID or string label to use its title for
+    the Rex pane. Omit the target to select from the running sessions. Pass
+    false to clear the selection and follow |gents-config.rex_pane_title|.
+    Returns the session on direct selection, otherwise nil. See |:Gents-rex-title|.
+
                                                                  *gents.show()*
 show({target}?, {opts}?) -> gents.Session?
     {target}: |gents.Target|; {opts}: |gents.ShowOptions|. Show and focus
@@ -2658,7 +2688,8 @@ Resolved icons with every field present.
 Keymaps ~
 
                                                             *gents.CommandName*
-"actions", "new", "pick", "focus", "toggle", "hide", "close", or "send".
+"actions", "new", "pick", "focus", "toggle", "hide", "close", "send", or
+"rex-title".
 
                                                               *gents.KeyAction*
 A named mapping action. Same values as |gents.CommandName|.

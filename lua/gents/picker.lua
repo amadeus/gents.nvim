@@ -183,10 +183,17 @@ local function contextual_commands()
     return { "new", "send" }
   end
   local current = registry.current()
+  ---@type gents.CommandName[]
+  local commands
   if current and current.state ~= "exited" then
-    return { "focus", "hide", "toggle", "close", "pick", "send", "new" }
+    commands = { "focus", "hide", "toggle", "close", "pick", "send", "new" }
+  else
+    commands = { "send", "toggle", "focus", "pick", "hide", "close", "new" }
   end
-  return { "send", "toggle", "focus", "pick", "hide", "close", "new" }
+  if require("gents.rex_pane_title").available() then
+    commands[#commands + 1] = "rex-title"
+  end
+  return commands
 end
 
 ---@param callback fun(command: gents.CommandName)
@@ -201,6 +208,7 @@ function M.commands(callback)
     hide = "Hide a session without killing it",
     new = "Start a new session",
     pick = "Existing session picker",
+    ["rex-title"] = "Choose the session for the Rex pane title",
     send = "Pick context to send to a session",
     toggle = "Show or hide a session",
   }
@@ -424,6 +432,7 @@ local function chunk_text(chunks)
 end
 
 ---@class gents.SessionPickerOptions
+---@field select_prompt? string Open a selection-only picker with this prompt.
 ---@field current_last? boolean List the session under the cursor last, for switching away from it.
 
 ---Sessions appear most recently focused first.
@@ -510,34 +519,34 @@ function M.sessions(candidates, callback, on_place, opts)
     end
   end
 
+  local prompt = opts and opts.select_prompt
+  local default = prompt and "select" or "show"
   ---@type gents.PickerSpec<gents.Session>
   local spec = {
-    title = "Gents: Sessions",
+    title = prompt or "Gents: Sessions",
     items = items,
-    default = "show",
+    default = default,
     actions = {
-      ---@param item gents.PickerItem<gents.Session>
-      show = function(item)
+      [default] = function(item)
         select(item, callback)
-      end,
-      ---@param item gents.PickerItem<gents.Session>
-      hide = function(item)
-        select(item, function(session)
-          window.hide(session, tab)
-        end)
-      end,
-      ---@param item gents.PickerItem<gents.Session>
-      close = function(item)
-        select(item, require("gents.session").close)
       end,
     },
   }
-  for _, layout in ipairs({ "vsplit", "split", "tabnew", "float", "current" }) do
-    ---@param item gents.PickerItem<gents.Session>
-    spec.actions[layout] = function(item)
+  if not prompt then
+    spec.actions.hide = function(item)
       select(item, function(session)
-        (on_place or window.show)(session, layout)
+        window.hide(session, tab)
       end)
+    end
+    spec.actions.close = function(item)
+      select(item, require("gents.session").close)
+    end
+    for _, layout in ipairs({ "vsplit", "split", "tabnew", "float", "current" }) do
+      spec.actions[layout] = function(item)
+        select(item, function(session)
+          (on_place or window.show)(session, layout)
+        end)
+      end
     end
   end
 

@@ -12,7 +12,7 @@ local path, session_id, block_id, parent_nvim
 -- applying a rename so a test can switch owners while the command is running.
 local fake = [=[#!/bin/sh
 cd "${0%/*}" || exit 1
-[ "$1 $2 $4 $5" = "--autostart=false block -s test-session" ] || exit 2
+[ "$1 $2" = "--autostart=false block" ] || exit 2
 echo "$3" >> calls
 if [ -f "$3-once" ]; then
   mv "$3-once" "$3-failed"
@@ -20,16 +20,16 @@ if [ -f "$3-once" ]; then
 fi
 case "$3" in
   inspect)
-    [ "$6 $7 $8" = "--json -- test-block" ] || exit 2
+    [ "$4 $5 $6" = "--json -- test-block" ] && [ "$#" -eq 6 ] || exit 2
     [ ! -f fail ] || { touch failed; exit 1; }
     cat label.json ;;
   rename)
-    [ "$6 $7" = "-- test-block" ] && [ "$#" -eq 8 ] || exit 2
-    printf '%s\n' "$8" >> writes
+    [ "$4 $5" = "-- test-block" ] && [ "$#" -eq 6 ] || exit 2
+    printf '%s\n' "$6" >> writes
     [ ! -f delay ] || sleep 0.1
     [ ! -f reject ] || { touch rejected; exit 1; }
     # Test labels can include shell syntax but never JSON quotes or backslashes.
-    printf '{"block":{"label":"%s"}}\n' "$8" > label.tmp
+    printf '{"block":{"label":"%s"}}\n' "$6" > label.tmp
     mv label.tmp label.json ;;
 esac]=]
 
@@ -70,7 +70,7 @@ local T = test.new_set({
       parent_nvim = vim.env.NVIM
       vim.env.NVIM = nil
       vim.env.PATH = dir .. ":" .. assert(path)
-      vim.env.REX_SESSION, vim.env.REX_BLOCK = "test-session", "test-block"
+      vim.env.REX_SESSION, vim.env.REX_BLOCK = nil, "test-block"
       external("Editor")
     end,
     post_case = function()
@@ -421,13 +421,10 @@ T["shutdown retries a failed restoration check only once"] = function()
   vim.fn.delete(dir .. "/fail")
 end
 
-T["both inherited IDs and a Rex executable are required"] = function()
+T["an inherited block ID and a Rex executable are required"] = function()
   local owner = H.new()
   update(owner, "Ready")
-  vim.env.REX_SESSION = nil
-  setup(true)
-  eq(gents.rex_title(owner.id), nil)
-  vim.env.REX_SESSION, vim.env.REX_BLOCK = "test-session", ""
+  vim.env.REX_BLOCK = ""
   setup(true)
   eq(gents.rex_title(owner.id), nil)
   vim.env.REX_BLOCK, vim.env.PATH = "test-block", dir .. "/missing"

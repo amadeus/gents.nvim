@@ -515,8 +515,8 @@ terminal_status                                  *gents-config.terminal_status*
 rex_pane_title                                    *gents-config.rex_pane_title*
     Type: boolean. Default: false.
     Show the oldest running session's conversation title in the Rex pane
-    hosting Neovim. Requires the rex executable and the inherited REX_SESSION
-    and REX_BLOCK environment variables. Neovim started inside another
+    hosting Neovim. Requires the rex executable and a nonempty REX_BLOCK
+    environment variable. Neovim started inside another
     Neovim's |:terminal| skips this integration. You can enable it with
     sessions already running. See |gents-tool-titles| for CLI title detection.
 

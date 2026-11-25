@@ -6,8 +6,8 @@ local busy = false
 local recheck = false
 ---@type gents.Session?
 local selected
----@type string?, string?
-local session_id, block_id
+---@type string?
+local block_id
 ---@type string?, string?, string?, string?
 local desired, original, applied, attempted
 
@@ -92,12 +92,12 @@ local function sync(retrying)
   end
   -- Hold the target through release, even if setup disables the integration.
   if not original then
-    session_id, block_id = vim.env.REX_SESSION, vim.env.REX_BLOCK
+    block_id = vim.env.REX_BLOCK
   end
-  if not session_id or session_id == "" or not block_id or block_id == "" then
+  if not block_id or block_id == "" then
     return
   end
-  local scope, block = session_id, block_id
+  local block = block_id
   ---@param title? string
   ---@param success boolean
   local function finish(title, success)
@@ -117,7 +117,7 @@ local function sync(retrying)
   local requested = desired
   recheck = false
   busy = true
-  rex({ "inspect", "-s", scope, "--json", "--", block }, function(result)
+  rex({ "inspect", "--json", "--", block }, function(result)
     local current = read_label(result)
     if not current then
       finish(requested, false)
@@ -141,7 +141,7 @@ local function sync(retrying)
     end
     original = original or current
     attempted = label
-    rex({ "rename", "-s", scope, "--", block, label }, function(write)
+    rex({ "rename", "--", block, label }, function(write)
       local success = write ~= nil and write.code == 0 and write.signal == 0
       if success then
         applied, attempted = title, nil
@@ -161,9 +161,8 @@ end
 
 ---@return boolean
 function M.available()
-  -- A nested Neovim inherits its parent's Rex pane IDs and gets $NVIM from :terminal.
+  -- A nested Neovim inherits its parent's Rex block ID and gets $NVIM from :terminal.
   return (vim.env.NVIM or "") == ""
-    and (vim.env.REX_SESSION or "") ~= ""
     and (vim.env.REX_BLOCK or "") ~= ""
     and vim.fn.executable("rex") == 1
 end
